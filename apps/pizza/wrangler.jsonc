@@ -3,14 +3,26 @@
   "main": "./workers/app.ts",
   "compatibility_date": "2025-06-01",
   "compatibility_flags": ["nodejs_compat"],
-  // Create the database first:
-  //   wrangler d1 create schedule-pizza-db
-  // Then paste the database_id below.
+  // Created by Terraform in apps/pizza/iac.
+  // Copy the dev value from: terraform output -json d1_database_ids
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "schedule-pizza-db",
-      "database_id": "REPLACE_WITH_DATABASE_ID"
+      "database_name": "schedule-pizza-dev",
+      "database_id": "REPLACE_WITH_DEV_DATABASE_ID"
     }
-  ]
+  ],
+  "env": {
+    "production": {
+      // Created by Terraform in apps/pizza/iac.
+      // Copy the prod value from: terraform output -json d1_database_ids
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "schedule-pizza-prod",
+          "database_id": "REPLACE_WITH_PROD_DATABASE_ID"
+        }
+      ]
+    }
+  }
 }
