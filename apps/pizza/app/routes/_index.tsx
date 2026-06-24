@@ -5,6 +5,17 @@ export function meta() {
       name: "description",
       content: "The easiest way to find some time. Designed for agents, built for humans.",
     },
+    { property: "og:title", content: "schedule.pizza" },
+    {
+      property: "og:description",
+      content: "The easiest way to find some time. Designed for agents, built for humans.",
+    },
+    { property: "og:url", content: "https://schedule.pizza" },
+    { name: "twitter:title", content: "schedule.pizza" },
+    {
+      name: "twitter:description",
+      content: "The easiest way to find some time. Designed for agents, built for humans.",
+    },
   ];
 }
 
