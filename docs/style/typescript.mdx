@@ -1,0 +1,184 @@
+---
+title: "TypeScript Style"
+description: "Type safety, linting, and review rules for schedule.pizza TypeScript"
+---
+
+# TypeScript Style
+
+TypeScript is useful only when the compiler is allowed to say no. This repo keeps strict compiler
+flags on and treats lint warnings as failures.
+
+## Quality Gate
+
+Run the full gate before handing off TypeScript changes:
+
+```bash
+pnpm check
+```
+
+For tighter loops, run the smallest command that covers the change:
+
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
+Database schema changes must also pass:
+
+```bash
+pnpm --filter @schedule.pizza/web db check
+```
+
+## Compiler Strictness
+
+These flags are intentional and should not be removed to make code compile:
+
+| Setting | Why it exists |
+| --- | --- |
+| `strict` | Enables the baseline strict type checks. |
+| `verbatimModuleSyntax` | Forces explicit `import type` and keeps emitted imports predictable. |
+| `isolatedModules` | Ensures every file can be compiled independently by Vite and React Router. |
+| `noUncheckedIndexedAccess` | Makes indexed access return `T | undefined` so bounds checks are explicit. |
+| `exactOptionalPropertyTypes` | Keeps omitted properties distinct from properties set to `undefined`. |
+| `noPropertyAccessFromIndexSignature` | Makes dynamic object access visually distinct with bracket notation. |
+| `noImplicitReturns` | Forces every function path to return deliberately. |
+| `noFallthroughCasesInSwitch` | Prevents accidental switch fallthrough. |
+
+`noUncheckedIndexedAccess` is especially important:
+
+```ts
+const users = ["alice", "bob"];
+const first = users[0];
+
+if (first === undefined) {
+  throw new Error("expected at least one user");
+}
+
+first.toUpperCase();
+```
+
+## Types
+
+Prefer `type` over `interface` for application code. Interfaces are open and can be merged by
+another declaration with the same name. Use `interface` only when declaration merging is the point,
+such as augmenting third-party types.
+
+Use `unknown` over `any`. `unknown` means the value has not been parsed yet. Narrow it at the
+boundary, then pass typed values inward.
+
+```ts
+function parseUsername(value: unknown): string {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error("username must be a non-empty string");
+  }
+
+  return value;
+}
+```
+
+Do not use non-null assertions. Prove the invariant with control flow, a schema parser, or a helper
+that throws a specific error.
+
+```ts
+const value = maybeValue;
+
+if (value === null) {
+  throw new Error("expected value");
+}
+
+useValue(value);
+```
+
+Use `satisfies` to validate object shapes without widening values:
+
+```ts
+const config = {
+  mode: "booking-code",
+  attemptsPerHour: 5,
+} satisfies {
+  attemptsPerHour: number;
+  mode: "booking-code";
+};
+```
+
+## Imports
+
+Use `import type` for type-only imports.
+
+Group imports in this order:
+
+1. Built-in and external packages.
+2. Internal aliases such as `~/`.
+3. Relative imports.
+
+Avoid barrels unless they are the actual public surface of a folder. Schema modules may have an
+index because Drizzle and Better Auth adapters benefit from a single schema object; ordinary app
+code should import from the specific module.
+
+## Functions
+
+Prefer functional style. Use classes only when the library or domain model demands identity and
+state.
+
+Keep functions small enough to read at one glance. If a function name contains "and", split it and
+compose at the call site.
+
+Use early returns instead of nested conditionals. Fail closed when an invariant cannot be proven.
+
+## Errors
+
+Throw specific errors that name the missing invariant. Do not silently fall back to a weaker mode.
+
+Use `catch (error: unknown)` and narrow before reading fields:
+
+```ts
+try {
+  await writeBooking();
+} catch (error: unknown) {
+  if (error instanceof Error) {
+    throw new Error(`booking write failed: ${error.message}`);
+  }
+
+  throw new Error("booking write failed with a non-Error rejection");
+}
+```
+
+## Lint Suppressions
+
+Suppressions are rare and line-level only.
+
+Acceptable:
+
+```ts
+// oxlint-disable-next-line no-console -- failed booking writes must reach the Worker log drain
+console.error(error);
+```
+
+Not acceptable:
+
+```ts
+/* oxlint-disable */
+// oxlint-disable-next-line
+```
+
+Every suppression must name the exact rule and explain why the exception is safer than changing the
+code.
+
+## React Router
+
+React Router route modules require specific exports. Do not fight the framework to satisfy a
+generic style preference. When framework contracts require default exports or named route exports,
+use them.
+
+Keep route loaders/actions as boundary code: parse inputs, call typed helpers, return a response.
+Database and domain behavior belongs in `app/db/functions/` or the relevant domain module.
+
+## Drizzle
+
+The schema source of truth is TypeScript under `apps/pizza/app/db/schema/`. Keep one table per file
+and use the table name as the file name. Generate SQL migrations from Drizzle.
+
+Do not hand-write ordinary migration SQL. Review TypeScript schema first, then generated SQL as the
+deploy artifact.

@@ -7,10 +7,9 @@
     "build": "react-router build",
     "preview": "wrangler dev",
     "deploy": "pnpm build && wrangler deploy",
-    "db:check": "drizzle-kit check",
-    "db:generate": "drizzle-kit generate",
-    "db:studio": "drizzle-kit studio",
-    "lint": "oxlint --import-plugin --react-perf-plugin .",
+    "check": "npm run lint && npm run typecheck && npm test && npm run db -- check && npm run build",
+    "db": "drizzle-kit",
+    "lint": "oxlint --config ../../.oxlintrc.json --deny-warnings --report-unused-disable-directives --import-plugin --react-plugin --react-perf-plugin --jsx-a11y-plugin --promise-plugin --vitest-plugin .",
     "typecheck": "react-router typegen && tsc --noEmit",
     "test": "vitest run --config vitest.config.ts"
   },

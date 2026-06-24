@@ -1,0 +1,53 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "react", "import"],
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2024": true
+  },
+  "globals": {
+    "React": "readonly"
+  },
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/build/**",
+    "**/.react-router/**",
+    "**/.wrangler/**",
+    "**/coverage/**",
+    "**/.git/**",
+    "**/.agents/**",
+    "**/.claude/**",
+    "**/.codex/**",
+    "**/.cursor/**"
+  ],
+  "rules": {
+    "eqeqeq": "error",
+    "import/no-cycle": "warn",
+    "import/no-duplicates": "error",
+    "no-console": "warn",
+    "no-nested-ternary": "warn",
+    "no-unneeded-ternary": "error",
+    "no-unused-vars": "warn",
+    "no-var": "error",
+    "prefer-const": "warn",
+    "react/exhaustive-deps": "warn",
+    "react/jsx-curly-brace-presence": "error",
+    "react/rules-of-hooks": "error",
+    "react/self-closing-comp": "error",
+    "typescript/consistent-type-imports": "error",
+    "typescript/explicit-module-boundary-types": "off",
+    "typescript/no-explicit-any": "error",
+    "typescript/no-floating-promises": "warn",
+    "typescript/no-non-null-assertion": "warn",
+    "typescript/no-restricted-types": [
+      "warn",
+      {
+        "types": {
+          "undefined": "Prefer `void` for returns and `T | null` for absence. Add an inline lint ignore with a reason if unavoidable."
+        }
+      }
+    ],
+    "typescript/no-unnecessary-condition": "off"
+  }
+}
