@@ -77,27 +77,15 @@ Data model
       gcal_event  text  (google calendar event id)
 
 
-Stack
------
-
-- React Router 8, Vite, Cloudflare Workers (SSR)
-- Tailwind v4, shadcn/ui design tokens
-- Google Calendar API (OAuth2)
-- D1 (Cloudflare SQL) for persistence (planned)
-- TypeScript, oxlint, vitest
-
-
 Development
 -----------
 
 ::
 
     pnpm install
-    pnpm dev          # http://localhost:5173
-    pnpm build        # production build
-    pnpm deploy       # deploy to cloudflare (requires wrangler login)
-    pnpm lint         # oxlint
-    pnpm typecheck    # tsc
+    pnpm dev
+    pnpm build
+    pnpm deploy
 
 
 License
