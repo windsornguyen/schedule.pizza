@@ -6,9 +6,9 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [
-    cloudflare({ viteEnvironment: { name: "ssr" } }),
     tailwindcss(),
     reactRouter(),
+    cloudflare({ viteEnvironment: { name: "ssr" } }),
     babel({
       include: /\.[jt]sx?$/,
       plugins: ["babel-plugin-react-compiler"],
