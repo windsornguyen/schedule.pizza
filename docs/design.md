@@ -1,59 +1,83 @@
-# Brand Guidelines
+# schedule.pizza — Design System
+
+Brand reference for designers, developers, and agents.
+Serve this at `/design.md` so anyone can `curl https://schedule.pizza/design.md`.
 
 ## Identity
 
-**Name:** schedule.pizza
-**Tagline:** The easiest way to find some time.
-**Tone:** Casual, functional, unpretentious. Early Google energy.
+- **Name:** schedule.pizza
+- **Tagline:** The easiest way to find some time.
+- **Tone:** Casual, functional, unpretentious. Early Google energy.
+- **Mascot:** Pizza. Appears in backgrounds and brand surfaces, never inside the logo.
 
 ## Logo
 
-The logo is a rounded-square calendar icon with the number **67** in white.
-67 is nonsensical — it's not a real date, just a recognizable mark.
+Rounded-square calendar icon. White **67** on tomato red. 67 is nonsensical.
 
-- Favicon: tomato red background, ghost pizza slice behind the 67
-- Everywhere else: the 67 calendar icon stands alone, no pizza behind it
-
-The pizza is the mascot, not the logo. It appears in backgrounds and
-brand surfaces but never inside or behind the logo mark (except favicon).
+- Favicon only: ghost pizza slice behind the 67
+- All other contexts: 67 calendar icon alone, no pizza
 
 ## Colors
 
-**Brand palette (pizza-themed, warm):**
+### Brand (pizza-themed, warm)
 
-- Crust:    #F5E6D0  (warm off-white, OG backgrounds)
-- Tomato:   #D32F2F  (red, logo, accents)
-- Cheese:   #F5A623  (golden yellow, highlights)
-- Basil:    #4A7C59  (muted green, success states)
+| Token     | Hex       | Role                           |
+| --------- | --------- | ------------------------------ |
+| `crust`   | `#F5E6D0` | OG backgrounds, warm surfaces  |
+| `tomato`  | `#D32F2F` | Logo, accents, CTAs            |
+| `cheese`  | `#F5A623` | Highlights, hover states       |
+| `basil`   | `#4A7C59` | Success states, confirmations  |
 
-**Site palette (neutral, stays clean):**
+### Site (neutral, clean)
 
-- Background: oklch(1 0 0)       (white)
-- Foreground: oklch(0.145 0 0)   (near-black)
-- Muted:      oklch(0.556 0 0)   (gray)
-- Border:     oklch(0.922 0 0)   (light gray)
+| Token                | Value              | Role              |
+| -------------------- | ------------------ | ----------------- |
+| `--background`       | `oklch(1 0 0)`     | Page background   |
+| `--foreground`       | `oklch(0.145 0 0)` | Primary text      |
+| `--muted`            | `oklch(0.97 0 0)`  | Raised surfaces   |
+| `--muted-foreground` | `oklch(0.556 0 0)` | Secondary text    |
+| `--border`           | `oklch(0.922 0 0)` | Borders           |
+| `--input`            | `oklch(0.922 0 0)` | Input borders     |
+| `--ring`             | `oklch(0.708 0 0)` | Focus rings       |
+| `--destructive`      | `#D32F2F`          | Error / danger    |
 
-The site itself is off-white and charcoal. Brand colors appear only in
-logos, OG images, favicons, and accent elements — never as page backgrounds.
-
-## OG Image
-
-- Background: Crust (#F5E6D0)
-- Large pizza illustration, centered or right-side, low opacity
-- 67 calendar logo top-left, tomato red, no pizza behind it
-- Headline left-aligned, dark text
-- Byline underneath in muted color
-- 1200x630px
+Brand colors appear in logos, OG images, favicons, and accent
+elements. Never as page backgrounds.
 
 ## Typography
 
-- Geist Sans for UI
-- Geist Mono for code/API
-- System sans-serif fallback in brand assets (SVG)
+| Utility      | Family                                 | Use            |
+| ------------ | -------------------------------------- | -------------- |
+| `font-sans`  | Geist, system-ui, sans-serif           | UI and prose   |
+| `font-mono`  | Geist Mono, ui-monospace, monospace    | Code, API refs |
+
+Body: antialiased, `font-feature-settings: "rlig" 1, "calt" 1`.
+Headings: `font-semibold`, `tracking-tight`.
+Secondary text: `text-sm`, `text-muted-foreground`.
+
+## Spacing & Radius
+
+Base radius: `0.625rem` (10px). Derived:
+
+| Token        | Value                      |
+| ------------ | -------------------------- |
+| `--radius-sm`| `calc(var(--radius) - 4px)`|
+| `--radius-md`| `calc(var(--radius) - 2px)`|
+| `--radius-lg`| `var(--radius)`            |
+| `--radius-xl`| `calc(var(--radius) + 4px)`|
+
+## OG Image (1200x630)
+
+- Background: Crust (`#F5E6D0`)
+- Ghost pizza illustration, right side, low opacity
+- 67 calendar logo top-left, tomato red, standalone (no pizza)
+- Headline left-aligned, dark text (`#1A1A1A`)
+- Byline in muted warm brown
 
 ## Don'ts
 
 - Don't use dark/black backgrounds for brand surfaces
 - Don't put the pizza behind the logo (except favicon)
 - Don't use gradients
-- Don't make it look polished or "designed" — functional is the goal
+- Don't make it look polished — functional is the goal
+- Don't use brand colors as page backgrounds
