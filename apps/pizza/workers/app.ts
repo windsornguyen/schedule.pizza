@@ -1,18 +1,9 @@
 import {
   RouterContextProvider,
-  createContext,
   createRequestHandler,
   type ServerBuild,
 } from "react-router";
-
-export interface AppEnv {
-  // Add bindings here as needed: D1, KV, R2, etc.
-}
-
-export const cloudflareContext = createContext<{
-  env: AppEnv;
-  ctx: ExecutionContext;
-}>();
+import { serverContext, type AppEnv } from "../app/server-context";
 
 const requestHandler = createRequestHandler(
   () =>
@@ -23,7 +14,7 @@ const requestHandler = createRequestHandler(
 export default {
   async fetch(request, env, ctx) {
     const routerContext = new RouterContextProvider();
-    routerContext.set(cloudflareContext, { env, ctx });
+    routerContext.set(serverContext, { env, ctx });
     return requestHandler(request, routerContext);
   },
 } satisfies ExportedHandler<AppEnv>;
