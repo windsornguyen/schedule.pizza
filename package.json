@@ -10,6 +10,13 @@
     "test": "pnpm --filter @schedule.pizza/web test"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild", "workerd", "sharp"]
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "workerd",
+      "sharp"
+    ]
+  },
+  "devDependencies": {
+    "@dedalus-labs/hollywood": "0.1.0-alpha.1"
   }
 }
