@@ -6,6 +6,8 @@ This repo is production code. Prefer the smallest correct diff, fail closed, and
 
 Read the existing code before changing it. Match the local React Router, Cloudflare Workers, TypeScript, and Drizzle patterns already in the repo.
 
+Read [docs/style/typescript.mdx](docs/style/typescript.mdx) before changing TypeScript.
+
 ## Quality Gate
 
 Run the narrowest relevant command while working, then run the full gate before handing off:
