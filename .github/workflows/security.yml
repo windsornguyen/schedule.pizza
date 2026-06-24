@@ -44,5 +44,7 @@ jobs:
         with:
           node-version: "22"
           cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
       - name: Audit dependencies
         run: pnpm audit --audit-level high
