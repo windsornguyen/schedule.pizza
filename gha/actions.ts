@@ -9,3 +9,6 @@ export const pnpmAction =
 
 export const wranglerAction =
 	"cloudflare/wrangler-action@da0042793de1ae8bfdc9f4a25d0cd0ef6e62b3c0"; // v3.15.0
+
+export const releasePleaseAction =
+	"googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7"; // v5.0.0
