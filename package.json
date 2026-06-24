@@ -4,10 +4,10 @@
   "scripts": {
     "check": "pnpm --filter @schedule.pizza/web check",
     "dev": "pnpm --filter @schedule.pizza/web dev",
+    "db": "pnpm --filter @schedule.pizza/web db",
     "build": "pnpm --filter @schedule.pizza/web build",
     "deploy": "pnpm --filter @schedule.pizza/web deploy",
     "lint": "pnpm --filter @schedule.pizza/web lint",
-    "lint:fix": "pnpm --filter @schedule.pizza/web lint:fix",
     "typecheck": "pnpm --filter @schedule.pizza/web typecheck",
     "test": "pnpm --filter @schedule.pizza/web test"
   },
