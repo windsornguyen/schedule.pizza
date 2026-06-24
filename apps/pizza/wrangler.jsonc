@@ -2,5 +2,27 @@
   "name": "schedule-pizza",
   "main": "./workers/app.ts",
   "compatibility_date": "2025-06-01",
-  "compatibility_flags": ["nodejs_compat"]
+  "compatibility_flags": ["nodejs_compat"],
+  // Created by Terraform in apps/pizza/iac.
+  // Copy the prod value from: terraform output -json d1_database_ids
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "schedule-pizza-prod",
+      "database_id": "1fc2917c-7860-4e86-a6a9-428a40666e1e"
+    }
+  ],
+  "env": {
+    "dev": {
+      // Created by Terraform in apps/pizza/iac.
+      // Copy the dev value from: terraform output -json d1_database_ids
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "schedule-pizza-dev",
+          "database_id": "0907d26b-7adb-4eb9-8392-172e420700bf"
+        }
+      ]
+    }
+  }
 }
