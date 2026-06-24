@@ -50,10 +50,3 @@ We follow coordinated disclosure:
 3. We investigate and develop a fix.
 4. We release the fix and credit the reporter, unless anonymity is requested.
 5. Public disclosure happens after 90 days or when the fix is deployed.
-
-## Contact
-
-- Security issues:
-  [GitHub private vulnerability report](https://github.com/windsornguyen/schedule.pizza/security/advisories/new)
-  or [security@schedule.pizza](mailto:security@schedule.pizza)
-- General questions: use GitHub Issues.
