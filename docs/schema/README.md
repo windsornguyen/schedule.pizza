@@ -1,27 +1,37 @@
 # Data Model
 
+The database schema is defined in TypeScript with Drizzle.
+
 ```
-org
-  id          uuid
-  parent_id   uuid | null
-  name        text
-
-user
-  id          uuid
-  org_id      uuid  -> org.id
-  email       text
-  calendar_id text  (google calendar id)
-  slot_size   int   (minutes, default 30)
-
-booking
-  id          uuid
-  host_id     uuid  -> user.id
-  guest_email text
-  guest_name  text
-  start_at    timestamptz
-  end_at      timestamptz
-  status      enum(confirmed, cancelled)
-  gcal_event  text  (google calendar event id)
+apps/pizza/app/db
+  client.server.ts
+  functions/
+    booking_codes.server.ts
+    host_profiles.server.ts
+  schema/
+    account.ts
+    booking.ts
+    booking_code.ts
+    booking_code_attempt.ts
+    host_profile.ts
+    index.ts
+    rate_limit.ts
+    session.ts
+    user.ts
+    verification.ts
 ```
 
-A user is an org. An org can have children orgs (for billing hierarchy).
+Each file in `schema/` owns one table. `schema/index.ts` is the single barrel
+export consumed by Drizzle Kit and the runtime database client.
+
+`functions/` is for database behavior: lookups, writes, and transactional units.
+Schema files stay declarative.
+
+Generate SQL migrations from the TypeScript schema:
+
+```
+pnpm --filter @schedule.pizza/web db:generate
+```
+
+Do not hand-write migration SQL for ordinary schema changes. The generated SQL
+is a deploy artifact; the TypeScript schema is the review surface.
