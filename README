@@ -22,6 +22,16 @@ Development
     pnpm build
     pnpm deploy
 
+Contributing
+------------
+
+See CONTRIBUTING.md.
+
+Security
+--------
+
+Do not open public issues for vulnerabilities. Email security@schedule.pizza.
+
 License
 -------
 

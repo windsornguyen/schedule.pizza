@@ -1,0 +1,55 @@
+---
+name: Feature Request
+description: Suggest a product or developer experience improvement
+title: "[Feature]: "
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before opening a new request, search existing issues first. If the idea already exists, add a reaction or comment there.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user or maintainer problem does this solve?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed
+    attributes:
+      label: Proposed behavior
+      description: Describe the behavior, API, or UI you want.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What workarounds or other designs did you consider?
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Booking flow
+        - Availability API
+        - Authentication
+        - Database schema
+        - Cloudflare deployment
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I would be willing to open a pull request for this.
+          required: false
