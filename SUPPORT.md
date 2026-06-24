@@ -32,7 +32,8 @@ Include:
 
 Do not open public issues for security vulnerabilities.
 
-Email [security@schedule.pizza](mailto:security@schedule.pizza). See [SECURITY.md](SECURITY.md).
+[Report privately via GitHub](https://github.com/windsornguyen/schedule.pizza/security/advisories/new)
+or email [security@schedule.pizza](mailto:security@schedule.pizza). See [SECURITY.md](SECURITY.md).
 
 ## Contributing
 

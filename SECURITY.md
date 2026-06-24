@@ -4,7 +4,12 @@
 
 Do not open public issues for security vulnerabilities.
 
-Email security reports to [security@schedule.pizza](mailto:security@schedule.pizza).
+Report privately through GitHub:
+
+https://github.com/windsornguyen/schedule.pizza/security/advisories/new
+
+You can also email security reports to
+[security@schedule.pizza](mailto:security@schedule.pizza).
 
 Include:
 
@@ -48,5 +53,7 @@ We follow coordinated disclosure:
 
 ## Contact
 
-- Security issues: [security@schedule.pizza](mailto:security@schedule.pizza)
+- Security issues:
+  [GitHub private vulnerability report](https://github.com/windsornguyen/schedule.pizza/security/advisories/new)
+  or [security@schedule.pizza](mailto:security@schedule.pizza)
 - General questions: use GitHub Issues.
