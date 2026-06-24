@@ -1,5 +1,29 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
-  <rect width="1200" height="630" fill="#D2BEFF"/>
-  <text x="600" y="280" text-anchor="middle" font-family="system-ui, sans-serif" font-size="72" font-weight="700" fill="#FFFFFF">schedule.pizza</text>
-  <text x="600" y="360" text-anchor="middle" font-family="system-ui, sans-serif" font-size="28" font-weight="400" fill="rgba(255,255,255,0.85)">The easiest way to find some time</text>
+  <rect width="1200" height="630" fill="#0F0F0F"/>
+
+  <!-- subtle pizza slice bg element, right side -->
+  <g opacity="0.06">
+    <path d="M900 80 L1150 580 H650 Z" fill="#FFFFFF" stroke="none"/>
+    <circle cx="860" cy="320" r="24" fill="#0F0F0F"/>
+    <circle cx="940" cy="400" r="20" fill="#0F0F0F"/>
+    <circle cx="880" cy="460" r="22" fill="#0F0F0F"/>
+    <path d="M650 580 Q900 540 1150 580" fill="none" stroke="#0F0F0F" stroke-width="12"/>
+  </g>
+
+  <!-- logo: calendar 67 with pizza colors, top-left -->
+  <rect x="60" y="50" rx="8" ry="8" width="48" height="48" fill="#D32F2F"/>
+  <g opacity="0.25">
+    <path d="M68 54 L100 94 H68 Z" fill="#FFFFFF"/>
+  </g>
+  <text x="84" y="84" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="700" fill="#FFFFFF">67</text>
+
+  <!-- main headline, left-aligned -->
+  <text x="60" y="260" font-family="system-ui, -apple-system, sans-serif" font-size="64" font-weight="600" fill="#FFFFFF" letter-spacing="-1.5">The easiest way</text>
+  <text x="60" y="340" font-family="system-ui, -apple-system, sans-serif" font-size="64" font-weight="600" fill="#FFFFFF" letter-spacing="-1.5">to find some time</text>
+
+  <!-- byline -->
+  <text x="60" y="400" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="400" fill="rgba(255,255,255,0.5)">schedule.pizza — Designed for agents, built for humans.</text>
+
+  <!-- warm accent line -->
+  <rect x="60" y="440" width="120" height="3" rx="1.5" fill="#D32F2F"/>
 </svg>
