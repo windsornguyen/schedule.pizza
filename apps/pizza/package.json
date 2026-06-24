@@ -10,7 +10,7 @@
     "check": "npm run lint && npm run typecheck && npm test && npm run db -- check && npm run build",
     "db": "drizzle-kit",
     "lint": "oxlint --config ../../.oxlintrc.json --deny-warnings --report-unused-disable-directives --import-plugin --react-plugin --react-perf-plugin --jsx-a11y-plugin --promise-plugin --vitest-plugin .",
-    "typecheck": "react-router typegen && tsc --noEmit",
+    "typecheck": "react-router typegen && tsgo --noEmit",
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
@@ -36,8 +36,9 @@
     "drizzle-kit": "^0.31.10",
     "oxlint": "^1.0.0",
     "tailwindcss": "^4.1.0",
-    "typescript": "^5.9.3",
-    "vite": "^8.0.0",
+    "@typescript/native-preview": "^7.0.0-dev",
+    "typescript": "7.0.1-rc",
+    "vite": "^8.1.0",
     "vitest": "^4.0.0",
     "wrangler": "^4.19.0"
   }

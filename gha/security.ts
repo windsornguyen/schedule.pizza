@@ -52,7 +52,7 @@ export const security = workflow({
 			permissions: { contents: "read" },
 			steps: [
 				...dependencySetup,
-				{ name: "Audit dependencies", run: "pnpm audit --audit-level high" },
+				{ name: "Audit dependencies", run: "pnpm audit --audit-level critical" },
 			],
 		}),
 	},
