@@ -1,7 +1,7 @@
 import { and, eq, gt, isNull, or } from "drizzle-orm";
 
-import type { Database } from "~/db/client.server";
-import { bookingCode, hostProfile } from "~/db/schema";
+import type { Database } from "@/db/client.server";
+import { bookingCode, hostProfile } from "@/db/schema";
 
 interface ActiveBookingCodeLookup {
   codeHash: string;

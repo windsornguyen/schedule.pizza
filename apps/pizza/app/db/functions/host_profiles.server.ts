@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
-import type { Database } from "~/db/client.server";
-import { hostProfile } from "~/db/schema";
+import type { Database } from "@/db/client.server";
+import { hostProfile } from "@/db/schema";
 
 export async function findHostProfileByUsername(
   db: Database,
