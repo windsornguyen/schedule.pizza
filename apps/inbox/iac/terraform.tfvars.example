@@ -1,0 +1,4 @@
+cloudflare_api_token  = ""
+cloudflare_account_id = "461c3e3410e2e50b0fdd218f9ae04957"
+cloudflare_zone_id    = "19b97d95b8348c6d37a3f4d2f1b0b3ca"
+owner_email           = ""
