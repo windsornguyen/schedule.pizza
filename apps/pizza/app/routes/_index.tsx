@@ -3,7 +3,7 @@ export function meta() {
     { title: "schedule.pizza" },
     {
       name: "description",
-      content: "Open-source scheduling for humans and agents.",
+      content: "The easiest way to find some time. Designed for agents, built for humans.",
     },
   ];
 }
@@ -13,7 +13,7 @@ export default function Home() {
     <div className="flex min-h-screen flex-col items-center justify-center px-4">
       <h1 className="text-4xl font-semibold tracking-tight">schedule.pizza</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        open-source scheduling for humans and agents
+        the easiest way to find some time
       </p>
 
       <form
