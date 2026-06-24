@@ -51,6 +51,10 @@ resource "cloudflare_d1_database" "pizza" {
 
   account_id = var.cloudflare_account_id
   name       = each.value
+
+  read_replication = {
+    mode = "disabled"
+  }
 }
 
 resource "cloudflare_workers_route" "pizza" {
