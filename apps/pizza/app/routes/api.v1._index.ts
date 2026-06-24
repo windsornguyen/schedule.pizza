@@ -1,6 +1,6 @@
 export function loader() {
   return Response.json({
-    name: "sched",
+    name: "schedule.pizza",
     version: "0.0.1",
     endpoints: {
       availability: {

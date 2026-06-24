@@ -1,6 +1,6 @@
 export function meta() {
   return [
-    { title: "sched" },
+    { title: "schedule.pizza" },
     {
       name: "description",
       content: "Open-source scheduling for humans and agents.",
@@ -11,7 +11,7 @@ export function meta() {
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-4">
-      <h1 className="text-4xl font-semibold tracking-tight">sched</h1>
+      <h1 className="text-4xl font-semibold tracking-tight">schedule.pizza</h1>
       <p className="mt-2 text-sm text-muted-foreground">
         open-source scheduling for humans and agents
       </p>
