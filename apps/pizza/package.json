@@ -12,17 +12,17 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@react-router/cloudflare": "8.0.0",
+    "@react-router/cloudflare": "8.0.1",
     "clsx": "^2.1.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-router": "8.0.0",
+    "react-router": "8.0.1",
     "tailwind-merge": "^3.3.0"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.0.0",
     "@cloudflare/workers-types": "^4.20250617.0",
-    "@react-router/dev": "8.0.0",
+    "@react-router/dev": "8.0.1",
     "@rolldown/plugin-babel": "^0.2.3",
     "@tailwindcss/vite": "^4.1.0",
     "@types/react": "^19.2.14",
