@@ -1,83 +1,94 @@
 # schedule.pizza — Design System
 
-Brand reference for designers, developers, and agents.
-Serve this at `/design.md` so anyone can `curl https://schedule.pizza/design.md`.
+## Philosophy
 
-## Identity
+This product looks like it was built by someone who cares about
+function, not aesthetics. Think early Google, Gmail circa 2004,
+Craigslist. The design is intentionally minimal — even slightly
+ugly — but in the way that signals confidence and taste. Every
+pixel exists because it earns its keep, not because a designer
+needed to justify their time.
 
-- **Name:** schedule.pizza
-- **Tagline:** The easiest way to find some time.
-- **Tone:** Casual, functional, unpretentious. Early Google energy.
-- **Mascot:** Pizza. Appears in backgrounds and brand surfaces, never inside the logo.
+No hero sections. No gradients. No illustrations that don't
+communicate information. If a user lands on the page and
+immediately knows what to do, the design worked.
+
+The site should feel like it was made by an engineer who has
+strong opinions about type and spacing but zero interest in
+making things "pop."
 
 ## Logo
 
-Rounded-square calendar icon. White **67** on tomato red. 67 is nonsensical.
+Rounded-square calendar icon. White **67** on tomato red.
+67 is not a date. It means nothing. That's the point.
 
-- Favicon only: ghost pizza slice behind the 67
-- All other contexts: 67 calendar icon alone, no pizza
+- Favicon: ghost pizza slice behind the 67 (only place pizza touches the logo)
+- Everywhere else: 67 stands alone
 
 ## Colors
 
-### Brand (pizza-themed, warm)
+### Brand
 
-| Token     | Hex       | Role                           |
-| --------- | --------- | ------------------------------ |
-| `crust`   | `#F5E6D0` | OG backgrounds, warm surfaces  |
-| `tomato`  | `#D32F2F` | Logo, accents, CTAs            |
-| `cheese`  | `#F5A623` | Highlights, hover states       |
-| `basil`   | `#4A7C59` | Success states, confirmations  |
+Warm. Pizza-themed. Used sparingly — logos, OG images, favicons,
+accent elements. Never as page backgrounds.
 
-### Site (neutral, clean)
+| Name     | Hex       | Use                          |
+| -------- | --------- | ---------------------------- |
+| Crust    | `#F5E6D0` | OG backgrounds, warm fills   |
+| Tomato   | `#D32F2F` | Logo, primary accent, CTAs   |
+| Cheese   | `#F5A623` | Highlights, hover states     |
+| Basil    | `#4A7C59` | Success, confirmations       |
 
-| Token                | Value              | Role              |
-| -------------------- | ------------------ | ----------------- |
-| `--background`       | `oklch(1 0 0)`     | Page background   |
-| `--foreground`       | `oklch(0.145 0 0)` | Primary text      |
-| `--muted`            | `oklch(0.97 0 0)`  | Raised surfaces   |
-| `--muted-foreground` | `oklch(0.556 0 0)` | Secondary text    |
-| `--border`           | `oklch(0.922 0 0)` | Borders           |
-| `--input`            | `oklch(0.922 0 0)` | Input borders     |
-| `--ring`             | `oklch(0.708 0 0)` | Focus rings       |
-| `--destructive`      | `#D32F2F`          | Error / danger    |
+### Site
 
-Brand colors appear in logos, OG images, favicons, and accent
-elements. Never as page backgrounds.
+Neutral. The product wears a white shirt and dark jeans.
+Brand colors don't appear on the site itself.
+
+| Token                | Value              | Role            |
+| -------------------- | ------------------ | --------------- |
+| `--background`       | `oklch(1 0 0)`     | Page background |
+| `--foreground`       | `oklch(0.145 0 0)` | Primary text    |
+| `--muted`            | `oklch(0.97 0 0)`  | Raised surfaces |
+| `--muted-foreground` | `oklch(0.556 0 0)` | Secondary text  |
+| `--border`           | `oklch(0.922 0 0)` | Borders         |
+| `--input`            | `oklch(0.922 0 0)` | Input borders   |
+| `--ring`             | `oklch(0.708 0 0)` | Focus rings     |
+| `--destructive`      | `#D32F2F`          | Errors          |
 
 ## Typography
 
-| Utility      | Family                                 | Use            |
-| ------------ | -------------------------------------- | -------------- |
-| `font-sans`  | Geist, system-ui, sans-serif           | UI and prose   |
-| `font-mono`  | Geist Mono, ui-monospace, monospace    | Code, API refs |
+| Utility      | Family                              | Use          |
+| ------------ | ----------------------------------- | ------------ |
+| `font-sans`  | Geist, system-ui, sans-serif        | UI and prose |
+| `font-mono`  | Geist Mono, ui-monospace, monospace | Code, API    |
 
-Body: antialiased, `font-feature-settings: "rlig" 1, "calt" 1`.
-Headings: `font-semibold`, `tracking-tight`.
-Secondary text: `text-sm`, `text-muted-foreground`.
+Headings: `font-semibold`, `tracking-tight`. No font above 36px
+on the site. Body: `text-sm`. Antialiased everywhere.
 
-## Spacing & Radius
+## Radius
 
-Base radius: `0.625rem` (10px). Derived:
+Base: `0.625rem`. Everything rounds the same amount.
 
-| Token        | Value                      |
-| ------------ | -------------------------- |
-| `--radius-sm`| `calc(var(--radius) - 4px)`|
-| `--radius-md`| `calc(var(--radius) - 2px)`|
-| `--radius-lg`| `var(--radius)`            |
-| `--radius-xl`| `calc(var(--radius) + 4px)`|
+| Token        | Value                       |
+| ------------ | --------------------------- |
+| `--radius-sm`| `calc(var(--radius) - 4px)` |
+| `--radius-md`| `calc(var(--radius) - 2px)` |
+| `--radius-lg`| `var(--radius)`             |
+| `--radius-xl`| `calc(var(--radius) + 4px)` |
 
-## OG Image (1200x630)
+## OG Image
 
-- Background: Crust (`#F5E6D0`)
-- Ghost pizza illustration, right side, low opacity
-- 67 calendar logo top-left, tomato red, standalone (no pizza)
-- Headline left-aligned, dark text (`#1A1A1A`)
-- Byline in muted warm brown
+1200x630. Crust background. Ghost pizza right side, low opacity.
+67 logo top-left (no pizza behind it). Left-aligned headline in
+dark text. Byline in muted warm brown. That's it.
 
-## Don'ts
+## Rules
 
-- Don't use dark/black backgrounds for brand surfaces
-- Don't put the pizza behind the logo (except favicon)
-- Don't use gradients
-- Don't make it look polished — functional is the goal
-- Don't use brand colors as page backgrounds
+- No dark backgrounds on brand surfaces.
+- No gradients.
+- No animations unless they communicate state (loading, transition).
+- No illustrations. If you need to explain something, use text.
+- No marketing language. Say what it does. Stop.
+- Pizza is the mascot, not the brand. It shows up in the background,
+  never as the centerpiece.
+- If you're debating whether to add something, don't add it.
