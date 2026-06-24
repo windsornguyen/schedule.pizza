@@ -1,14 +1,7 @@
 schedule.pizza
 ==============
 
-Open-source scheduling. Agent-native.
-
-Share your URL. Visitors pick a time. Both calendars update.
-Google Calendar only for now.
-
-For N-person meetings, finds the best time for everyone. When
-none exists, ranks alternatives by conflict severity and
-suggests which flexible events to move.
+The easiest way to find some time. Designed for agents, built for humans.
 
 API
 ---
