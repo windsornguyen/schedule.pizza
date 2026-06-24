@@ -1,29 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
-  <rect width="1200" height="630" fill="#0F0F0F"/>
+  <rect width="1200" height="630" fill="#F5E6D0"/>
 
-  <!-- subtle pizza slice bg element, right side -->
-  <g opacity="0.06">
-    <path d="M900 80 L1150 580 H650 Z" fill="#FFFFFF" stroke="none"/>
-    <circle cx="860" cy="320" r="24" fill="#0F0F0F"/>
-    <circle cx="940" cy="400" r="20" fill="#0F0F0F"/>
-    <circle cx="880" cy="460" r="22" fill="#0F0F0F"/>
-    <path d="M650 580 Q900 540 1150 580" fill="none" stroke="#0F0F0F" stroke-width="12"/>
+  <!-- pizza slice, right side, low opacity -->
+  <g opacity="0.10">
+    <path d="M820 40 L1140 560 H500 Z" fill="#D32F2F" stroke="none"/>
+    <circle cx="760" cy="280" r="28" fill="#F5E6D0"/>
+    <circle cx="860" cy="380" r="24" fill="#F5E6D0"/>
+    <circle cx="780" cy="430" r="26" fill="#F5E6D0"/>
+    <path d="M500 560 Q820 520 1140 560" fill="none" stroke="#F5A623" stroke-width="16"/>
   </g>
 
-  <!-- logo: calendar 67 with pizza colors, top-left -->
+  <!-- 67 calendar logo, top-left, no pizza behind it -->
   <rect x="60" y="50" rx="8" ry="8" width="48" height="48" fill="#D32F2F"/>
-  <g opacity="0.25">
-    <path d="M68 54 L100 94 H68 Z" fill="#FFFFFF"/>
-  </g>
   <text x="84" y="84" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="700" fill="#FFFFFF">67</text>
 
-  <!-- main headline, left-aligned -->
-  <text x="60" y="260" font-family="system-ui, -apple-system, sans-serif" font-size="64" font-weight="600" fill="#FFFFFF" letter-spacing="-1.5">The easiest way</text>
-  <text x="60" y="340" font-family="system-ui, -apple-system, sans-serif" font-size="64" font-weight="600" fill="#FFFFFF" letter-spacing="-1.5">to find some time</text>
+  <!-- headline -->
+  <text x="60" y="280" font-family="system-ui, -apple-system, sans-serif" font-size="64" font-weight="600" fill="#1A1A1A" letter-spacing="-1.5">The easiest way</text>
+  <text x="60" y="360" font-family="system-ui, -apple-system, sans-serif" font-size="64" font-weight="600" fill="#1A1A1A" letter-spacing="-1.5">to find some time</text>
 
   <!-- byline -->
-  <text x="60" y="400" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="400" fill="rgba(255,255,255,0.5)">schedule.pizza — Designed for agents, built for humans.</text>
-
-  <!-- warm accent line -->
-  <rect x="60" y="440" width="120" height="3" rx="1.5" fill="#D32F2F"/>
+  <text x="60" y="420" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="400" fill="#8B7355">schedule.pizza</text>
 </svg>
