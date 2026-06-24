@@ -10,6 +10,7 @@ const dependencySetup = [
 	{ uses: checkoutAction, with: { "persist-credentials": false } },
 	{ uses: pnpmAction, with: { version: "10" } },
 	{ uses: setupNodeAction, with: { "node-version": "22", cache: "pnpm" } },
+	{ name: "Install", run: "pnpm install --frozen-lockfile" },
 ] as const;
 
 export const security = workflow({
