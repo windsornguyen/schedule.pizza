@@ -1,0 +1,39 @@
+{
+  "name": "sched",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "react-router build",
+    "preview": "wrangler dev",
+    "deploy": "pnpm build && wrangler deploy",
+    "lint": "oxlint --import-plugin --react-perf-plugin .",
+    "typecheck": "react-router typegen && tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@react-router/cloudflare": "8.0.0",
+    "clsx": "^2.1.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router": "8.0.0",
+    "tailwind-merge": "^3.3.0"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.0.0",
+    "@cloudflare/workers-types": "^4.20250617.0",
+    "@react-router/dev": "8.0.0",
+    "@tailwindcss/vite": "^4.1.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "oxlint": "^1.0.0",
+    "tailwindcss": "^4.1.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.0",
+    "vitest": "^4.0.0",
+    "wrangler": "^4.19.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild", "workerd", "sharp"]
+  }
+}
