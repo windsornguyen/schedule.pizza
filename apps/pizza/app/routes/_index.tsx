@@ -34,59 +34,61 @@ export default function Home({
   loaderData: { loggedIn: boolean };
 }) {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center px-4">
-      <h1 className="text-2xl font-semibold tracking-tight">schedule.pizza</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        the easiest way to find some time
-      </p>
+    <div className="flex min-h-screen flex-col items-center justify-center px-4 antialiased">
+      <div className="w-full max-w-[550px]">
+        <h1 className="text-sm font-semibold">schedule.pizza</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          the easiest way to find some time
+        </p>
 
-      <form action="/search" method="get" className="mt-6 w-full max-w-xs">
-        <input
-          type="text"
-          name="q"
-          placeholder="username or link"
-          autoComplete="off"
-          className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-[3px] focus:ring-ring/50"
-        />
-      </form>
+        <form action="/search" method="get" className="mt-10">
+          <input
+            type="text"
+            name="q"
+            placeholder="username or link"
+            autoComplete="off"
+            className="h-9 w-full max-w-[260px] rounded-md border border-input bg-transparent px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-[3px] focus:ring-ring/50"
+          />
+        </form>
 
-      {loaderData.loggedIn && (
-        <div className="mt-6 space-y-2 text-center">
-          <p className="text-sm text-muted-foreground">
-            your booking link:{" "}
-            <span className="font-mono">schedule.pizza/you/code</span>
-          </p>
+        {loaderData.loggedIn && (
+          <div className="mt-6 space-y-2">
+            <p className="text-sm text-muted-foreground">
+              your booking link:{" "}
+              <span className="font-mono">schedule.pizza/you/code</span>
+            </p>
+            <a
+              href="/auth/google"
+              className="text-sm underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
+            >
+              connect google calendar
+            </a>
+          </div>
+        )}
+
+        <nav className="mt-8 flex items-center gap-2 text-sm text-muted-foreground">
           <a
-            href="/auth/google"
-            className="text-sm underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
+            href="/api/v1/availability?user=demo"
+            className="underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
           >
-            connect google calendar
+            api
           </a>
-        </div>
-      )}
-
-      <nav className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
-        <a
-          href="/api/v1/availability?user=demo"
-          className="underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
-        >
-          api
-        </a>
-        <span aria-hidden>·</span>
-        <a
-          href="/api/v1"
-          className="underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
-        >
-          docs
-        </a>
-        <span aria-hidden>·</span>
-        <a
-          href="https://github.com/windsornguyen/schedule.pizza"
-          className="underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
-        >
-          source
-        </a>
-      </nav>
+          <span aria-hidden>·</span>
+          <a
+            href="/api/v1"
+            className="underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
+          >
+            docs
+          </a>
+          <span aria-hidden>·</span>
+          <a
+            href="https://github.com/windsornguyen/schedule.pizza"
+            className="underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
+          >
+            source
+          </a>
+        </nav>
+      </div>
     </div>
   );
 }
