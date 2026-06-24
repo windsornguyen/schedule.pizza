@@ -31,6 +31,26 @@ Database schema changes must also pass:
 pnpm --filter @schedule.pizza/web db check
 ```
 
+## Hard Blockers
+
+These patterns block API and backend changes:
+
+- Hidden fallback or best-effort paths.
+- Opportunistic `ensure*` helpers that create downstream state outside the owning subsystem.
+- Generic `try`/`catch` around value-granting, credit-granting, booking, auth, or security-sensitive flows.
+- Missing typed error codes on errors that cross a module or API boundary.
+- Fire-and-forget async when the next step depends on completion.
+- Polling used to paper over local ownership, ordering, or lifecycle bugs.
+- Retries or increased timeouts used before the underlying ordering problem is understood.
+- Trusting client-provided identity, org membership, booking authority, or credit state.
+- Granting credits, bookings, access, or other value before the canonical gate records allow it.
+- Multiple sources of truth for one decision.
+- File-wide, directory-wide, or project-wide lint suppressions.
+- PR body or test plan claims that were not proven by the listed command or receipt.
+
+Fail closed when the primary implementation is unavailable. If a state transition has one owner,
+write through that owner or return a typed error.
+
 ## Compiler Strictness
 
 These flags are intentional and should not be removed to make code compile:
@@ -103,6 +123,22 @@ const config = {
 };
 ```
 
+Keep types close to the code that owns the invariant. Avoid `types.ts` or `errors.ts` files unless
+the types are genuinely shared across directories. Local request, response, row, and parsed-input
+types should live next to the function that consumes them.
+
+Prefer discriminated unions for local result surfaces:
+
+```ts
+type BookingResult =
+  | { code: "confirmed"; bookingId: string }
+  | { code: "slot_unavailable"; slotId: string }
+  | { code: "booking_code_required" };
+```
+
+Every variant must name a real state the caller can handle. Do not use catch-all variants such as
+`{ code: "unknown_error" }` inside domain logic.
+
 ## Imports
 
 Use `import type` for type-only imports.
@@ -127,6 +163,15 @@ compose at the call site.
 
 Use early returns instead of nested conditionals. Fail closed when an invariant cannot be proven.
 
+Keep functions generally stateless. Avoid names like `doFooIfBar`; call `bar` in the owning
+conditional and keep `doFoo` focused on the one operation it performs.
+
+Keep functions around 70 lines or fewer. If a function needs a long preamble in comments to explain
+its branches, reduce the branch count first.
+
+Prefer event-driven ownership over polling. Polling is acceptable only when the external system is
+poll-based and the code names the timeout, retry budget, and terminal error.
+
 ## Errors
 
 Throw specific errors that name the missing invariant. Do not silently fall back to a weaker mode.
@@ -144,6 +189,22 @@ try {
   throw new Error("booking write failed with a non-Error rejection");
 }
 ```
+
+For reusable backend errors, use topic-local error objects or classes. Keep the error code stable
+and serializable:
+
+```ts
+class BookingError extends Error {
+  constructor(
+    readonly code: "slot_unavailable" | "hold_expired" | "calendar_write_failed",
+  ) {
+    super(code);
+  }
+}
+```
+
+Do not catch and rethrow a generic error if the caller needs a domain decision. Preserve the typed
+code.
 
 ## Lint Suppressions
 
@@ -165,6 +226,16 @@ Not acceptable:
 
 Every suppression must name the exact rule and explain why the exception is safer than changing the
 code.
+
+No file-wide, directory-wide, or project-wide lint ignores.
+
+## Comments
+
+Prefer a short file preamble when a module owns non-obvious behavior. The preamble should say what
+the file owns, who calls it, and what invariant it protects.
+
+Comments should describe what the code guarantees, not narrate how each line works. Inline comments
+belong above tricky blocks only after simpler naming or smaller functions would not remove the need.
 
 ## React Router
 
