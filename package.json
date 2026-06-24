@@ -1,6 +1,14 @@
 {
   "name": "schedule.pizza",
   "private": true,
+  "scripts": {
+    "dev": "pnpm --filter @schedule.pizza/web dev",
+    "build": "pnpm --filter @schedule.pizza/web build",
+    "deploy": "pnpm --filter @schedule.pizza/web deploy",
+    "lint": "pnpm --filter @schedule.pizza/web lint",
+    "typecheck": "pnpm --filter @schedule.pizza/web typecheck",
+    "test": "pnpm --filter @schedule.pizza/web test"
+  },
   "pnpm": {
     "onlyBuiltDependencies": ["esbuild", "workerd", "sharp"]
   }
