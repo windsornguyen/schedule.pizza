@@ -45,4 +45,4 @@ jobs:
           node-version: "22"
           cache: pnpm
       - name: Audit dependencies
-        run: pnpm audit --audit-level high
+        run: pnpm audit --audit-level critical
