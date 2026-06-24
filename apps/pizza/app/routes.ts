@@ -7,4 +7,5 @@ export default [
   route("api/v1/book", "routes/api.v1.book.ts"),
   route("design.md", "routes/design.md.ts"),
   route("login", "routes/login.tsx"),
+  route("api/auth/*", "routes/api.auth.$.ts"),
 ] satisfies RouteConfig;

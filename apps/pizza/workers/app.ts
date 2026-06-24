@@ -3,7 +3,7 @@ import {
   createRequestHandler,
   type ServerBuild,
 } from "react-router";
-import { serverContext, type AppEnv } from "../app/server-context";
+import { serverContext, type ServerEnv } from "../app/server-context";
 
 const requestHandler = createRequestHandler(
   () =>
@@ -17,4 +17,4 @@ export default {
     routerContext.set(serverContext, { env, ctx });
     return requestHandler(request, routerContext);
   },
-} satisfies ExportedHandler<AppEnv>;
+} satisfies ExportedHandler<ServerEnv>;
