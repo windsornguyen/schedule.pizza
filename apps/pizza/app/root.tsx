@@ -20,7 +20,7 @@ export const links: Route.LinksFunction = () => [
   },
   {
     rel: "stylesheet",
-    href: "https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap",
+    href: "https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100..900&family=Geist+Mono:wght@400;500&display=swap",
   },
 ];
 
@@ -105,7 +105,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center px-4">
-      <h1 className="text-2xl font-semibold tracking-tight">{message}</h1>
+      <h1 className="text-sm font-semibold">{message}</h1>
       <p className="mt-2 text-sm text-muted-foreground">{details}</p>
       {stack && (
         <pre className="mt-4 w-full max-w-2xl overflow-x-auto rounded-lg bg-secondary p-4 font-mono text-xs">

@@ -46,7 +46,7 @@ Brand colors don't appear on the site itself.
 
 | Token                | Value              | Role            |
 | -------------------- | ------------------ | --------------- |
-| `--background`       | `oklch(1 0 0)`     | Page background |
+| `--background`       | `oklch(0.995 0.002 90)` | Page background (warm off-white) |
 | `--foreground`       | `oklch(0.145 0 0)` | Primary text    |
 | `--muted`            | `oklch(0.97 0 0)`  | Raised surfaces |
 | `--muted-foreground` | `oklch(0.556 0 0)` | Secondary text  |
@@ -59,11 +59,12 @@ Brand colors don't appear on the site itself.
 
 | Utility      | Family                              | Use          |
 | ------------ | ----------------------------------- | ------------ |
-| `font-sans`  | Geist, system-ui, sans-serif        | UI and prose |
-| `font-mono`  | Geist Mono, ui-monospace, monospace | Code, API    |
+| `font-sans`  | Inter, ui-sans-serif, system-ui, sans-serif | UI and prose |
+| `font-mono`  | Geist Mono, ui-monospace, monospace          | Code, API    |
 
-Headings: `font-semibold`, `tracking-tight`. No font above 36px
-on the site. Body: `text-sm`. Antialiased everywhere.
+All text is `text-sm` (14px). Headings are the same size as body —
+differentiated by `font-semibold` (600) vs `font-normal` (400).
+No font size hierarchy. Weight does the work. Antialiased everywhere.
 
 ## Radius
 
@@ -92,3 +93,11 @@ dark text. Byline in muted warm brown. That's it.
 - Pizza is the mascot, not the brand. It shows up in the background,
   never as the centerpiece.
 - If you're debating whether to add something, don't add it.
+- Content max-width: 550px. Generous whitespace around everything.
+
+## Influences
+
+**benji.org/liveline** — same-size text throughout, weight-based
+hierarchy, warm off-white background (`rgb(253, 253, 252)`), Inter
+font, 550px content column. Everything is 14px. Headings are just
+bolder. The whole page reads like a document, not a marketing site.
