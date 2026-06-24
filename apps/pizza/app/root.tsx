@@ -30,6 +30,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="theme-color" content="#D2BEFF" />
+        <meta property="og:site_name" content="schedule.pizza" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://schedule.pizza/og.svg" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:site" content="@schedulepizza" />
+        <meta name="twitter:image" content="https://schedule.pizza/og.svg" />
         <Meta />
         <Links />
       </head>
