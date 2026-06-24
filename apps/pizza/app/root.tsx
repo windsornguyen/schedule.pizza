@@ -41,6 +41,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body className="font-sans">
+        <header className="fixed top-0 right-0 px-16 py-10">
+          <a
+            href="/login"
+            className="text-sm text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
+          >
+            login
+          </a>
+        </header>
         {children}
         <ScrollRestoration />
         <Scripts />
