@@ -21,7 +21,7 @@ const reactRouterHandler = createRequestHandler(
 
 app.all("*", async (c) => {
   const routerContext = new RouterContextProvider();
-  routerContext.set(serverContext, { env: c.env, ctx: c.executionCtx });
+  routerContext.set(serverContext, { env: c.env, ctx: c.executionCtx as ExecutionContext });
   return reactRouterHandler(c.req.raw, routerContext);
 });
 

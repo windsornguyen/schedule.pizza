@@ -141,21 +141,27 @@ v1.post("/book", async (c) => {
     return c.json({ error: { code: "missing_field", message: "Missing required field: user" } }, 400);
   }
 
-  const username = typeof body.user === "string" ? normalizeUsername(body.user) : null;
+  const rawUser = body["user"];
+  const username = typeof rawUser === "string" ? normalizeUsername(rawUser) : null;
   if (username === null) return c.json({ error: { code: "missing_field", message: "Missing required field: user" } }, 400);
 
-  const bookingCode = typeof body.code === "string" ? normalizeBookingCode(body.code) : null;
+  const rawCode = body["code"];
+  const bookingCode = typeof rawCode === "string" ? normalizeBookingCode(rawCode) : null;
   if (bookingCode === null) return c.json({ error: { code: "missing_field", message: "Missing required field: code" } }, 400);
 
-  const slotStartAt = typeof body.slot === "string" ? parseSlotStart(body.slot) : null;
+  const rawSlot = body["slot"];
+  const slotStartAt = typeof rawSlot === "string" ? parseSlotStart(rawSlot) : null;
   if (slotStartAt === null) return c.json({ error: { code: "missing_field", message: "Missing required field: slot" } }, 400);
 
-  const guestName = typeof body.name === "string" && body.name.trim().length > 0 ? body.name.trim() : null;
+  const rawName = body["name"];
+  const guestName = typeof rawName === "string" && rawName.trim().length > 0 ? rawName.trim() : null;
   if (guestName === null) return c.json({ error: { code: "missing_field", message: "Missing required field: name" } }, 400);
 
-  const email = typeof body.email === "string" && body.email.trim().length > 0 ? body.email.trim() : null;
+  const rawEmail = body["email"];
+  const email = typeof rawEmail === "string" && rawEmail.trim().length > 0 ? rawEmail.trim() : null;
   const emailNormalized = email ? email.toLowerCase() : null;
-  const guestTimezone = typeof body.timezone === "string" && body.timezone.trim().length > 0 ? body.timezone.trim() : null;
+  const rawTz = body["timezone"];
+  const guestTimezone = typeof rawTz === "string" && rawTz.trim().length > 0 ? rawTz.trim() : null;
 
   const clientIpHash = await readCloudflareClientIpHash(c.req.raw);
   if (clientIpHash.code === "client_ip_unavailable") {
