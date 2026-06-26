@@ -3,6 +3,7 @@ import { Hono, type Context } from "hono";
 import type { GoogleCalendarErrorCode } from "@/calendar/google.server";
 import { bookHostSlot } from "@/booking/book_slot.server";
 import { parseOptionalGuestEmail } from "@/booking/guest_email";
+import { parseOptionalGuestTimezone } from "@/booking/guest_timezone";
 import { createDb } from "@/db/client.server";
 import { authorizeBookingCode } from "@/db/functions/booking_code_authorizations.server";
 import { normalizeBookingCode } from "@/db/functions/booking_codes.server";
@@ -64,7 +65,7 @@ v1.get("/", (c) => {
           slot: "string (required, ISO 8601 start time)",
           name: "string (required, booker name)",
           email: "string (optional, valid booker email)",
-          timezone: "string (optional, booker timezone)",
+          timezone: "string (optional, valid IANA timezone)",
         },
         headers: { "CF-Connecting-IP": "string (injected by Cloudflare)" },
       },
@@ -304,7 +305,7 @@ export function parseBookBody(body: unknown): BookBodyParseResult {
   const email = parseOptionalGuestEmail(body["email"]);
   if (email.code !== "parsed") return { code: "invalid_field", field: "email" };
 
-  const guestTimezone = readOptionalString(body["timezone"]);
+  const guestTimezone = parseOptionalGuestTimezone(body["timezone"]);
   if (guestTimezone.code !== "parsed") {
     return { code: "invalid_field", field: "timezone" };
   }
@@ -379,22 +380,6 @@ function readRequiredString(value: unknown) {
   return typeof value === "string" && value.trim().length > 0
     ? value.trim()
     : null;
-}
-
-function readOptionalString(value: unknown):
-  | { readonly code: "parsed"; readonly value: string | null }
-  | { readonly code: "invalid" } {
-  if (value === undefined || value === null) {
-    return { code: "parsed", value: null };
-  }
-
-  if (typeof value !== "string") {
-    return { code: "invalid" };
-  }
-
-  const trimmed = value.trim();
-
-  return { code: "parsed", value: trimmed === "" ? null : trimmed };
 }
 
 function calendarError(c: V1Context, code: GoogleCalendarErrorCode) {

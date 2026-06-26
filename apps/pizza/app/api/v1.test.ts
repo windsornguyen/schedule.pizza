@@ -75,6 +75,17 @@ describe("book API body parser", () => {
       },
       field: "email",
     },
+    {
+      name: "malformed time zones",
+      body: {
+        user: "alice",
+        code: "moon-tiger-seven",
+        slot: "2026-06-26T16:00:00.000Z",
+        name: "Ada",
+        timezone: "Mars/Olympus_Mons",
+      },
+      field: "timezone",
+    },
   ])("rejects $name as invalid fields", ({ body, field }) => {
     expect(parseBookBody(body)).toEqual({ code: "invalid_field", field });
   });

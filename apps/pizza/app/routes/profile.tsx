@@ -2,6 +2,7 @@ import { Form } from "react-router";
 
 import { bookHostSlot } from "@/booking/book_slot.server";
 import { parseOptionalGuestEmail } from "@/booking/guest_email";
+import { parseOptionalGuestTimezone } from "@/booking/guest_timezone";
 import { createDb } from "@/db/client.server";
 import { authorizeBookingCode } from "@/db/functions/booking_code_authorizations.server";
 import { normalizeBookingCode } from "@/db/functions/booking_codes.server";
@@ -91,23 +92,24 @@ export async function action({ context, params, request }: Route.ActionArgs) {
   const slotStartAt = readSlotStart(formData);
   const guestName = readRequiredString(formData, "name");
   const guestEmail = parseOptionalGuestEmail(formData.get("email"));
+  const guestTimezone = parseOptionalGuestTimezone(formData.get("timezone"));
 
   if (
     bookingCode === null ||
     slotStartAt === null ||
     guestName === null ||
-    guestEmail.code !== "parsed"
+    guestEmail.code !== "parsed" ||
+    guestTimezone.code !== "parsed"
   ) {
     return { code: "invalid_field" as const };
   }
 
-  const guestTimezone = readOptionalString(formData, "timezone");
   const result = await bookAuthorizedSlot({
     bookingCode,
     env: context.get(serverContext).env,
     guestEmail: guestEmail.value,
     guestName,
-    guestTimezone,
+    guestTimezone: guestTimezone.value,
     request,
     slotStartAt,
     username,
@@ -415,11 +417,6 @@ function readSlotStart(formData: FormData) {
 }
 
 function readRequiredString(formData: FormData, name: string) {
-  const value = formData.get(name);
-  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
-}
-
-function readOptionalString(formData: FormData, name: string) {
   const value = formData.get(name);
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
