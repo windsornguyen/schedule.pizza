@@ -12,6 +12,8 @@ export const session = sqliteTable(
     updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull(),
     ipAddress: text("ipAddress"),
     userAgent: text("userAgent"),
+    activeOrganizationId: text("activeOrganizationId"),
+    impersonatedBy: text("impersonatedBy"),
     userId: text("userId")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
