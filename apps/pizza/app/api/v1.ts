@@ -130,9 +130,18 @@ v1.post("/book", async (c) => {
     return c.json({ error: { code: "invalid_json", message: "Request body must be JSON" } }, 400);
   }
 
-  let body: Record<string, unknown>;
+  interface BookBody {
+    user?: string;
+    code?: string;
+    slot?: string;
+    name?: string;
+    email?: string;
+    timezone?: string;
+  }
+
+  let body: BookBody;
   try {
-    body = JSON.parse(text) as Record<string, unknown>;
+    body = JSON.parse(text) as BookBody;
   } catch {
     return c.json({ error: { code: "invalid_json", message: "Request body must be JSON" } }, 400);
   }
@@ -141,27 +150,21 @@ v1.post("/book", async (c) => {
     return c.json({ error: { code: "missing_field", message: "Missing required field: user" } }, 400);
   }
 
-  const rawUser = body["user"];
-  const username = typeof rawUser === "string" ? normalizeUsername(rawUser) : null;
+  const username = typeof body.user === "string" ? normalizeUsername(body.user) : null;
   if (username === null) return c.json({ error: { code: "missing_field", message: "Missing required field: user" } }, 400);
 
-  const rawCode = body["code"];
-  const bookingCode = typeof rawCode === "string" ? normalizeBookingCode(rawCode) : null;
+  const bookingCode = typeof body.code === "string" ? normalizeBookingCode(body.code) : null;
   if (bookingCode === null) return c.json({ error: { code: "missing_field", message: "Missing required field: code" } }, 400);
 
-  const rawSlot = body["slot"];
-  const slotStartAt = typeof rawSlot === "string" ? parseSlotStart(rawSlot) : null;
+  const slotStartAt = typeof body.slot === "string" ? parseSlotStart(body.slot) : null;
   if (slotStartAt === null) return c.json({ error: { code: "missing_field", message: "Missing required field: slot" } }, 400);
 
-  const rawName = body["name"];
-  const guestName = typeof rawName === "string" && rawName.trim().length > 0 ? rawName.trim() : null;
+  const guestName = typeof body.name === "string" && body.name.trim().length > 0 ? body.name.trim() : null;
   if (guestName === null) return c.json({ error: { code: "missing_field", message: "Missing required field: name" } }, 400);
 
-  const rawEmail = body["email"];
-  const email = typeof rawEmail === "string" && rawEmail.trim().length > 0 ? rawEmail.trim() : null;
+  const email = typeof body.email === "string" && body.email.trim().length > 0 ? body.email.trim() : null;
   const emailNormalized = email ? email.toLowerCase() : null;
-  const rawTz = body["timezone"];
-  const guestTimezone = typeof rawTz === "string" && rawTz.trim().length > 0 ? rawTz.trim() : null;
+  const guestTimezone = typeof body.timezone === "string" && body.timezone.trim().length > 0 ? body.timezone.trim() : null;
 
   const clientIpHash = await readCloudflareClientIpHash(c.req.raw);
   if (clientIpHash.code === "client_ip_unavailable") {
