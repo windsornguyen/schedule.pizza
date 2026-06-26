@@ -26,7 +26,7 @@ within 7 days.
 | Version | Supported |
 | --- | --- |
 | main | Active development |
-| < 1.0 | Pre-release, best-effort |
+| < 1.0 | Security fixes are shipped from main |
 
 ## Security Considerations
 
