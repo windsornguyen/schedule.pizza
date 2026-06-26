@@ -62,7 +62,7 @@ v1.get("/", (c) => {
         body: {
           user: "string (required)",
           code: "string (required, booking code)",
-          slot: "string (required, ISO 8601 start time)",
+          slot: "string (required, UTC ISO 8601 start time)",
           name: "string (required, booker name)",
           email: "string (optional, valid booker email)",
           timezone: "string (optional, valid IANA timezone)",
@@ -79,7 +79,10 @@ v1.get("/", (c) => {
           maxExactSlotCount: "number (1-100)",
           maxAlternativeSlotCount: "number (1-50)",
           timeZone: "IANA time zone",
-          window: { start: "ISO 8601", end: "ISO 8601, max 31 days" },
+          window: {
+            start: "UTC ISO 8601",
+            end: "UTC ISO 8601, max 31 days",
+          },
         },
         headers: { "CF-Connecting-IP": "string (injected by Cloudflare)" },
       },

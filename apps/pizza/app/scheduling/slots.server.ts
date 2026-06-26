@@ -1,4 +1,5 @@
 import type { BlockingBooking } from "@/db/functions/bookings.server";
+import { parseUtcDateTime } from "./utc_datetime";
 
 const DEFAULT_WINDOW_DAYS = 14;
 const WORKDAY_END_MINUTE = 17 * 60;
@@ -16,9 +17,6 @@ export type SlotRange = {
 };
 
 type BusyRange = Pick<BlockingBooking, "slotEndAt" | "slotStartAt">;
-
-const ISO_UTC_DATETIME_PATTERN =
-  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/u;
 
 export function listDefaultCandidateSlots(
   input: { now: Date; slotSizeMinutes: number; timeZone: string },
@@ -69,17 +67,7 @@ export function serializeSlot(slot: SlotRange) {
 }
 
 export function parseSlotStart(value: string) {
-  if (!ISO_UTC_DATETIME_PATTERN.test(value)) {
-    return null;
-  }
-
-  const parsed = new Date(value);
-
-  if (Number.isNaN(parsed.getTime())) {
-    return null;
-  }
-
-  return parsed;
+  return parseUtcDateTime(value);
 }
 
 export function isDefaultCandidateSlot(input: {

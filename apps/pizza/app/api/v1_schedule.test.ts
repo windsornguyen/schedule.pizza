@@ -180,6 +180,23 @@ describe("schedule API body parser", () => {
       },
     })).toEqual({ code: "invalid_field", field: "window" });
   });
+
+  it("rejects ambiguous windows before booking-code authorization", () => {
+    expect(parseScheduleBody({
+      participants: [
+        { user: "Alice", code: "moon tiger seven" },
+      ],
+      durationMinutes: 30,
+      granularityMinutes: 15,
+      maxExactSlotCount: 10,
+      maxAlternativeSlotCount: 5,
+      timeZone: "America/Los_Angeles",
+      window: {
+        start: "2026-06-26",
+        end: "2026-06-26T18:00:00",
+      },
+    })).toEqual({ code: "invalid_field", field: "window" });
+  });
 });
 
 describe("schedule API serializer", () => {

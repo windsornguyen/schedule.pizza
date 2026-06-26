@@ -24,6 +24,7 @@ import {
   type ScoredSlot,
   type TimeInterval,
 } from "@/scheduling/engine";
+import { parseUtcDateTimeMs } from "@/scheduling/utc_datetime";
 import type { ServerEnv } from "@/server-context";
 import {
   googleCalendarErrorBody,
@@ -281,10 +282,10 @@ function parseWindow(value: unknown):
     return { code: "missing_field", field: "window" };
   }
 
-  const startAtMs = Date.parse(value["start"]);
-  const endAtMs = Date.parse(value["end"]);
+  const startAtMs = parseUtcDateTimeMs(value["start"]);
+  const endAtMs = parseUtcDateTimeMs(value["end"]);
 
-  if (!Number.isSafeInteger(startAtMs) || !Number.isSafeInteger(endAtMs)) {
+  if (startAtMs === null || endAtMs === null) {
     return { code: "invalid_field", field: "window" };
   }
 
