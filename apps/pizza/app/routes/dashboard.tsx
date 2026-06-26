@@ -168,6 +168,10 @@ function ProfilePanel({
       <p className="text-sm text-muted-foreground">
         {profile.slotSizeMinutes} minute slots, {profile.timezone}
       </p>
+      <p className="text-sm text-muted-foreground">
+        booking codes are shown only when created. rotate to make a new share
+        link and revoke the old one.
+      </p>
       {profile.calendarStatus === "reconnect_required" ? (
         <p className="text-sm text-destructive">
           google calendar needs{" "}
@@ -233,7 +237,13 @@ function ActionMessage({
   if (actionData.code === "calendar_authorization_required") {
     return (
       <p className="text-sm text-destructive">
-        reconnect google calendar before creating a profile.
+        <a
+          href="/auth/google"
+          className="underline decoration-border underline-offset-4"
+        >
+          reconnect google calendar
+        </a>{" "}
+        before creating a profile.
       </p>
     );
   }
