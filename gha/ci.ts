@@ -17,10 +17,10 @@ export const ci = workflow({
 	permissions: { contents: "read" },
 	jobs: {
 		check: job({
-			name: "Lint & Typecheck",
+			name: "Check",
 			"runs-on": "ubuntu-latest",
 			defaults: { run: { "working-directory": "apps/pizza" } },
-			steps: [...setup, { name: "Lint", run: "pnpm lint" }, { name: "Typecheck", run: "pnpm typecheck" }],
+			steps: [...setup, { name: "Check", run: "pnpm check" }],
 		}),
 	},
 });
