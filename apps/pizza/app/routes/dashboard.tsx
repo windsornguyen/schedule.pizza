@@ -3,7 +3,10 @@ import { Form, redirect } from "react-router";
 import { readAuthSession } from "@/auth.server";
 import { readGoogleCalendarAccess } from "@/calendar/google.server";
 import { createDb } from "@/db/client.server";
-import { createBookingCode } from "@/db/functions/booking_codes.server";
+import {
+  createBookingCode,
+  rotateBookingCode,
+} from "@/db/functions/booking_codes.server";
 import {
   createHostProfile,
   findHostProfileByAuthUserId,
@@ -183,7 +186,7 @@ function ProfilePanel({
           type="submit"
           className="rounded-md border px-3 py-2 text-sm transition-colors hover:bg-muted"
         >
-          new booking code
+          rotate booking code
         </button>
       </Form>
       <ActionMessage actionData={actionData} />
@@ -209,6 +212,12 @@ function ActionMessage({
         <span className="font-mono">
           schedule.pizza/{actionData.username}?code={actionData.bookingCode}
         </span>
+        {actionData.code === "created_code" ? (
+          <>
+            <br />
+            previous codes are revoked.
+          </>
+        ) : null}
       </p>
     );
   }
@@ -312,7 +321,7 @@ async function createCodeForExistingProfile(
     return { code: "calendar_authorization_required" as const };
   }
 
-  const bookingCode = await createBookingCode(db, {
+  const bookingCode = await rotateBookingCode(db, {
     hostId: profile.id,
     hostUsername: profile.username,
     wordCount: 3,
