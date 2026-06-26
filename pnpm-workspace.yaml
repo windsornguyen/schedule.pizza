@@ -13,5 +13,8 @@ allowBuilds:
   sharp: true
   workerd: true
 
+# Supply-chain: reject packages published < 7 days ago.
+minimumReleaseAge: 7d
+
 minimumReleaseAgeExclude:
   - vite@8.1.0
