@@ -3,9 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "react-router dev",
+    "dev": "CLOUDFLARE_ENV=dev react-router dev",
     "build": "react-router build",
-    "preview": "wrangler dev",
+    "preview": "wrangler dev --env dev",
     "deploy": "pnpm build && wrangler deploy",
     "check": "npm run lint && npm run typecheck && npm test && npm run db -- check && npm run build",
     "db": "drizzle-kit",
