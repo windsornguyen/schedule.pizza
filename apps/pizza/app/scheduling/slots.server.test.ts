@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   listDefaultCandidateSlots,
+  parseSlotStart,
   removeBookedSlots,
   serializeSlot,
 } from "./slots.server";
@@ -56,5 +57,17 @@ describe("default slots", () => {
     ]);
 
     expect(available).toEqual([]);
+  });
+
+  it("parses serialized UTC slot starts", () => {
+    expect(parseSlotStart("2026-06-26T16:00:00.000Z")).toEqual(
+      new Date("2026-06-26T16:00:00.000Z"),
+    );
+  });
+
+  it("rejects ambiguous slot starts", () => {
+    expect(parseSlotStart("2026-06-26")).toBeNull();
+    expect(parseSlotStart("2026-06-26T16:00:00")).toBeNull();
+    expect(parseSlotStart("not a time")).toBeNull();
   });
 });
