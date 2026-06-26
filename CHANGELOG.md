@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.1.0](https://github.com/windsornguyen/schedule.pizza/compare/v0.0.1...v0.1.0) (2026-06-26)
+
+
+### Features
+
+* **api:** persist booking endpoints ([#25](https://github.com/windsornguyen/schedule.pizza/issues/25)) ([5ed4c86](https://github.com/windsornguyen/schedule.pizza/commit/5ed4c865f371261a608ce44924050f610da928af))
+* **auth:** add booking code authorization gate ([#24](https://github.com/windsornguyen/schedule.pizza/issues/24)) ([80e6e35](https://github.com/windsornguyen/schedule.pizza/commit/80e6e35207ebcd2dda45f0ed959493973e99fdb4))
+* **scheduling:** add default slot primitives ([#23](https://github.com/windsornguyen/schedule.pizza/issues/23)) ([4e86cb5](https://github.com/windsornguyen/schedule.pizza/commit/4e86cb5749a6a474ac8e0f3723f8da5cfacc798c))
+
+
+### Bug Fixes
+
+* **ui:** center content and autofocus input ([#22](https://github.com/windsornguyen/schedule.pizza/issues/22)) ([7358e22](https://github.com/windsornguyen/schedule.pizza/commit/7358e222c2f249486b383d1f1701805aaa7c61db))
+
+
+### Refactors
+
+* move API to Hono, React Router for UI only ([#26](https://github.com/windsornguyen/schedule.pizza/issues/26)) ([379e6fe](https://github.com/windsornguyen/schedule.pizza/commit/379e6fe89ea86a2d82b0b5992549d4241f9fa742))
+
+
+### Chores
+
+* **release:** correct initial release metadata ([#20](https://github.com/windsornguyen/schedule.pizza/issues/20)) ([dd47358](https://github.com/windsornguyen/schedule.pizza/commit/dd47358ed4a64915bf6dc215e614a516c91eacf3))
+
 ## 0.0.1 (2026-06-24)
 
 
