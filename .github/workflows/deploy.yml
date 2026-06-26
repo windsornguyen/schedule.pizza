@@ -34,6 +34,8 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build
         run: pnpm build
+      - name: Apply D1 migrations
+        run: pnpm exec wrangler d1 migrations apply DB --remote
       - uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd
         with:
           apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}

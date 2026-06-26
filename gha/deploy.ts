@@ -35,6 +35,10 @@ export const deploy = workflow({
 				...setup,
 				{ name: "Build", run: "pnpm build" },
 				{
+					name: "Apply D1 migrations",
+					run: "pnpm exec wrangler d1 migrations apply DB --remote",
+				},
+				{
 					uses: wranglerAction,
 					with: {
 						apiToken: "${{ env.CLOUDFLARE_API_TOKEN }}",

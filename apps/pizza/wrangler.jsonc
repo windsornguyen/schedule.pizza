@@ -11,7 +11,8 @@
     {
       "binding": "DB",
       "database_name": "schedule-pizza-prod-db",
-      "database_id": "09e70875-d9bd-4b44-868b-86971fcd0486"
+      "database_id": "09e70875-d9bd-4b44-868b-86971fcd0486",
+      "migrations_dir": "drizzle"
     }
   ],
   "env": {
@@ -22,7 +23,8 @@
         {
           "binding": "DB",
           "database_name": "schedule-pizza-dev-db",
-          "database_id": "b8c00258-4534-4c1e-922e-c18a87760190"
+          "database_id": "b8c00258-4534-4c1e-922e-c18a87760190",
+          "migrations_dir": "drizzle"
         }
       ]
     }
