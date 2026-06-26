@@ -64,6 +64,17 @@ describe("book API body parser", () => {
       },
       field: "slot",
     },
+    {
+      name: "malformed emails",
+      body: {
+        user: "alice",
+        code: "moon-tiger-seven",
+        slot: "2026-06-26T16:00:00.000Z",
+        name: "Ada",
+        email: "not an email",
+      },
+      field: "email",
+    },
   ])("rejects $name as invalid fields", ({ body, field }) => {
     expect(parseBookBody(body)).toEqual({ code: "invalid_field", field });
   });

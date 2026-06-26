@@ -1,6 +1,7 @@
 import { Form } from "react-router";
 
 import { bookHostSlot } from "@/booking/book_slot.server";
+import { parseOptionalGuestEmail } from "@/booking/guest_email";
 import { createDb } from "@/db/client.server";
 import { authorizeBookingCode } from "@/db/functions/booking_code_authorizations.server";
 import { normalizeBookingCode } from "@/db/functions/booking_codes.server";
@@ -89,17 +90,22 @@ export async function action({ context, params, request }: Route.ActionArgs) {
   const bookingCode = readBookingCode(formData);
   const slotStartAt = readSlotStart(formData);
   const guestName = readRequiredString(formData, "name");
+  const guestEmail = parseOptionalGuestEmail(formData.get("email"));
 
-  if (bookingCode === null || slotStartAt === null || guestName === null) {
+  if (
+    bookingCode === null ||
+    slotStartAt === null ||
+    guestName === null ||
+    guestEmail.code !== "parsed"
+  ) {
     return { code: "invalid_field" as const };
   }
 
-  const guestEmail = readOptionalString(formData, "email");
   const guestTimezone = readOptionalString(formData, "timezone");
   const result = await bookAuthorizedSlot({
     bookingCode,
     env: context.get(serverContext).env,
-    guestEmail,
+    guestEmail: guestEmail.value,
     guestName,
     guestTimezone,
     request,

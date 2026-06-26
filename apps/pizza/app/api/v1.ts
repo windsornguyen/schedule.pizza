@@ -2,6 +2,7 @@ import { Hono, type Context } from "hono";
 
 import type { GoogleCalendarErrorCode } from "@/calendar/google.server";
 import { bookHostSlot } from "@/booking/book_slot.server";
+import { parseOptionalGuestEmail } from "@/booking/guest_email";
 import { createDb } from "@/db/client.server";
 import { authorizeBookingCode } from "@/db/functions/booking_code_authorizations.server";
 import { normalizeBookingCode } from "@/db/functions/booking_codes.server";
@@ -62,7 +63,7 @@ v1.get("/", (c) => {
           code: "string (required, booking code)",
           slot: "string (required, ISO 8601 start time)",
           name: "string (required, booker name)",
-          email: "string (optional, booker email)",
+          email: "string (optional, valid booker email)",
           timezone: "string (optional, booker timezone)",
         },
         headers: { "CF-Connecting-IP": "string (required, set by Cloudflare)" },
@@ -299,7 +300,7 @@ export function parseBookBody(body: unknown): BookBodyParseResult {
   const guestName = readRequiredString(body["name"]);
   if (guestName === null) return { code: "missing_field", field: "name" };
 
-  const email = readOptionalString(body["email"]);
+  const email = parseOptionalGuestEmail(body["email"]);
   if (email.code !== "parsed") return { code: "invalid_field", field: "email" };
 
   const guestTimezone = readOptionalString(body["timezone"]);
@@ -315,7 +316,7 @@ export function parseBookBody(body: unknown): BookBodyParseResult {
       slotStartAt: slotStartAt.value,
       guestName,
       email: email.value,
-      emailNormalized: email.value?.toLowerCase() ?? null,
+      emailNormalized: email.normalized,
       guestTimezone: guestTimezone.value,
     },
   };
