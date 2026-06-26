@@ -3,10 +3,31 @@ import { and, eq, gt, isNull, or } from "drizzle-orm";
 import type { Database } from "@/db/client.server";
 import { bookingCode, hostProfile } from "@/db/schema";
 
+const BOOKING_CODE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
 interface ActiveBookingCodeLookup {
   codeHash: string;
   now: Date;
   username: string;
+}
+
+export function normalizeBookingCode(value: string) {
+  const code = value.trim().toLowerCase().split(/[\s-]+/u).join("-");
+
+  if (!BOOKING_CODE_PATTERN.test(code)) {
+    return null;
+  }
+
+  return code;
+}
+
+export async function hashNormalizedBookingCode(code: string) {
+  const bytes = new TextEncoder().encode(code);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0")
+  ).join("");
 }
 
 export async function findActiveBookingCode(
@@ -31,4 +52,14 @@ export async function findActiveBookingCode(
     .limit(1);
 
   return rows[0] ?? null;
+}
+
+export async function markBookingCodeUsed(
+  db: Database,
+  input: { bookingCodeId: string; usedAt: Date }
+) {
+  await db
+    .update(bookingCode)
+    .set({ lastUsedAt: input.usedAt, updatedAt: input.usedAt })
+    .where(eq(bookingCode.id, input.bookingCodeId));
 }
