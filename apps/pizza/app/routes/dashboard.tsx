@@ -75,7 +75,10 @@ export async function action({ context, request }: Route.ActionArgs) {
   }
 
   if (intent === "create_code") {
-    return createCodeForExistingProfile(db, session.user.id);
+    return createCodeForExistingProfile(db, {
+      authUserId: session.user.id,
+      env,
+    });
   }
 
   return { code: "invalid_intent" as const };
@@ -291,12 +294,22 @@ async function createProfileAndCode(
 
 async function createCodeForExistingProfile(
   db: ReturnType<typeof createDb>,
-  authUserId: string,
+  input: {
+    readonly authUserId: string;
+    readonly env: Parameters<typeof readCalendarStatus>[1];
+  },
 ) {
-  const profile = await findHostProfileByAuthUserId(db, authUserId);
+  const profile = await findHostProfileByAuthUserId(db, input.authUserId);
 
   if (profile === null) {
     return { code: "profile_missing" as const };
+  }
+
+  const now = new Date();
+  const calendarStatus = await readCalendarStatus(db, input.env, input.authUserId, now);
+
+  if (calendarStatus !== "connected") {
+    return { code: "calendar_authorization_required" as const };
   }
 
   const bookingCode = await createBookingCode(db, {
@@ -304,7 +317,7 @@ async function createCodeForExistingProfile(
     hostUsername: profile.username,
     wordCount: 3,
     label: null,
-    now: new Date(),
+    now,
   });
 
   return {

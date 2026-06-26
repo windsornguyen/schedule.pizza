@@ -7,7 +7,9 @@ import {
   ScrollRestoration,
 } from "react-router";
 
+import { readAuthSession } from "./auth.server";
 import type { Route } from "./+types/root";
+import { serverContext } from "./server-context";
 import "./app.css";
 
 export const links: Route.LinksFunction = () => [
@@ -24,13 +26,13 @@ export const links: Route.LinksFunction = () => [
   },
 ];
 
-function hasSession(request?: Request): boolean {
-  const cookie = request?.headers.get("Cookie") ?? "";
-  return /session=/.test(cookie);
-}
+export async function loader({ context, request }: Route.LoaderArgs) {
+  const session = await readAuthSession(
+    context.get(serverContext).env,
+    request.headers,
+  );
 
-export function loader({ request }: Route.LoaderArgs) {
-  return { loggedIn: hasSession(request) };
+  return { loggedIn: session !== null };
 }
 
 export function Layout({
