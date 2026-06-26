@@ -14,6 +14,7 @@ import { normalizeUsername } from "@/db/functions/host_profiles.server";
 import { readCloudflareClientIpHash } from "@/http/client_ip.server";
 import {
   createSchedulingEngine,
+  SCHEDULE_REQUEST_LIMITS,
   timeInterval,
   validateScheduleRequest,
   type BusyInterval,
@@ -174,16 +175,28 @@ export function parseScheduleBody(body: unknown): ScheduleBodyParseResult {
     return participants;
   }
 
-  const durationMinutes = parseRequiredPositiveInteger(body["durationMinutes"]);
+  const durationMinutes = parseRequiredPositiveInteger(
+    body["durationMinutes"],
+    SCHEDULE_REQUEST_LIMITS.maxDurationMinutes,
+  );
   if (durationMinutes.code !== "parsed") return { code: durationMinutes.code, field: "durationMinutes" };
 
-  const granularityMinutes = parseRequiredPositiveInteger(body["granularityMinutes"]);
+  const granularityMinutes = parseRequiredPositiveInteger(
+    body["granularityMinutes"],
+    SCHEDULE_REQUEST_LIMITS.maxGranularityMinutes,
+  );
   if (granularityMinutes.code !== "parsed") return { code: granularityMinutes.code, field: "granularityMinutes" };
 
-  const maxExactSlotCount = parseRequiredPositiveInteger(body["maxExactSlotCount"]);
+  const maxExactSlotCount = parseRequiredPositiveInteger(
+    body["maxExactSlotCount"],
+    SCHEDULE_REQUEST_LIMITS.maxExactSlotCount,
+  );
   if (maxExactSlotCount.code !== "parsed") return { code: maxExactSlotCount.code, field: "maxExactSlotCount" };
 
-  const maxAlternativeSlotCount = parseRequiredPositiveInteger(body["maxAlternativeSlotCount"]);
+  const maxAlternativeSlotCount = parseRequiredPositiveInteger(
+    body["maxAlternativeSlotCount"],
+    SCHEDULE_REQUEST_LIMITS.maxAlternativeSlotCount,
+  );
   if (maxAlternativeSlotCount.code !== "parsed") return { code: maxAlternativeSlotCount.code, field: "maxAlternativeSlotCount" };
 
   const timeZone = parseRequiredTimeZone(body["timeZone"]);
@@ -225,6 +238,10 @@ function parseParticipants(value: unknown):
   | { readonly code: "invalid_field" | "missing_field"; readonly field: string } {
   if (!Array.isArray(value) || value.length === 0) {
     return { code: "missing_field", field: "participants" };
+  }
+
+  if (value.length > SCHEDULE_REQUEST_LIMITS.maxProfileCount) {
+    return { code: "invalid_field", field: "participants" };
   }
 
   const participants: ParsedParticipant[] = [];
@@ -272,20 +289,31 @@ function parseWindow(value: unknown):
   }
 
   try {
-    return { code: "parsed", window: timeInterval({ startAtMs, endAtMs }) };
+    const window = timeInterval({ startAtMs, endAtMs });
+
+    if (window.endAtMs - window.startAtMs > SCHEDULE_REQUEST_LIMITS.maxWindowMs) {
+      return { code: "invalid_field", field: "window" };
+    }
+
+    return { code: "parsed", window };
   } catch {
     return { code: "invalid_field", field: "window" };
   }
 }
 
-function parseRequiredPositiveInteger(value: unknown):
+function parseRequiredPositiveInteger(value: unknown, maxValue: number):
   | { readonly code: "parsed"; readonly value: number }
   | { readonly code: "invalid_field" | "missing_field" } {
   if (value === undefined || value === null) {
     return { code: "missing_field" };
   }
 
-  return typeof value === "number" && Number.isInteger(value) && value > 0
+  return (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value > 0 &&
+    value <= maxValue
+  )
     ? { code: "parsed", value }
     : { code: "invalid_field" };
 }

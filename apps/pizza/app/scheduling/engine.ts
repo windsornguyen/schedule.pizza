@@ -140,12 +140,15 @@ export type IntervalOps = {
 
 const HARD_CONFLICT_COST = 1_000;
 const MINUTE_MS = 60_000;
-const MAX_ALTERNATIVE_SLOT_COUNT = 50;
-const MAX_DURATION_MINUTES = 8 * 60;
-const MAX_EXACT_SLOT_COUNT = 100;
-const MAX_GRANULARITY_MINUTES = 4 * 60;
-const MAX_PROFILE_COUNT = 8;
-const MAX_WINDOW_MS = 31 * 24 * 60 * MINUTE_MS;
+
+export const SCHEDULE_REQUEST_LIMITS = {
+  maxAlternativeSlotCount: 50,
+  maxDurationMinutes: 8 * 60,
+  maxExactSlotCount: 100,
+  maxGranularityMinutes: 4 * 60,
+  maxProfileCount: 8,
+  maxWindowMs: 31 * 24 * 60 * MINUTE_MS,
+} as const;
 
 export type ScheduleEngineErrorCode =
   | "busy_interval_source_failed"
@@ -204,28 +207,29 @@ export function validateScheduleRequest(
 
   if (
     !isPositiveInteger(request.durationMinutes) ||
-    request.durationMinutes > MAX_DURATION_MINUTES
+    request.durationMinutes > SCHEDULE_REQUEST_LIMITS.maxDurationMinutes
   ) {
     return { kind: "invalid", code: "invalid_duration_minutes" };
   }
 
   if (
     !isPositiveInteger(request.granularityMinutes) ||
-    request.granularityMinutes > MAX_GRANULARITY_MINUTES
+    request.granularityMinutes > SCHEDULE_REQUEST_LIMITS.maxGranularityMinutes
   ) {
     return { kind: "invalid", code: "invalid_granularity_minutes" };
   }
 
   if (
     !isPositiveInteger(request.maxExactSlotCount) ||
-    request.maxExactSlotCount > MAX_EXACT_SLOT_COUNT
+    request.maxExactSlotCount > SCHEDULE_REQUEST_LIMITS.maxExactSlotCount
   ) {
     return { kind: "invalid", code: "invalid_exact_slot_limit" };
   }
 
   if (
     !isPositiveInteger(request.maxAlternativeSlotCount) ||
-    request.maxAlternativeSlotCount > MAX_ALTERNATIVE_SLOT_COUNT
+    request.maxAlternativeSlotCount >
+      SCHEDULE_REQUEST_LIMITS.maxAlternativeSlotCount
   ) {
     return { kind: "invalid", code: "invalid_alternative_slot_limit" };
   }
@@ -234,7 +238,10 @@ export function validateScheduleRequest(
     return { kind: "invalid", code: "invalid_window" };
   }
 
-  if (request.window.endAtMs - request.window.startAtMs > MAX_WINDOW_MS) {
+  if (
+    request.window.endAtMs - request.window.startAtMs >
+    SCHEDULE_REQUEST_LIMITS.maxWindowMs
+  ) {
     return { kind: "invalid", code: "window_too_large" };
   }
 
@@ -398,7 +405,7 @@ function validateProfileIds(
     return { kind: "invalid", code: "empty_profile_set" };
   }
 
-  if (profileIds.length > MAX_PROFILE_COUNT) {
+  if (profileIds.length > SCHEDULE_REQUEST_LIMITS.maxProfileCount) {
     return { kind: "invalid", code: "too_many_profile_ids" };
   }
 

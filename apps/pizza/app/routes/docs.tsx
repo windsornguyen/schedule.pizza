@@ -88,8 +88,8 @@ export default function Docs() {
       <section className="mt-10 space-y-3">
         <h2 className="text-sm font-semibold">recommendations</h2>
         <p className="text-sm leading-6 text-muted-foreground">
-          A response with <code className="font-mono">kind: "exact"</code> is
-          directly bookable. A response with{" "}
+          A response with <code className="font-mono">kind: "exact"</code>{" "}
+          means every participant is free for that interval. A response with{" "}
           <code className="font-mono">kind: "alternatives"</code> is a ranked
           recommendation: lower conflict cost is better, hard conflicts are
           shown before soft conflicts, and event details stay private.

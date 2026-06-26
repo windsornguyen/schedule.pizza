@@ -121,6 +121,65 @@ describe("schedule API body parser", () => {
       },
     })).toEqual({ code: "invalid_field", field: "participants" });
   });
+
+  it("rejects too many participants before booking-code authorization", () => {
+    expect(parseScheduleBody({
+      participants: [
+        { user: "user1", code: "moon tiger seven" },
+        { user: "user2", code: "moon tiger seven" },
+        { user: "user3", code: "moon tiger seven" },
+        { user: "user4", code: "moon tiger seven" },
+        { user: "user5", code: "moon tiger seven" },
+        { user: "user6", code: "moon tiger seven" },
+        { user: "user7", code: "moon tiger seven" },
+        { user: "user8", code: "moon tiger seven" },
+        { user: "user9", code: "moon tiger seven" },
+      ],
+      durationMinutes: 30,
+      granularityMinutes: 15,
+      maxExactSlotCount: 10,
+      maxAlternativeSlotCount: 5,
+      timeZone: "America/Los_Angeles",
+      window: {
+        start: "2026-06-26T16:00:00.000Z",
+        end: "2026-06-26T18:00:00.000Z",
+      },
+    })).toEqual({ code: "invalid_field", field: "participants" });
+  });
+
+  it("rejects oversized slot limits before booking-code authorization", () => {
+    expect(parseScheduleBody({
+      participants: [
+        { user: "Alice", code: "moon tiger seven" },
+      ],
+      durationMinutes: 30,
+      granularityMinutes: 15,
+      maxExactSlotCount: 101,
+      maxAlternativeSlotCount: 5,
+      timeZone: "America/Los_Angeles",
+      window: {
+        start: "2026-06-26T16:00:00.000Z",
+        end: "2026-06-26T18:00:00.000Z",
+      },
+    })).toEqual({ code: "invalid_field", field: "maxExactSlotCount" });
+  });
+
+  it("rejects oversized windows before booking-code authorization", () => {
+    expect(parseScheduleBody({
+      participants: [
+        { user: "Alice", code: "moon tiger seven" },
+      ],
+      durationMinutes: 30,
+      granularityMinutes: 15,
+      maxExactSlotCount: 10,
+      maxAlternativeSlotCount: 5,
+      timeZone: "America/Los_Angeles",
+      window: {
+        start: "2026-06-01T00:00:00.000Z",
+        end: "2026-07-03T00:00:00.000Z",
+      },
+    })).toEqual({ code: "invalid_field", field: "window" });
+  });
 });
 
 describe("schedule API serializer", () => {
