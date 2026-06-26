@@ -53,7 +53,7 @@ v1.get("/", (c) => {
         method: "GET",
         path: "/api/v1/availability",
         params: { user: "string (required)", code: "string (required, booking code)" },
-        headers: { "CF-Connecting-IP": "string (required, set by Cloudflare)" },
+        headers: { "CF-Connecting-IP": "string (injected by Cloudflare)" },
       },
       book: {
         method: "POST",
@@ -66,7 +66,7 @@ v1.get("/", (c) => {
           email: "string (optional, valid booker email)",
           timezone: "string (optional, booker timezone)",
         },
-        headers: { "CF-Connecting-IP": "string (required, set by Cloudflare)" },
+        headers: { "CF-Connecting-IP": "string (injected by Cloudflare)" },
       },
       schedule: {
         method: "POST",
@@ -80,7 +80,7 @@ v1.get("/", (c) => {
           timeZone: "IANA time zone",
           window: { start: "ISO 8601", end: "ISO 8601" },
         },
-        headers: { "CF-Connecting-IP": "string (required, set by Cloudflare)" },
+        headers: { "CF-Connecting-IP": "string (injected by Cloudflare)" },
       },
     },
     errors: {
