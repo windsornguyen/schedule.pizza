@@ -35,17 +35,18 @@ export default function Home({
 }) {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-4 antialiased">
-      <div className="w-full max-w-[550px]">
+      <div className="w-full max-w-[550px] text-center">
         <h1 className="text-sm font-semibold">schedule.pizza</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           the easiest way to find some time
         </p>
 
-        <form action="/search" method="get" className="mt-10">
+        <form action="/search" method="get" className="mt-10 flex justify-center">
           <input
             type="text"
             name="q"
             placeholder="username or link"
+            autoFocus
             autoComplete="off"
             className="h-9 w-full max-w-[260px] rounded-md border border-input bg-transparent px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-[3px] focus:ring-ring/50"
           />
@@ -66,7 +67,7 @@ export default function Home({
           </div>
         )}
 
-        <nav className="mt-8 flex items-center gap-2 text-sm text-muted-foreground">
+        <nav className="mt-8 flex items-center justify-center gap-2 text-sm text-muted-foreground">
           <a
             href="/api/v1/availability?user=demo"
             className="underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
