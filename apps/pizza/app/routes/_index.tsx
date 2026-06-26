@@ -46,6 +46,7 @@ export default function Home({
             type="text"
             name="q"
             placeholder="username or link"
+            // oxlint-disable-next-line jsx-a11y/no-autofocus -- search-only homepage, intentional
             autoFocus
             autoComplete="off"
             className="h-9 w-full max-w-[260px] rounded-md border border-input bg-transparent px-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-[3px] focus:ring-ring/50"
