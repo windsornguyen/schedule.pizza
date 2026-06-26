@@ -3,6 +3,8 @@
   "main": "./workers/app.ts",
   "compatibility_date": "2025-06-01",
   "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "routes": [{ "pattern": "schedule.pizza/*", "zone_name": "schedule.pizza" }],
   // Created by Terraform in apps/pizza/iac.
   // Copy the prod value from: terraform output -json d1_database_ids
   "d1_databases": [

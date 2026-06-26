@@ -27,14 +27,18 @@ export const deploy = workflow({
 			name: "Deploy to Cloudflare",
 			"runs-on": "ubuntu-latest",
 			defaults: { run: { "working-directory": "apps/pizza" } },
+			env: {
+				CLOUDFLARE_ACCOUNT_ID: "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}",
+				CLOUDFLARE_API_TOKEN: "${{ secrets.CLOUDFLARE_API_TOKEN }}",
+			},
 			steps: [
 				...setup,
 				{ name: "Build", run: "pnpm build" },
 				{
 					uses: wranglerAction,
 					with: {
-						apiToken: "${{ secrets.CLOUDFLARE_API_TOKEN }}",
-						accountId: "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}",
+						apiToken: "${{ env.CLOUDFLARE_API_TOKEN }}",
+						accountId: "${{ env.CLOUDFLARE_ACCOUNT_ID }}",
 						workingDirectory: "apps/pizza",
 					},
 				},
