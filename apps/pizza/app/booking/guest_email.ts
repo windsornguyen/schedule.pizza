@@ -1,12 +1,13 @@
 const GUEST_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 
-export type OptionalGuestEmail =
+export type RequiredGuestEmail =
   | { readonly code: "invalid" }
-  | { readonly code: "parsed"; readonly normalized: string | null; readonly value: string | null };
+  | { readonly code: "missing" }
+  | { readonly code: "parsed"; readonly normalized: string; readonly value: string };
 
-export function parseOptionalGuestEmail(value: unknown): OptionalGuestEmail {
+export function parseRequiredGuestEmail(value: unknown): RequiredGuestEmail {
   if (value === undefined || value === null) {
-    return { code: "parsed", normalized: null, value: null };
+    return { code: "missing" };
   }
 
   if (typeof value !== "string") {
@@ -16,7 +17,7 @@ export function parseOptionalGuestEmail(value: unknown): OptionalGuestEmail {
   const email = value.trim();
 
   if (email === "") {
-    return { code: "parsed", normalized: null, value: null };
+    return { code: "missing" };
   }
 
   if (!GUEST_EMAIL_PATTERN.test(email)) {

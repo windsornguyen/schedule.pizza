@@ -1,7 +1,7 @@
 import { Form } from "react-router";
 
 import { bookHostSlot } from "@/booking/book_slot.server";
-import { parseOptionalGuestEmail } from "@/booking/guest_email";
+import { parseRequiredGuestEmail } from "@/booking/guest_email";
 import { parseOptionalGuestTimezone } from "@/booking/guest_timezone";
 import { createDb } from "@/db/client.server";
 import { authorizeBookingCode } from "@/db/functions/booking_code_authorizations.server";
@@ -91,7 +91,7 @@ export async function action({ context, params, request }: Route.ActionArgs) {
   const bookingCode = readBookingCode(formData);
   const slotStartAt = readSlotStart(formData);
   const guestName = readRequiredString(formData, "name");
-  const guestEmail = parseOptionalGuestEmail(formData.get("email"));
+  const guestEmail = parseRequiredGuestEmail(formData.get("email"));
   const guestTimezone = parseOptionalGuestTimezone(formData.get("timezone"));
 
   if (
@@ -239,6 +239,7 @@ function BookingForm({
         <input
           name="email"
           type="email"
+          required
           autoComplete="email"
           className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none focus:border-ring focus:ring-[3px] focus:ring-ring/50"
         />
@@ -345,7 +346,7 @@ async function loadAuthorizedSlots(input: {
 async function bookAuthorizedSlot(input: {
   readonly bookingCode: string;
   readonly env: ServerEnv;
-  readonly guestEmail: string | null;
+  readonly guestEmail: string;
   readonly guestName: string;
   readonly guestTimezone: string | null;
   readonly request: Request;
@@ -377,7 +378,7 @@ async function bookAuthorizedSlot(input: {
     bookingCodeId: authorization.access.code.id,
     guestName: input.guestName,
     guestEmail: input.guestEmail,
-    guestEmailNormalized: input.guestEmail?.toLowerCase() ?? null,
+    guestEmailNormalized: input.guestEmail.toLowerCase(),
     guestTimezone: input.guestTimezone,
     source: "web",
     now,

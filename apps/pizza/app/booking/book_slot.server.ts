@@ -52,8 +52,8 @@ export async function bookHostSlot(
   input: {
     readonly bookingCodeId: string;
     readonly env: ServerEnv;
-    readonly guestEmail: string | null;
-    readonly guestEmailNormalized: string | null;
+    readonly guestEmail: string;
+    readonly guestEmailNormalized: string;
     readonly guestName: string;
     readonly guestTimezone: string | null;
     readonly host: BookSlotHost;
@@ -155,7 +155,7 @@ export async function bookHostSlot(
       accessToken: googleAccess.accessToken,
       calendarId,
       eventId: calendarEvent.eventId,
-      notifyGuests: input.guestEmail !== null,
+      notifyGuests: true,
     });
 
     return deleted.code === "deleted"

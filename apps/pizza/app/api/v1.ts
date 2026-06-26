@@ -3,7 +3,7 @@ import { cors } from "hono/cors";
 
 import type { GoogleCalendarErrorCode } from "@/calendar/google.server";
 import { bookHostSlot } from "@/booking/book_slot.server";
-import { parseOptionalGuestEmail } from "@/booking/guest_email";
+import { parseRequiredGuestEmail } from "@/booking/guest_email";
 import { parseOptionalGuestTimezone } from "@/booking/guest_timezone";
 import { createDb } from "@/db/client.server";
 import { authorizeBookingCode } from "@/db/functions/booking_code_authorizations.server";
@@ -30,8 +30,8 @@ type V1Context = Context<{ Bindings: Bindings }>;
 
 type ParsedBookBody = {
   readonly bookingCode: string;
-  readonly email: string | null;
-  readonly emailNormalized: string | null;
+  readonly email: string;
+  readonly emailNormalized: string;
   readonly guestName: string;
   readonly guestTimezone: string | null;
   readonly slotStartAt: Date;
@@ -72,7 +72,7 @@ v1.get("/", (c) => {
           code: "string (required, booking code)",
           slot: "string (required, UTC ISO 8601 start time)",
           name: "string (required, booker name)",
-          email: "string (optional, valid booker email)",
+          email: "string (required, valid booker email)",
           timezone: "string (optional, valid IANA timezone)",
         },
         headers: { "CF-Connecting-IP": "string (injected by Cloudflare)" },
@@ -313,8 +313,9 @@ export function parseBookBody(body: unknown): BookBodyParseResult {
   const guestName = readRequiredString(body["name"]);
   if (guestName === null) return { code: "missing_field", field: "name" };
 
-  const email = parseOptionalGuestEmail(body["email"]);
-  if (email.code !== "parsed") return { code: "invalid_field", field: "email" };
+  const email = parseRequiredGuestEmail(body["email"]);
+  if (email.code === "missing") return { code: "missing_field", field: "email" };
+  if (email.code === "invalid") return { code: "invalid_field", field: "email" };
 
   const guestTimezone = parseOptionalGuestTimezone(body["timezone"]);
   if (guestTimezone.code !== "parsed") {

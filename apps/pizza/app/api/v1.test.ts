@@ -72,6 +72,15 @@ describe("book API body parser", () => {
     })).toEqual({ code: "missing_field", field: "user" });
   });
 
+  it("requires guest email so Google can invite the booker", () => {
+    expect(parseBookBody({
+      user: "alice",
+      code: "moon-tiger-seven",
+      slot: "2026-06-26T16:00:00.000Z",
+      name: "Ada",
+    })).toEqual({ code: "missing_field", field: "email" });
+  });
+
   it.each([
     {
       name: "malformed users",
@@ -121,6 +130,7 @@ describe("book API body parser", () => {
         code: "moon-tiger-seven",
         slot: "2026-06-26T16:00:00.000Z",
         name: "Ada",
+        email: "ada@example.com",
         timezone: "Mars/Olympus_Mons",
       },
       field: "timezone",
