@@ -8,3 +8,10 @@ build/
 .google-oauth-client.json
 *.log
 .DS_Store
+.agents/worktrees/
+.playwright-mcp/
+output/
+google-auth-audience.png
+launch-docs-mobile.png
+schedule-pizza-*.png
+schedule-pizza-docs-mobile-snapshot.md
