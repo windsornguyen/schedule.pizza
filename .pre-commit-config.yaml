@@ -1,0 +1,29 @@
+# Setup: uvx prek install
+# Run:   uvx prek run --all-files
+
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.29.1
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v4.3.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+
+  - repo: local
+    hooks:
+      - id: lint
+        name: oxlint
+        entry: pnpm --filter @schedule.pizza/web lint
+        language: system
+        files: \.(tsx?|jsx?)$
+        pass_filenames: false
+      - id: typecheck
+        name: typecheck
+        entry: pnpm --filter @schedule.pizza/web typecheck
+        language: system
+        files: \.(tsx?|jsx?)$
+        pass_filenames: false
