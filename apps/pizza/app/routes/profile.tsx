@@ -194,6 +194,7 @@ function CodeForm({ username }: { readonly username: string }) {
         <span className="text-sm font-semibold">booking code</span>
         <input
           name="code"
+          required
           autoComplete="off"
           className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none focus:border-ring focus:ring-[3px] focus:ring-ring/50"
           placeholder="moon-tiger-seven"
@@ -230,6 +231,7 @@ function BookingForm({
         <span className="text-sm font-semibold">name</span>
         <input
           name="name"
+          required
           autoComplete="name"
           className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none focus:border-ring focus:ring-[3px] focus:ring-ring/50"
         />
