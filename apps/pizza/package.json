@@ -16,6 +16,7 @@
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.6.20",
     "@react-router/cloudflare": "8.0.1",
+    "@scure/bip39": "^2.2.0",
     "better-auth": "1.6.20",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

@@ -2,8 +2,46 @@ import { and, eq, gt, isNull, or } from "drizzle-orm";
 
 import type { Database } from "@/db/client.server";
 import { bookingCode, hostProfile } from "@/db/schema";
+import { wordlist } from "@scure/bip39/wordlists/english.js";
 
 const BOOKING_CODE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+export function generateBookingCode(wordCount: number): string {
+  if (wordCount < 1) {
+    throw new Error(`wordCount must be >= 1, got ${wordCount}`);
+  }
+  const bytes = new Uint32Array(wordCount);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b: number) => (wordlist as string[])[b % (wordlist as string[]).length]).join("-");
+}
+
+export async function createBookingCode(
+  db: Database,
+  input: {
+    hostId: string;
+    hostUsername: string;
+    wordCount: number;
+    label: string | null;
+    now: Date;
+  },
+) {
+  const code = generateBookingCode(input.wordCount);
+  const codeHash = await hashNormalizedBookingCode(code);
+
+  await db.insert(bookingCode).values({
+    id: crypto.randomUUID(),
+    hostId: input.hostId,
+    hostUsername: input.hostUsername,
+    label: input.label,
+    codeHash,
+    codeHashVersion: 1,
+    wordCount: input.wordCount,
+    createdAt: input.now,
+    updatedAt: input.now,
+  });
+
+  return { code, codeHash };
+}
 
 interface ActiveBookingCodeLookup {
   codeHash: string;

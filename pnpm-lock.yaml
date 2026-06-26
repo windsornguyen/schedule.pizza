@@ -20,6 +20,9 @@ importers:
       '@react-router/cloudflare':
         specifier: 8.0.1
         version: 8.0.1(@cloudflare/workers-types@4.20260623.1)(react-router@8.0.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(typescript@7.0.1-rc)
+      '@scure/bip39':
+        specifier: ^2.2.0
+        version: 2.2.0
       better-auth:
         specifier: 1.6.20
         version: 1.6.20(@cloudflare/workers-types@4.20260623.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@cloudflare/workers-types@4.20260623.1)(kysely@0.29.2))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(vitest@4.1.9(vite@8.1.0(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.8.4)))
@@ -2050,6 +2053,12 @@ packages:
 
   '@rolldown/pluginutils@1.0.1':
     resolution: {integrity: sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==}
+
+  '@scure/base@2.2.0':
+    resolution: {integrity: sha512-b8XEupJibegiXV+tDUseI8oLQc8ei3d/4Jkb2RpbHh3MfE054ov3uIz2dhFkB3FI8iwYkEh0gGCApkrYggkPNg==}
+
+  '@scure/bip39@2.2.0':
+    resolution: {integrity: sha512-T/Bj/YvYMNkIPq6EENO6/rcs2e7qTNuyoUXf0KBFDmp0ZDu0H2X4Lq6yC3i0c8PcWkov5EbW+yQZZbdMmk154A==}
 
   '@sindresorhus/is@7.2.0':
     resolution: {integrity: sha512-P1Cz1dWaFfR4IR+U13mqqiGsLFf1KbayybWwdd2vfctdV6hDpUkgCY0nKOLLTMSoRd/jJNjtbqzf13K8DCCXQw==}
@@ -4889,6 +4898,13 @@ snapshots:
       vite: 8.1.0(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.8.4)
 
   '@rolldown/pluginutils@1.0.1': {}
+
+  '@scure/base@2.2.0': {}
+
+  '@scure/bip39@2.2.0':
+    dependencies:
+      '@noble/hashes': 2.2.0
+      '@scure/base': 2.2.0
 
   '@sindresorhus/is@7.2.0': {}
 
