@@ -32,4 +32,39 @@ describe("book API body parser", () => {
       name: "Ada",
     })).toEqual({ code: "missing_field", field: "user" });
   });
+
+  it.each([
+    {
+      name: "malformed users",
+      body: {
+        user: "!!!",
+        code: "moon-tiger-seven",
+        slot: "2026-06-26T16:00:00.000Z",
+        name: "Ada",
+      },
+      field: "user",
+    },
+    {
+      name: "malformed booking codes",
+      body: {
+        user: "alice",
+        code: "!!!",
+        slot: "2026-06-26T16:00:00.000Z",
+        name: "Ada",
+      },
+      field: "code",
+    },
+    {
+      name: "malformed slots",
+      body: {
+        user: "alice",
+        code: "moon-tiger-seven",
+        slot: "not a time",
+        name: "Ada",
+      },
+      field: "slot",
+    },
+  ])("rejects $name as invalid fields", ({ body, field }) => {
+    expect(parseBookBody(body)).toEqual({ code: "invalid_field", field });
+  });
 });

@@ -286,20 +286,14 @@ export function parseBookBody(body: unknown): BookBodyParseResult {
     return { code: "missing_field", field: "user" };
   }
 
-  const username = typeof body["user"] === "string"
-    ? normalizeUsername(body["user"])
-    : null;
-  if (username === null) return { code: "missing_field", field: "user" };
+  const username = readUsername(body["user"]);
+  if (username.code !== "parsed") return { code: username.code, field: "user" };
 
-  const bookingCode = typeof body["code"] === "string"
-    ? normalizeBookingCode(body["code"])
-    : null;
-  if (bookingCode === null) return { code: "missing_field", field: "code" };
+  const bookingCode = readBookingCode(body["code"]);
+  if (bookingCode.code !== "parsed") return { code: bookingCode.code, field: "code" };
 
-  const slotStartAt = typeof body["slot"] === "string"
-    ? parseSlotStart(body["slot"])
-    : null;
-  if (slotStartAt === null) return { code: "missing_field", field: "slot" };
+  const slotStartAt = readSlotStart(body["slot"]);
+  if (slotStartAt.code !== "parsed") return { code: slotStartAt.code, field: "slot" };
 
   const guestName = readRequiredString(body["name"]);
   if (guestName === null) return { code: "missing_field", field: "name" };
@@ -315,15 +309,67 @@ export function parseBookBody(body: unknown): BookBodyParseResult {
   return {
     code: "parsed",
     body: {
-      username,
-      bookingCode,
-      slotStartAt,
+      username: username.value,
+      bookingCode: bookingCode.value,
+      slotStartAt: slotStartAt.value,
       guestName,
       email: email.value,
       emailNormalized: email.value?.toLowerCase() ?? null,
       guestTimezone: guestTimezone.value,
     },
   };
+}
+
+type RequiredParsedValue<T> =
+  | { readonly code: "parsed"; readonly value: T }
+  | { readonly code: "invalid_field" | "missing_field" };
+
+function readUsername(value: unknown): RequiredParsedValue<string> {
+  if (value === undefined || value === null) {
+    return { code: "missing_field" };
+  }
+
+  if (typeof value !== "string") {
+    return { code: "invalid_field" };
+  }
+
+  const username = normalizeUsername(value);
+
+  return username === null
+    ? { code: "invalid_field" }
+    : { code: "parsed", value: username };
+}
+
+function readBookingCode(value: unknown): RequiredParsedValue<string> {
+  if (value === undefined || value === null) {
+    return { code: "missing_field" };
+  }
+
+  if (typeof value !== "string") {
+    return { code: "invalid_field" };
+  }
+
+  const bookingCode = normalizeBookingCode(value);
+
+  return bookingCode === null
+    ? { code: "invalid_field" }
+    : { code: "parsed", value: bookingCode };
+}
+
+function readSlotStart(value: unknown): RequiredParsedValue<Date> {
+  if (value === undefined || value === null) {
+    return { code: "missing_field" };
+  }
+
+  if (typeof value !== "string") {
+    return { code: "invalid_field" };
+  }
+
+  const slotStartAt = parseSlotStart(value);
+
+  return slotStartAt === null
+    ? { code: "invalid_field" }
+    : { code: "parsed", value: slotStartAt };
 }
 
 function readRequiredString(value: unknown) {
