@@ -1,5 +1,6 @@
 import { redirect } from "react-router";
 
+import { copyAuthResponseCookies } from "@/auth_response_headers.server";
 import { createAuth } from "@/auth.server";
 import { serverContext } from "@/server-context";
 import type { Route } from "./+types/auth.logout";
@@ -29,17 +30,6 @@ function createAuthHeaders(request: Request) {
 
   if (cookie !== null) {
     headers.set("Cookie", cookie);
-  }
-
-  return headers;
-}
-
-function copyAuthResponseCookies(source: Headers) {
-  const headers = new Headers();
-  const setCookie = source.get("Set-Cookie");
-
-  if (setCookie !== null) {
-    headers.append("Set-Cookie", setCookie);
   }
 
   return headers;

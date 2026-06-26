@@ -1,5 +1,6 @@
 import { redirect } from "react-router";
 
+import { copyAuthResponseCookies } from "@/auth_response_headers.server";
 import { createAuth } from "@/auth.server";
 import { serverContext } from "@/server-context";
 import type { Route } from "./+types/auth.google";
@@ -55,15 +56,4 @@ function readOAuthRedirectUrl(value: unknown) {
   }
 
   return null;
-}
-
-function copyAuthResponseCookies(source: Headers) {
-  const headers = new Headers();
-  const setCookie = source.get("Set-Cookie");
-
-  if (setCookie !== null) {
-    headers.append("Set-Cookie", setCookie);
-  }
-
-  return headers;
 }
