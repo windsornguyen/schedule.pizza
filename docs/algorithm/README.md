@@ -3,6 +3,9 @@
 schedule.pizza treats the exact group-availability query as interval
 intersection.
 
+The backend contract for this behavior lives in
+`apps/pizza/app/scheduling/engine.ts`.
+
 ## Inputs
 
 - required profile ids
