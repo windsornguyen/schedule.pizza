@@ -113,7 +113,7 @@ v1.get("/", (c) => {
         "google_calendar_scope_missing",
         "google_refresh_token_missing",
       ],
-      429: ["booking_code_rate_limited"],
+      429: ["booking_code_rate_limited", "booking_rate_limited"],
       500: [
         "booking_confirmation_failed",
         "booking_failure_record_failed",
@@ -269,6 +269,10 @@ v1.post("/book", async (c) => {
 
   if (booked.code === "slot_unavailable") {
     return c.json({ error: { code: "slot_unavailable", message: "Slot is unavailable" } }, 409);
+  }
+
+  if (booked.code === "booking_rate_limited") {
+    return c.json({ error: { code: "booking_rate_limited", message: "Too many bookings for this code" } }, 429);
   }
 
   if (booked.code === "host_configuration_invalid") {

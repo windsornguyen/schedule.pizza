@@ -1,4 +1,4 @@
-import { and, eq, gt, inArray, lt } from "drizzle-orm";
+import { and, count, eq, gt, inArray, lt } from "drizzle-orm";
 
 import type { Database } from "@/db/client.server";
 import { booking } from "@/db/schema";
@@ -69,6 +69,34 @@ export async function createPendingCalendarBooking(
     .returning({ id: booking.id });
 
   return rows[0] ?? null;
+}
+
+export async function countRecentBookingsForCode(
+  db: Database,
+  input: { bookingCodeId: string; since: Date },
+) {
+  const rows = await db
+    .select({ bookings: count() })
+    .from(booking)
+    .where(
+      and(
+        eq(booking.bookingCodeId, input.bookingCodeId),
+        inArray(booking.status, [
+          "pending_calendar",
+          "confirmed",
+          "calendar_failed",
+        ]),
+        gt(booking.createdAt, input.since),
+      ),
+    );
+
+  const row = rows[0];
+
+  if (row === undefined) {
+    throw new Error("booking count query returned no rows");
+  }
+
+  return row.bookings;
 }
 
 export async function confirmCalendarBooking(

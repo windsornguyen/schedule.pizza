@@ -9,6 +9,7 @@ import type { Database } from "@/db/client.server";
 import { markBookingCodeUsed } from "@/db/functions/booking_codes.server";
 import {
   confirmCalendarBooking,
+  countRecentBookingsForCode,
   createPendingCalendarBooking,
   markCalendarBookingFailed,
 } from "@/db/functions/bookings.server";
@@ -20,6 +21,9 @@ import {
 } from "@/scheduling/slots.server";
 import { listHostAvailableSlots } from "@/scheduling/host_availability.server";
 import type { ServerEnv } from "@/server-context";
+
+const BOOKING_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+const BOOKING_RATE_LIMIT_MAX = 12;
 
 type BookSlotHost = {
   readonly authUserId: string;
@@ -34,6 +38,7 @@ export type BookSlotErrorCode =
   | GoogleCalendarErrorCode
   | "booking_confirmation_failed"
   | "booking_failure_record_failed"
+  | "booking_rate_limited"
   | "host_configuration_invalid"
   | "invalid_slot"
   | "slot_unavailable";
@@ -96,6 +101,15 @@ export async function bookHostSlot(
 
   if (availability.slots[0] === undefined) {
     return { code: "slot_unavailable" };
+  }
+
+  const recentBookingCount = await countRecentBookingsForCode(db, {
+    bookingCodeId: input.bookingCodeId,
+    since: getBookingRateLimitWindowStart(input.now),
+  });
+
+  if (recentBookingCount >= BOOKING_RATE_LIMIT_MAX) {
+    return { code: "booking_rate_limited" };
   }
 
   const pending = await createPendingCalendarBooking(db, {
@@ -174,6 +188,10 @@ export async function bookHostSlot(
     calendarEventId: calendarEvent.eventId,
     slot,
   };
+}
+
+function getBookingRateLimitWindowStart(now: Date) {
+  return new Date(now.getTime() - BOOKING_RATE_LIMIT_WINDOW_MS);
 }
 
 async function failPendingBooking(

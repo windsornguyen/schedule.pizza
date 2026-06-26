@@ -29,6 +29,7 @@ type ProfileActionData =
     }
   | {
       readonly code:
+        | "booking_rate_limited"
         | "calendar_unavailable"
         | "invalid_field"
         | "slot_unavailable";
@@ -278,6 +279,11 @@ function BookingForm({
           calendar unavailable. ask the host to reconnect google calendar.
         </p>
       ) : null}
+      {actionData?.code === "booking_rate_limited" ? (
+        <p className="text-sm text-destructive">
+          too many bookings for this code. ask the host for a new code.
+        </p>
+      ) : null}
     </Form>
   );
 }
@@ -393,6 +399,10 @@ async function bookAuthorizedSlot(input: {
 
   if (booked.code === "invalid_slot" || booked.code === "slot_unavailable") {
     return { code: "slot_unavailable" as const };
+  }
+
+  if (booked.code === "booking_rate_limited") {
+    return { code: "booking_rate_limited" as const };
   }
 
   if (booked.code === "host_configuration_invalid") {

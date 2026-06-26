@@ -7,6 +7,7 @@ type ReadCalendarIdMock = (calendarId: string | null) => string;
 
 const mocks = vi.hoisted(() => ({
   confirmCalendarBooking: vi.fn<AsyncMock>(),
+  countRecentBookingsForCode: vi.fn<AsyncMock>(),
   createGoogleCalendarEvent: vi.fn<AsyncMock>(),
   createPendingCalendarBooking: vi.fn<AsyncMock>(),
   deleteGoogleCalendarEvent: vi.fn<AsyncMock>(),
@@ -32,6 +33,7 @@ vi.mock("@/db/functions/booking_codes.server", () => ({
 
 vi.mock("@/db/functions/bookings.server", () => ({
   confirmCalendarBooking: mocks.confirmCalendarBooking,
+  countRecentBookingsForCode: mocks.countRecentBookingsForCode,
   createPendingCalendarBooking: mocks.createPendingCalendarBooking,
   markCalendarBookingFailed: mocks.markCalendarBookingFailed,
 }));
@@ -53,6 +55,7 @@ describe("bookHostSlot", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.confirmCalendarBooking.mockResolvedValue({ id: "booking_1" });
+    mocks.countRecentBookingsForCode.mockResolvedValue(0);
     mocks.createGoogleCalendarEvent.mockResolvedValue({
       code: "created",
       eventId: "google_event_1",
@@ -143,6 +146,17 @@ describe("bookHostSlot", () => {
     await expect(bookHostSlot(db, createInput())).resolves.toEqual({
       code: "google_event_delete_failed",
     });
+    expect(mocks.markBookingCodeUsed).not.toHaveBeenCalled();
+  });
+
+  it("rate limits bookings per booking code before creating pending state", async () => {
+    mocks.countRecentBookingsForCode.mockResolvedValueOnce(12);
+
+    await expect(bookHostSlot(db, createInput())).resolves.toEqual({
+      code: "booking_rate_limited",
+    });
+    expect(mocks.createPendingCalendarBooking).not.toHaveBeenCalled();
+    expect(mocks.createGoogleCalendarEvent).not.toHaveBeenCalled();
     expect(mocks.markBookingCodeUsed).not.toHaveBeenCalled();
   });
 });
