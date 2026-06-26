@@ -45,6 +45,9 @@ export async function createHostProfile(
   db: Database,
   input: {
     authUserId: string;
+    calendarAccountEmail: string;
+    calendarId: string;
+    calendarProvider: "google";
     displayName: string;
     id: string;
     now: Date;
@@ -62,6 +65,9 @@ export async function createHostProfile(
       displayName: input.displayName,
       timezone: input.timezone,
       slotSizeMinutes: input.slotSizeMinutes,
+      calendarProvider: input.calendarProvider,
+      calendarAccountEmail: input.calendarAccountEmail,
+      calendarId: input.calendarId,
       createdAt: input.now,
       updatedAt: input.now,
     })

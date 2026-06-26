@@ -1,3 +1,7 @@
+import { readAuthSession } from "@/auth.server";
+import { serverContext } from "@/server-context";
+import type { Route } from "./+types/_index";
+
 export function meta() {
   return [
     { title: "schedule.pizza" },
@@ -19,17 +23,18 @@ export function meta() {
   ];
 }
 
-export function loader({ request }: { request: Request }) {
-  const cookie = request.headers.get("Cookie") ?? "";
-  const hasSession = /session=/.test(cookie);
-  return { loggedIn: hasSession };
+export async function loader({ context, request }: Route.LoaderArgs) {
+  const session = await readAuthSession(
+    context.get(serverContext).env,
+    request.headers,
+  );
+
+  return { loggedIn: session !== null };
 }
 
 export default function Home({
   loaderData,
-}: {
-  loaderData: { loggedIn: boolean };
-}) {
+}: Route.ComponentProps) {
   return (
     <main className="mx-auto w-full max-w-[550px] px-4 pt-20 pb-24 antialiased">
       <h1 className="text-sm font-semibold">schedule.pizza</h1>

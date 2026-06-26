@@ -4,6 +4,10 @@ import { admin } from "better-auth/plugins/admin";
 import { organization } from "better-auth/plugins/organization";
 import { drizzle } from "drizzle-orm/d1";
 
+import {
+  GOOGLE_CALENDAR_EVENTS_SCOPE,
+  GOOGLE_CALENDAR_FREEBUSY_SCOPE,
+} from "@/calendar/google.server";
 import * as schema from "@/db/schema";
 import type { ServerEnv } from "@/server-context";
 
@@ -71,7 +75,8 @@ export function createAuth(env: ServerEnv) {
         scope: [
           "email",
           "profile",
-          "https://www.googleapis.com/auth/calendar.readonly",
+          GOOGLE_CALENDAR_FREEBUSY_SCOPE,
+          GOOGLE_CALENDAR_EVENTS_SCOPE,
         ],
         accessType: "offline",
         prompt: "select_account consent",

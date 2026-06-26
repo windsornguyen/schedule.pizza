@@ -1,17 +1,17 @@
-import { and, eq, gt, lt } from "drizzle-orm";
+import { and, eq, gt, inArray, lt } from "drizzle-orm";
 
 import type { Database } from "@/db/client.server";
 import { booking } from "@/db/schema";
 
-export type ConfirmedBooking = typeof booking.$inferSelect;
+export type BlockingBooking = typeof booking.$inferSelect;
 
-type ConfirmedBookingWindow = {
+type BlockingBookingWindow = {
   endsAt: Date;
   hostId: string;
   startsAt: Date;
 };
 
-type ConfirmedBookingInsert = {
+type PendingCalendarBookingInsert = {
   bookingCodeId: string;
   createdAt: Date;
   guestEmail: string | null;
@@ -26,9 +26,9 @@ type ConfirmedBookingInsert = {
   source: "api" | "web";
 };
 
-export async function findConfirmedBookingsForHost(
+export async function findBlockingBookingsForHost(
   db: Database,
-  window: ConfirmedBookingWindow
+  window: BlockingBookingWindow
 ) {
   return db
     .select()
@@ -36,16 +36,16 @@ export async function findConfirmedBookingsForHost(
     .where(
       and(
         eq(booking.hostId, window.hostId),
-        eq(booking.status, "confirmed"),
+        inArray(booking.status, ["pending_calendar", "confirmed"]),
         lt(booking.slotStartAt, window.endsAt),
         gt(booking.slotEndAt, window.startsAt)
       )
     );
 }
 
-export async function createConfirmedBooking(
+export async function createPendingCalendarBooking(
   db: Database,
-  input: ConfirmedBookingInsert
+  input: PendingCalendarBookingInsert
 ) {
   const rows = await db
     .insert(booking)
@@ -60,12 +60,61 @@ export async function createConfirmedBooking(
       guestTimezone: input.guestTimezone,
       slotStartAt: input.slotStartAt,
       slotEndAt: input.slotEndAt,
-      status: "confirmed",
+      status: "pending_calendar",
       source: input.source,
       createdAt: input.createdAt,
       updatedAt: input.createdAt,
     })
     .onConflictDoNothing()
+    .returning({ id: booking.id });
+
+  return rows[0] ?? null;
+}
+
+export async function confirmCalendarBooking(
+  db: Database,
+  input: {
+    bookingId: string;
+    calendarEventId: string;
+    confirmedAt: Date;
+    provider: "google";
+  }
+) {
+  const rows = await db
+    .update(booking)
+    .set({
+      calendarProvider: input.provider,
+      calendarEventId: input.calendarEventId,
+      status: "confirmed",
+      updatedAt: input.confirmedAt,
+    })
+    .where(
+      and(
+        eq(booking.id, input.bookingId),
+        eq(booking.status, "pending_calendar")
+      )
+    )
+    .returning({ id: booking.id });
+
+  return rows[0] ?? null;
+}
+
+export async function markCalendarBookingFailed(
+  db: Database,
+  input: { bookingId: string; failedAt: Date }
+) {
+  const rows = await db
+    .update(booking)
+    .set({
+      status: "calendar_failed",
+      updatedAt: input.failedAt,
+    })
+    .where(
+      and(
+        eq(booking.id, input.bookingId),
+        eq(booking.status, "pending_calendar")
+      )
+    )
     .returning({ id: booking.id });
 
   return rows[0] ?? null;

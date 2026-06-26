@@ -1,25 +1,17 @@
 import { Form } from "react-router";
 
+import { bookHostSlot } from "@/booking/book_slot.server";
 import { createDb } from "@/db/client.server";
 import { authorizeBookingCode } from "@/db/functions/booking_code_authorizations.server";
-import {
-  markBookingCodeUsed,
-  normalizeBookingCode,
-} from "@/db/functions/booking_codes.server";
-import {
-  createConfirmedBooking,
-  findConfirmedBookingsForHost,
-} from "@/db/functions/bookings.server";
+import { normalizeBookingCode } from "@/db/functions/booking_codes.server";
 import { normalizeUsername } from "@/db/functions/host_profiles.server";
 import { readCloudflareClientIpHash } from "@/http/client_ip.server";
+import { listHostAvailableSlots } from "@/scheduling/host_availability.server";
 import {
-  addMinutes,
   getDefaultSearchWindow,
-  isDefaultCandidateSlot,
   isValidSlotConfiguration,
   listDefaultCandidateSlots,
   parseSlotStart,
-  removeBookedSlots,
   serializeSlot,
   type SlotRange,
 } from "@/scheduling/slots.server";
@@ -32,7 +24,12 @@ type ProfileActionData =
       readonly code: "booked";
       readonly slot: { readonly end: string; readonly start: string };
     }
-  | { readonly code: "invalid_field" | "slot_unavailable" };
+  | {
+      readonly code:
+        | "calendar_unavailable"
+        | "invalid_field"
+        | "slot_unavailable";
+    };
 
 export function meta({ params }: Route.MetaArgs) {
   return [
@@ -62,8 +59,12 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
     username,
   });
 
-  if (slots.code !== "authorized") {
+  if (slots.code === "unauthorized") {
     return { state: "code_required" as const, username };
+  }
+
+  if (slots.code === "calendar_unavailable") {
+    return { state: "calendar_unavailable" as const, username };
   }
 
   return {
@@ -105,7 +106,7 @@ export async function action({ context, params, request }: Route.ActionArgs) {
     username,
   });
 
-  return result.code === "booked" ? result : { code: "slot_unavailable" as const };
+  return result;
 }
 
 export default function Profile({
@@ -127,17 +128,41 @@ export default function Profile({
         </p>
       ) : null}
 
-      {loaderData.state === "code_required" ? (
-        <CodeForm username={loaderData.username} />
-      ) : (
-        <BookingForm
-          actionData={profileActionData}
-          bookingCode={loaderData.bookingCode}
-          slots={loaderData.slots}
-          timezone={loaderData.timezone}
-        />
-      )}
+      <ProfileState actionData={profileActionData} loaderData={loaderData} />
     </main>
+  );
+}
+
+function ProfileState({
+  actionData,
+  loaderData,
+}: {
+  readonly actionData: ProfileActionData | null;
+  readonly loaderData: Route.ComponentProps["loaderData"];
+}) {
+  if (loaderData.state === "code_required") {
+    return <CodeForm username={loaderData.username} />;
+  }
+
+  if (loaderData.state === "calendar_unavailable") {
+    return <CalendarUnavailable />;
+  }
+
+  return (
+    <BookingForm
+      actionData={actionData}
+      bookingCode={loaderData.bookingCode}
+      slots={loaderData.slots}
+      timezone={loaderData.timezone}
+    />
+  );
+}
+
+function CalendarUnavailable() {
+  return (
+    <p className="mt-10 text-sm text-muted-foreground">
+      calendar unavailable. ask the host to reconnect google calendar.
+    </p>
   );
 }
 
@@ -223,6 +248,11 @@ function BookingForm({
       {actionData?.code === "invalid_field" ? (
         <p className="text-sm text-destructive">fill the required fields.</p>
       ) : null}
+      {actionData?.code === "calendar_unavailable" ? (
+        <p className="text-sm text-destructive">
+          calendar unavailable. ask the host to reconnect google calendar.
+        </p>
+      ) : null}
     </Form>
   );
 }
@@ -239,6 +269,7 @@ async function loadAuthorizedSlots(input: {
       readonly slots: readonly SlotRange[];
       readonly timezone: string;
     }
+  | { readonly code: "calendar_unavailable" }
   | { readonly code: "unauthorized" }
 > {
   const clientIpHash = await readCloudflareClientIpHash(input.request);
@@ -265,24 +296,26 @@ async function loadAuthorizedSlots(input: {
   }
 
   const window = getDefaultSearchWindow(now);
-  const bookings = await findConfirmedBookingsForHost(db, {
-    hostId: host.id,
-    startsAt: window.startsAt,
-    endsAt: window.endsAt,
-  });
-  const slots = removeBookedSlots(
-    listDefaultCandidateSlots({
+  const availability = await listHostAvailableSlots(db, {
+    candidateSlots: listDefaultCandidateSlots({
       now,
       slotSizeMinutes: host.slotSizeMinutes,
       timeZone: host.timezone,
     }),
-    bookings,
-  );
+    env: input.env,
+    host,
+    now,
+    window,
+  });
+
+  if (availability.code !== "listed") {
+    return { code: "calendar_unavailable" };
+  }
 
   return {
     code: "authorized",
     slotSizeMinutes: host.slotSizeMinutes,
-    slots,
+    slots: availability.slots,
     timezone: host.timezone,
   };
 }
@@ -316,55 +349,39 @@ async function bookAuthorizedSlot(input: {
   }
 
   const host = authorization.access.host;
-  const slotEndAt = addMinutes(input.slotStartAt, host.slotSizeMinutes);
-
-  if (!isDefaultCandidateSlot({
-    now,
-    slotSizeMinutes: host.slotSizeMinutes,
-    startAt: input.slotStartAt,
-    timeZone: host.timezone,
-  })) {
-    return { code: "slot_unavailable" as const };
-  }
-
-  const existingBookings = await findConfirmedBookingsForHost(db, {
-    hostId: host.id,
-    startsAt: input.slotStartAt,
-    endsAt: slotEndAt,
-  });
-  const availableSlot = removeBookedSlots([
-    { startAt: input.slotStartAt, endAt: slotEndAt },
-  ], existingBookings)[0];
-
-  if (availableSlot === undefined) {
-    return { code: "slot_unavailable" as const };
-  }
-
-  const created = await createConfirmedBooking(db, {
-    id: crypto.randomUUID(),
-    hostId: host.id,
-    hostUsername: host.username,
+  const booked = await bookHostSlot(db, {
+    env: input.env,
+    host,
     bookingCodeId: authorization.access.code.id,
     guestName: input.guestName,
     guestEmail: input.guestEmail,
     guestEmailNormalized: input.guestEmail?.toLowerCase() ?? null,
     guestTimezone: input.guestTimezone,
-    slotStartAt: availableSlot.startAt,
-    slotEndAt: availableSlot.endAt,
     source: "web",
-    createdAt: now,
+    now,
+    slotStartAt: input.slotStartAt,
   });
 
-  if (created === null) {
+  if (booked.code === "booked") {
+    return { code: "booked" as const, slot: serializeSlot(booked.slot) };
+  }
+
+  if (booked.code === "invalid_slot" || booked.code === "slot_unavailable") {
     return { code: "slot_unavailable" as const };
   }
 
-  await markBookingCodeUsed(db, {
-    bookingCodeId: authorization.access.code.id,
-    usedAt: now,
-  });
+  if (booked.code === "host_configuration_invalid") {
+    throw new Response("host slot configuration invalid", { status: 500 });
+  }
 
-  return { code: "booked" as const, slot: serializeSlot(availableSlot) };
+  if (
+    booked.code === "booking_confirmation_failed" ||
+    booked.code === "booking_failure_record_failed"
+  ) {
+    throw new Response(booked.code, { status: 500 });
+  }
+
+  return { code: "calendar_unavailable" as const };
 }
 
 function readBookingCode(formData: FormData) {

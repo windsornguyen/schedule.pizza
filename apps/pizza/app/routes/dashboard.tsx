@@ -1,6 +1,7 @@
 import { Form, redirect } from "react-router";
 
 import { readAuthSession } from "@/auth.server";
+import { readGoogleCalendarAccess } from "@/calendar/google.server";
 import { createDb } from "@/db/client.server";
 import { createBookingCode } from "@/db/functions/booking_codes.server";
 import {
@@ -35,11 +36,16 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     throw redirect("/login");
   }
 
-  const profile = await findHostProfileByAuthUserId(createDb(env.DB), session.user.id);
+  const db = createDb(env.DB);
+  const profile = await findHostProfileByAuthUserId(db, session.user.id);
+  const calendarStatus = profile === null
+    ? "missing_profile"
+    : await readCalendarStatus(db, env, session.user.id);
 
   return {
     email: session.user.email,
     profile: profile === null ? null : {
+      calendarStatus,
       slotSizeMinutes: profile.slotSizeMinutes,
       timezone: profile.timezone,
       username: profile.username,
@@ -60,7 +66,12 @@ export async function action({ context, request }: Route.ActionArgs) {
   const intent = formData.get("intent");
 
   if (intent === "create_profile") {
-    return createProfileAndCode(db, session.user.id, formData);
+    return createProfileAndCode(db, {
+      authUserId: session.user.id,
+      email: session.user.email,
+      env,
+      formData,
+    });
   }
 
   if (intent === "create_code") {
@@ -151,6 +162,18 @@ function ProfilePanel({
       <p className="text-sm text-muted-foreground">
         {profile.slotSizeMinutes} minute slots, {profile.timezone}
       </p>
+      {profile.calendarStatus === "reconnect_required" ? (
+        <p className="text-sm text-destructive">
+          google calendar needs{" "}
+          <a
+            href="/auth/google"
+            className="underline decoration-border underline-offset-4"
+          >
+            reconnect
+          </a>
+          .
+        </p>
+      ) : null}
       <Form method="post">
         <input type="hidden" name="intent" value="create_code" />
         <button
@@ -195,30 +218,51 @@ function ActionMessage({
     );
   }
 
+  if (actionData.code === "calendar_authorization_required") {
+    return (
+      <p className="text-sm text-destructive">
+        reconnect google calendar before creating a profile.
+      </p>
+    );
+  }
+
   return <p className="text-sm text-destructive">{actionData.code}</p>;
 }
 
 async function createProfileAndCode(
   db: ReturnType<typeof createDb>,
-  authUserId: string,
-  formData: FormData,
+  input: {
+    readonly authUserId: string;
+    readonly email: string;
+    readonly env: Parameters<typeof readCalendarStatus>[1];
+    readonly formData: FormData;
+  },
 ) {
-  const parsed = parseCreateProfileForm(formData);
+  const parsed = parseCreateProfileForm(input.formData);
 
   if (parsed.code !== "parsed") {
     return parsed;
   }
 
-  const existingProfile = await findHostProfileByAuthUserId(db, authUserId);
+  const existingProfile = await findHostProfileByAuthUserId(db, input.authUserId);
 
   if (existingProfile !== null) {
     return { code: "profile_exists" as const };
   }
 
   const now = new Date();
+  const calendarStatus = await readCalendarStatus(db, input.env, input.authUserId, now);
+
+  if (calendarStatus !== "connected") {
+    return { code: "calendar_authorization_required" as const };
+  }
+
   const profile = await createHostProfile(db, {
     id: crypto.randomUUID(),
-    authUserId,
+    authUserId: input.authUserId,
+    calendarAccountEmail: input.email,
+    calendarId: "primary",
+    calendarProvider: "google",
     displayName: parsed.username,
     username: parsed.username,
     timezone: parsed.timezone,
@@ -268,6 +312,35 @@ async function createCodeForExistingProfile(
     bookingCode: bookingCode.code,
     username: profile.username,
   };
+}
+
+async function readCalendarStatus(
+  db: ReturnType<typeof createDb>,
+  env: Parameters<typeof readGoogleCalendarAccess>[1]["env"],
+  authUserId: string,
+  now = new Date(),
+) {
+  const availability = await readGoogleCalendarAccess(db, {
+    authUserId,
+    capability: "availability",
+    env,
+    now,
+  });
+
+  if (availability.code !== "authorized") {
+    return "reconnect_required" as const;
+  }
+
+  const eventWrite = await readGoogleCalendarAccess(db, {
+    authUserId,
+    capability: "event_write",
+    env,
+    now,
+  });
+
+  return eventWrite.code === "authorized"
+    ? "connected" as const
+    : "reconnect_required" as const;
 }
 
 export function parseCreateProfileForm(formData: FormData): CreateProfileForm {

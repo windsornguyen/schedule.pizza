@@ -22,7 +22,8 @@ export default function Docs() {
         <h2 className="text-sm font-semibold">availability</h2>
         <p className="text-sm leading-6 text-muted-foreground">
           Use this when you already know whose calendar you want. The code is
-          required; username guesses do not expose availability.
+          required; username guesses do not expose availability. Slots exclude
+          schedule.pizza bookings and the host's Google Calendar busy times.
         </p>
         <pre className="whitespace-pre-wrap break-words rounded-md border bg-muted p-3 font-mono text-sm">
           <code>GET /api/v1/availability?user=alice&code=moon-tiger-seven</code>
@@ -34,7 +35,8 @@ export default function Docs() {
         <p className="text-sm leading-6 text-muted-foreground">
           Book the exact slot returned by availability. The server checks the
           booking code again and rejects the write if the slot is no longer
-          free.
+          free. A booking succeeds only after the Google Calendar event is
+          created.
         </p>
         <pre className="whitespace-pre-wrap break-words rounded-md border bg-muted p-3 font-mono text-sm">
           <code>{`POST /api/v1/book
@@ -47,6 +49,10 @@ export default function Docs() {
   "timezone": "America/Los_Angeles"
 }`}</code>
         </pre>
+        <p className="text-sm leading-6 text-muted-foreground">
+          Success returns the schedule.pizza booking id, the confirmed slot, and
+          the Google Calendar event id.
+        </p>
       </section>
 
       <section className="mt-10 space-y-3">
@@ -54,7 +60,8 @@ export default function Docs() {
         <p className="text-sm leading-6 text-muted-foreground">
           Send every participant with their booking code. The scheduler returns
           exact slots when everyone is free. If none exist, it returns ranked
-          alternatives with the conflicting people and time ranges.
+          alternatives with the conflicting people and time ranges. Google event
+          details stay private.
         </p>
         <pre className="whitespace-pre-wrap break-words rounded-md border bg-muted p-3 font-mono text-sm">
           <code>{`POST /api/v1/schedule
@@ -84,6 +91,15 @@ export default function Docs() {
           <code className="font-mono">kind: "alternatives"</code> is a ranked
           recommendation: lower conflict cost is better, hard conflicts are
           shown before soft conflicts, and event details stay private.
+        </p>
+      </section>
+
+      <section className="mt-10 space-y-3">
+        <h2 className="text-sm font-semibold">calendar errors</h2>
+        <p className="text-sm leading-6 text-muted-foreground">
+          If a host has not granted calendar access, API calls fail with a typed
+          Google Calendar error. The host fixes it by reconnecting Google from
+          the dashboard.
         </p>
       </section>
 

@@ -1,4 +1,4 @@
-import type { ConfirmedBooking } from "@/db/functions/bookings.server";
+import type { BlockingBooking } from "@/db/functions/bookings.server";
 
 const DEFAULT_WINDOW_DAYS = 14;
 const WORKDAY_END_MINUTE = 17 * 60;
@@ -14,6 +14,8 @@ export type SlotRange = {
   endAt: Date;
   startAt: Date;
 };
+
+type BusyRange = Pick<BlockingBooking, "slotEndAt" | "slotStartAt">;
 
 export function listDefaultCandidateSlots(
   input: { now: Date; slotSizeMinutes: number; timeZone: string },
@@ -45,7 +47,7 @@ export function listDefaultCandidateSlots(
 
 export function removeBookedSlots(
   slots: SlotRange[],
-  bookings: ConfirmedBooking[],
+  bookings: BusyRange[],
 ) {
   return slots.filter(
     (slot) =>

@@ -12,7 +12,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
       headers: createAuthHeaders(request),
       body: JSON.stringify({
         provider: "google",
-        callbackURL: "/",
+        callbackURL: "/dashboard",
       }),
     }),
   );

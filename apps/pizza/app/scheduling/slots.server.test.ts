@@ -50,23 +50,8 @@ describe("default slots", () => {
 
     const available = removeBookedSlots(slots, [
       {
-        id: "booking_1",
-        hostId: "host_1",
-        hostUsername: "alice",
-        bookingCodeId: "code_1",
-        guestName: "Guest",
-        guestEmail: null,
-        guestEmailNormalized: null,
-        guestTimezone: null,
         slotStartAt: new Date("2026-06-26T16:15:00.000Z"),
         slotEndAt: new Date("2026-06-26T16:45:00.000Z"),
-        status: "confirmed",
-        source: "api",
-        calendarProvider: null,
-        calendarEventId: null,
-        cancelledAt: null,
-        createdAt: new Date("2026-06-26T15:00:00.000Z"),
-        updatedAt: new Date("2026-06-26T15:00:00.000Z"),
       },
     ]);
 

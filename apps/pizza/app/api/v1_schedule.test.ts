@@ -79,7 +79,12 @@ describe("schedule API serializer", () => {
     } satisfies ScheduleResult;
 
     expect(serializeScheduleResult(result, [
-      { hostId: "host_alice", username: "alice" },
+      {
+        authUserId: "user_alice",
+        calendarId: "primary",
+        hostId: "host_alice",
+        username: "alice",
+      },
     ])).toEqual({
       kind: "alternatives",
       slots: [

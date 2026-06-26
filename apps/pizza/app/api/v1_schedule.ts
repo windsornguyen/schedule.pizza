@@ -1,9 +1,15 @@
 import { Hono } from "hono";
 
+import {
+  listGoogleFreeBusyIntervals,
+  readGoogleCalendarAccess,
+  readGoogleCalendarId,
+  type GoogleCalendarErrorCode,
+} from "@/calendar/google.server";
 import { createDb } from "@/db/client.server";
 import { authorizeBookingCode } from "@/db/functions/booking_code_authorizations.server";
 import { normalizeBookingCode } from "@/db/functions/booking_codes.server";
-import { findConfirmedBookingsForHost } from "@/db/functions/bookings.server";
+import { findBlockingBookingsForHost } from "@/db/functions/bookings.server";
 import { normalizeUsername } from "@/db/functions/host_profiles.server";
 import { readCloudflareClientIpHash } from "@/http/client_ip.server";
 import {
@@ -18,6 +24,10 @@ import {
   type TimeInterval,
 } from "@/scheduling/engine";
 import type { ServerEnv } from "@/server-context";
+import {
+  googleCalendarErrorBody,
+  googleCalendarStatus,
+} from "./google_calendar_errors";
 
 type Bindings = ServerEnv;
 
@@ -41,9 +51,18 @@ type ScheduleBodyParseResult =
   | { readonly code: "invalid_field" | "missing_field"; readonly field: string };
 
 type AuthorizedParticipant = {
+  readonly authUserId: string;
+  readonly calendarId: string | null;
   readonly hostId: string;
   readonly username: string;
 };
+
+class ScheduleCalendarError extends Error {
+  constructor(readonly code: GoogleCalendarErrorCode) {
+    super(code);
+    this.name = "ScheduleCalendarError";
+  }
+}
 
 export const scheduleRoute = new Hono<{ Bindings: Bindings }>();
 
@@ -93,13 +112,18 @@ scheduleRoute.post("/", async (c) => {
     }
 
     authorizedParticipants.push({
+      authUserId: authorization.access.host.authUserId,
+      calendarId: authorization.access.host.calendarId,
       hostId: authorization.access.host.id,
       username: authorization.access.host.username,
     });
   }
 
   const engine = createSchedulingEngine({
-    busyIntervalSource: createD1BusyIntervalSource(db, authorizedParticipants),
+    busyIntervalSource: createD1BusyIntervalSource(c.env, db, {
+      now,
+      participants: authorizedParticipants,
+    }),
   });
   const scheduleRequest = {
     durationMinutes: parsedBody.body.durationMinutes,
@@ -121,7 +145,20 @@ scheduleRoute.post("/", async (c) => {
     }, 400);
   }
 
-  const result = await engine.schedule(scheduleRequest);
+  const result = await engine.schedule(scheduleRequest).catch((error: unknown) => {
+    if (error instanceof ScheduleCalendarError) {
+      return error;
+    }
+
+    throw error;
+  });
+
+  if (result instanceof ScheduleCalendarError) {
+    return c.json(
+      googleCalendarErrorBody(result.code),
+      googleCalendarStatus(result.code),
+    );
+  }
 
   return c.json(serializeScheduleResult(result, authorizedParticipants));
 });
@@ -243,13 +280,17 @@ function parsePositiveInteger(value: unknown) {
 }
 
 function createD1BusyIntervalSource(
+  env: ServerEnv,
   db: ReturnType<typeof createDb>,
-  participants: readonly AuthorizedParticipant[],
+  input: {
+    readonly now: Date;
+    readonly participants: readonly AuthorizedParticipant[];
+  },
 ): BusyIntervalSource {
   return {
     fetchBusyIntervals: async (query) => {
       const participantByHostId = new Map(
-        participants.map((participant) => [participant.hostId, participant]),
+        input.participants.map((participant) => [participant.hostId, participant]),
       );
       const busyIntervals = await Promise.all(
         query.profileIds.map(async (profileId) => {
@@ -259,27 +300,74 @@ function createD1BusyIntervalSource(
             throw new Error(`authorized participant missing for ${profileId}`);
           }
 
-          const bookings = await findConfirmedBookingsForHost(db, {
+          const bookings = await findBlockingBookingsForHost(db, {
             hostId: participant.hostId,
             startsAt: new Date(query.window.startAtMs),
             endsAt: new Date(query.window.endAtMs),
           });
+          const googleBusy = await fetchGoogleBusyIntervals({
+            db,
+            env,
+            now: input.now,
+            participant,
+            window: query.window,
+          });
 
-          return bookings.map((booking): BusyInterval => ({
-            ...timeInterval({
-              startAtMs: booking.slotStartAt.getTime(),
-              endAtMs: booking.slotEndAt.getTime(),
-            }),
-            eventId: booking.id,
-            flexibility: { kind: "hard" },
-            profileId: participant.hostId,
-          }));
+          return [
+            ...bookings.map((booking): BusyInterval => ({
+              ...timeInterval({
+                startAtMs: booking.slotStartAt.getTime(),
+                endAtMs: booking.slotEndAt.getTime(),
+              }),
+              eventId: booking.id,
+              flexibility: { kind: "hard" },
+              profileId: participant.hostId,
+            })),
+            ...googleBusy,
+          ];
         }),
       );
 
       return busyIntervals.flat();
     },
   };
+}
+
+async function fetchGoogleBusyIntervals(input: {
+  readonly db: ReturnType<typeof createDb>;
+  readonly env: ServerEnv;
+  readonly now: Date;
+  readonly participant: AuthorizedParticipant;
+  readonly window: TimeInterval;
+}): Promise<readonly BusyInterval[]> {
+  const access = await readGoogleCalendarAccess(input.db, {
+    authUserId: input.participant.authUserId,
+    capability: "availability",
+    env: input.env,
+    now: input.now,
+  });
+
+  if (access.code !== "authorized") {
+    throw new ScheduleCalendarError(access.code);
+  }
+
+  const freeBusy = await listGoogleFreeBusyIntervals({
+    accessToken: access.accessToken,
+    calendarId: readGoogleCalendarId(input.participant.calendarId),
+    timeZone: "UTC",
+    window: input.window,
+  });
+
+  if (freeBusy.code !== "listed") {
+    throw new ScheduleCalendarError(freeBusy.code);
+  }
+
+  return freeBusy.busy.map((busy): BusyInterval => ({
+    ...busy,
+    eventId: null,
+    flexibility: { kind: "hard" },
+    profileId: input.participant.hostId,
+  }));
 }
 
 export function serializeScheduleResult(
