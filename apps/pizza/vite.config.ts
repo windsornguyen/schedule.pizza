@@ -22,7 +22,7 @@ export default defineConfig({
   environments: {
     ssr: {
       optimizeDeps: {
-        include: ["react/compiler-runtime"],
+        include: ["react/compiler-runtime", "@scure/bip39/wordlists/english.js"],
       },
     },
   },
