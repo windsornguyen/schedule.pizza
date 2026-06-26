@@ -2,7 +2,9 @@ import type { Database } from "@/db/client.server";
 
 import {
   countRecentFailedBookingCodeAttemptsByIp,
+  countRecentSuccessfulBookingCodeAttemptsByIpAndHost,
   evaluateBookingCodeAttemptLimit,
+  evaluateBookingCodeSuccessLimit,
   getBookingCodeAttemptWindowStart,
   recordBookingCodeAttempt,
 } from "./booking_code_attempts.server";
@@ -67,6 +69,28 @@ export async function authorizeBookingCode(
     });
 
     return { code: "booking_code_invalid" };
+  }
+
+  const successfulAttemptCount =
+    await countRecentSuccessfulBookingCodeAttemptsByIpAndHost(db, {
+      hostId: access.host.id,
+      ipHash: input.ipHash,
+      since: getBookingCodeAttemptWindowStart(input.now),
+    });
+  const successLimit = evaluateBookingCodeSuccessLimit(successfulAttemptCount);
+
+  if (successLimit.code === "rate_limited") {
+    await recordBookingCodeAttempt(db, {
+      id: crypto.randomUUID(),
+      username: input.username,
+      hostId: access.host.id,
+      ipHash: input.ipHash,
+      success: false,
+      failureReason: "rate_limited",
+      createdAt: input.now,
+    });
+
+    return { code: "booking_code_rate_limited" };
   }
 
   await recordBookingCodeAttempt(db, {
