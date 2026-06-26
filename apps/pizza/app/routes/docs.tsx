@@ -68,7 +68,7 @@ export default function Docs() {
 {
   "participants": [
     { "user": "alice", "code": "moon-tiger-seven" },
-    { "user": "bob", "code": "river-lime" }
+    { "user": "bob", "code": "river-lime-harbor" }
   ],
   "durationMinutes": 30,
   "granularityMinutes": 15,
