@@ -2,7 +2,6 @@ import { and, eq, gt, isNull, or } from "drizzle-orm";
 
 import type { Database } from "@/db/client.server";
 import { bookingCode, hostProfile } from "@/db/schema";
-// @ts-expect-error — @scure/bip39 exports .js subpaths without types for bundler resolution
 import { wordlist } from "@scure/bip39/wordlists/english.js";
 
 const BOOKING_CODE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
