@@ -1,4 +1,5 @@
 import { Hono, type Context } from "hono";
+import { cors } from "hono/cors";
 
 import type { GoogleCalendarErrorCode } from "@/calendar/google.server";
 import { bookHostSlot } from "@/booking/book_slot.server";
@@ -42,6 +43,13 @@ type BookBodyParseResult =
   | { readonly code: "invalid_field" | "missing_field"; readonly field: string };
 
 export const v1 = new Hono<{ Bindings: Bindings }>();
+
+v1.use("*", cors({
+  allowHeaders: ["Content-Type"],
+  allowMethods: ["GET", "POST", "OPTIONS"],
+  maxAge: 600,
+  origin: "*",
+}));
 
 v1.route("/schedule", scheduleRoute);
 

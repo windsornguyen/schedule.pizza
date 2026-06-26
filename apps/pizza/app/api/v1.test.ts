@@ -1,6 +1,36 @@
 import { describe, expect, it } from "vitest";
 
-import { parseBookBody } from "./v1";
+import { parseBookBody, v1 } from "./v1";
+
+describe("v1 API CORS", () => {
+  it("allows browser-hosted agents to read the API descriptor", async () => {
+    const response = await v1.request("https://schedule.pizza/", {
+      headers: { Origin: "https://agent.example" },
+    });
+
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+  });
+
+  it("allows browser-hosted agents to preflight JSON schedule requests", async () => {
+    const response = await v1.request("https://schedule.pizza/schedule", {
+      method: "OPTIONS",
+      headers: {
+        Origin: "https://agent.example",
+        "Access-Control-Request-Headers": "content-type",
+        "Access-Control-Request-Method": "POST",
+      },
+    });
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(response.headers.get("Access-Control-Allow-Methods")).toBe(
+      "GET,POST,OPTIONS",
+    );
+    expect(response.headers.get("Access-Control-Allow-Headers")).toBe(
+      "Content-Type",
+    );
+  });
+});
 
 describe("book API body parser", () => {
   it("parses the agent booking request shape", () => {
