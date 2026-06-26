@@ -3,6 +3,15 @@ import { describe, expect, it } from "vitest";
 import { parseBookBody, v1 } from "./v1";
 
 describe("v1 API CORS", () => {
+  it("describes the API version without hardcoding release metadata", async () => {
+    const response = await v1.request("https://schedule.pizza/");
+    const body = await response.json() as Record<string, unknown>;
+
+    expect(body["name"]).toBe("schedule.pizza");
+    expect(body["apiVersion"]).toBe("v1");
+    expect(body["version"]).toBeUndefined();
+  });
+
   it("allows browser-hosted agents to read the API descriptor", async () => {
     const response = await v1.request("https://schedule.pizza/", {
       headers: { Origin: "https://agent.example" },

@@ -56,7 +56,7 @@ v1.route("/schedule", scheduleRoute);
 v1.get("/", (c) => {
   return c.json({
     name: "schedule.pizza",
-    version: "0.0.1",
+    apiVersion: "v1",
     endpoints: {
       availability: {
         method: "GET",
