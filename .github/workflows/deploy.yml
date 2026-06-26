@@ -31,7 +31,7 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build
         run: pnpm build
-      - uses: cloudflare/wrangler-action@da0042793de1ae8bfdc9f4a25d0cd0ef6e62b3c0
+      - uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
