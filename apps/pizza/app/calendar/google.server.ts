@@ -103,7 +103,7 @@ export async function readGoogleCalendarAccess(
   const refreshed = await refreshGoogleAccessToken({
     clientId: input.env.GOOGLE_CLIENT_ID,
     clientSecret: input.env.GOOGLE_CLIENT_SECRET,
-    fetcher: input.fetcher ?? fetch,
+    fetcher: input.fetcher ?? defaultFetcher,
     now: input.now,
     refreshToken: googleAccount.refreshToken,
   });
@@ -201,7 +201,7 @@ export async function listGoogleFreeBusyIntervals(input: {
         | "google_freebusy_response_invalid";
     }
 > {
-  const response = await (input.fetcher ?? fetch)(
+  const response = await (input.fetcher ?? defaultFetcher)(
     `${GOOGLE_CALENDAR_API_URL}/freeBusy`,
     {
       body: JSON.stringify({
@@ -286,7 +286,7 @@ export async function createGoogleCalendarEvent(input: {
     url.searchParams.set("sendUpdates", "all");
   }
 
-  const response = await (input.fetcher ?? fetch)(url.toString(), {
+  const response = await (input.fetcher ?? defaultFetcher)(url.toString(), {
     body: JSON.stringify(buildGoogleEventBody(input)),
     headers: {
       Authorization: `Bearer ${input.accessToken}`,
@@ -332,7 +332,7 @@ export async function deleteGoogleCalendarEvent(input: {
     url.searchParams.set("sendUpdates", "all");
   }
 
-  const response = await (input.fetcher ?? fetch)(url.toString(), {
+  const response = await (input.fetcher ?? defaultFetcher)(url.toString(), {
     headers: { Authorization: `Bearer ${input.accessToken}` },
     method: "DELETE",
   }).catch((): null => null);
@@ -397,6 +397,10 @@ function buildGoogleEventBody(input: {
     ...base,
     attendees: [{ displayName: input.guestName, email: input.guestEmail }],
   };
+}
+
+function defaultFetcher(input: string, init: RequestInit) {
+  return fetch(input, init);
 }
 
 function parseBusyIntervals(busy: readonly unknown[]):
