@@ -86,6 +86,41 @@ describe("schedule API body parser", () => {
       },
     })).toEqual({ code: "invalid_field", field: "durationMinutes" });
   });
+
+  it("rejects malformed time zones before booking-code authorization", () => {
+    expect(parseScheduleBody({
+      participants: [
+        { user: "Alice", code: "moon tiger seven" },
+      ],
+      durationMinutes: 30,
+      granularityMinutes: 15,
+      maxExactSlotCount: 10,
+      maxAlternativeSlotCount: 5,
+      timeZone: "Mars/Olympus_Mons",
+      window: {
+        start: "2026-06-26T16:00:00.000Z",
+        end: "2026-06-26T18:00:00.000Z",
+      },
+    })).toEqual({ code: "invalid_field", field: "timeZone" });
+  });
+
+  it("rejects duplicate participants before booking-code authorization", () => {
+    expect(parseScheduleBody({
+      participants: [
+        { user: "Alice", code: "moon tiger seven" },
+        { user: "alice", code: "river-lime" },
+      ],
+      durationMinutes: 30,
+      granularityMinutes: 15,
+      maxExactSlotCount: 10,
+      maxAlternativeSlotCount: 5,
+      timeZone: "America/Los_Angeles",
+      window: {
+        start: "2026-06-26T16:00:00.000Z",
+        end: "2026-06-26T18:00:00.000Z",
+      },
+    })).toEqual({ code: "invalid_field", field: "participants" });
+  });
 });
 
 describe("schedule API serializer", () => {

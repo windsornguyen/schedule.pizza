@@ -186,9 +186,8 @@ export function parseScheduleBody(body: unknown): ScheduleBodyParseResult {
   const maxAlternativeSlotCount = parseRequiredPositiveInteger(body["maxAlternativeSlotCount"]);
   if (maxAlternativeSlotCount.code !== "parsed") return { code: maxAlternativeSlotCount.code, field: "maxAlternativeSlotCount" };
 
-  if (typeof body["timeZone"] !== "string") {
-    return { code: "missing_field", field: "timeZone" };
-  }
+  const timeZone = parseRequiredTimeZone(body["timeZone"]);
+  if (timeZone.code !== "parsed") return { code: timeZone.code, field: "timeZone" };
 
   const window = parseWindow(body["window"]);
   if (window.code !== "parsed") return window;
@@ -201,7 +200,7 @@ export function parseScheduleBody(body: unknown): ScheduleBodyParseResult {
       maxAlternativeSlotCount: maxAlternativeSlotCount.value,
       maxExactSlotCount: maxExactSlotCount.value,
       participants: participants.participants,
-      timeZone: body["timeZone"],
+      timeZone: timeZone.value,
       window: window.window,
     },
   };
@@ -229,6 +228,7 @@ function parseParticipants(value: unknown):
   }
 
   const participants: ParsedParticipant[] = [];
+  const usernames = new Set<string>();
 
   for (const rawParticipant of value) {
     if (!isRecord(rawParticipant)) {
@@ -242,6 +242,11 @@ function parseParticipants(value: unknown):
       return { code: "invalid_field", field: "participants" };
     }
 
+    if (usernames.has(username)) {
+      return { code: "invalid_field", field: "participants" };
+    }
+
+    usernames.add(username);
     participants.push({ username, bookingCode });
   }
 
@@ -283,6 +288,25 @@ function parseRequiredPositiveInteger(value: unknown):
   return typeof value === "number" && Number.isInteger(value) && value > 0
     ? { code: "parsed", value }
     : { code: "invalid_field" };
+}
+
+function parseRequiredTimeZone(value: unknown):
+  | { readonly code: "parsed"; readonly value: string }
+  | { readonly code: "invalid_field" | "missing_field" } {
+  if (value === undefined || value === null) {
+    return { code: "missing_field" };
+  }
+
+  if (typeof value !== "string") {
+    return { code: "invalid_field" };
+  }
+
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: value });
+    return { code: "parsed", value };
+  } catch {
+    return { code: "invalid_field" };
+  }
 }
 
 function createD1BusyIntervalSource(
