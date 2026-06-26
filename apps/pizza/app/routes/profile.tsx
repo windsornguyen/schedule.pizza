@@ -7,6 +7,7 @@ import { normalizeBookingCode } from "@/db/functions/booking_codes.server";
 import { normalizeUsername } from "@/db/functions/host_profiles.server";
 import { readCloudflareClientIpHash } from "@/http/client_ip.server";
 import { listHostAvailableSlots } from "@/scheduling/host_availability.server";
+import { formatSlotLabel } from "@/scheduling/slot_labels";
 import {
   getDefaultSearchWindow,
   isValidSlotConfiguration,
@@ -114,6 +115,10 @@ export default function Profile({
   loaderData,
 }: Route.ComponentProps) {
   const profileActionData = actionData ?? null;
+  const bookedSlotLabel = profileActionData?.code === "booked" &&
+    loaderData.state === "available"
+    ? formatSlotLabel(profileActionData.slot, loaderData.timezone)
+    : null;
 
   return (
     <main className="mx-auto w-full max-w-[550px] px-4 pt-20 pb-24 antialiased">
@@ -122,9 +127,9 @@ export default function Profile({
         easiest way to find a time.
       </p>
 
-      {profileActionData?.code === "booked" ? (
+      {bookedSlotLabel !== null ? (
         <p className="mt-8 text-sm text-muted-foreground">
-          booked {profileActionData.slot.start}
+          booked {bookedSlotLabel}
         </p>
       ) : null}
 
@@ -231,7 +236,7 @@ function BookingForm({
           slots.slice(0, 12).map((slot) => (
             <label key={slot.start} className="flex items-center gap-2 text-sm">
               <input type="radio" name="slot" value={slot.start} />
-              <span>{slot.start}</span>
+              <span>{formatSlotLabel(slot, timezone)}</span>
             </label>
           ))
         )}
