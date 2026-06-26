@@ -94,6 +94,7 @@ v1.get("/", (c) => {
       ],
       404: ["booking_code_invalid"],
       409: ["slot_unavailable"],
+      422: ["host_unavailable"],
       424: [
         "google_account_missing",
         "google_access_token_missing",
