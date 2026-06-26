@@ -23,10 +23,13 @@ import {
   serializeSlot,
 } from "@/scheduling/slots.server";
 import type { ServerEnv } from "@/server-context";
+import { scheduleRoute } from "./v1_schedule";
 
 type Bindings = ServerEnv;
 
 export const v1 = new Hono<{ Bindings: Bindings }>();
+
+v1.route("/schedule", scheduleRoute);
 
 v1.get("/", (c) => {
   return c.json({
@@ -52,9 +55,30 @@ v1.get("/", (c) => {
         },
         headers: { "CF-Connecting-IP": "string (required, set by Cloudflare)" },
       },
+      schedule: {
+        method: "POST",
+        path: "/api/v1/schedule",
+        body: {
+          participants: [{ user: "string", code: "string" }],
+          durationMinutes: "number",
+          granularityMinutes: "number",
+          maxExactSlotCount: "number",
+          maxAlternativeSlotCount: "number",
+          timeZone: "IANA time zone",
+          window: { start: "ISO 8601", end: "ISO 8601" },
+        },
+        headers: { "CF-Connecting-IP": "string (required, set by Cloudflare)" },
+      },
     },
     errors: {
-      400: ["missing_parameter", "invalid_json", "missing_field", "invalid_slot"],
+      400: [
+        "missing_parameter",
+        "invalid_json",
+        "missing_field",
+        "invalid_field",
+        "invalid_slot",
+        "invalid_schedule_request",
+      ],
       404: ["booking_code_invalid"],
       409: ["slot_unavailable"],
       429: ["booking_code_rate_limited"],

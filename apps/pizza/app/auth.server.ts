@@ -81,3 +81,11 @@ export function createAuth(env: ServerEnv) {
 }
 
 export type Auth = ReturnType<typeof createAuth>;
+export type AuthSession = Awaited<ReturnType<Auth["api"]["getSession"]>>;
+
+export function readAuthSession(env: ServerEnv, headers: Headers) {
+  return createAuth(env).api.getSession({
+    headers,
+    query: { disableCookieCache: true },
+  });
+}

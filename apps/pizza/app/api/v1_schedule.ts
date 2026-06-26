@@ -1,0 +1,348 @@
+import { Hono } from "hono";
+
+import { createDb } from "@/db/client.server";
+import { authorizeBookingCode } from "@/db/functions/booking_code_authorizations.server";
+import { normalizeBookingCode } from "@/db/functions/booking_codes.server";
+import { findConfirmedBookingsForHost } from "@/db/functions/bookings.server";
+import { normalizeUsername } from "@/db/functions/host_profiles.server";
+import { readCloudflareClientIpHash } from "@/http/client_ip.server";
+import {
+  createSchedulingEngine,
+  timeInterval,
+  validateScheduleRequest,
+  type BusyInterval,
+  type BusyIntervalSource,
+  type ScheduleRequest,
+  type ScheduleResult,
+  type ScoredSlot,
+  type TimeInterval,
+} from "@/scheduling/engine";
+import type { ServerEnv } from "@/server-context";
+
+type Bindings = ServerEnv;
+
+type ParsedParticipant = {
+  readonly bookingCode: string;
+  readonly username: string;
+};
+
+type ParsedScheduleBody = {
+  readonly durationMinutes: number;
+  readonly granularityMinutes: number;
+  readonly maxAlternativeSlotCount: number;
+  readonly maxExactSlotCount: number;
+  readonly participants: readonly ParsedParticipant[];
+  readonly timeZone: string;
+  readonly window: TimeInterval;
+};
+
+type ScheduleBodyParseResult =
+  | { readonly code: "parsed"; readonly body: ParsedScheduleBody }
+  | { readonly code: "invalid_field" | "missing_field"; readonly field: string };
+
+type AuthorizedParticipant = {
+  readonly hostId: string;
+  readonly username: string;
+};
+
+export const scheduleRoute = new Hono<{ Bindings: Bindings }>();
+
+scheduleRoute.post("/", async (c) => {
+  const text = await c.req.text();
+  const parsedJson = parseJsonBody(text);
+
+  if (parsedJson.code === "invalid_json") {
+    return c.json({ error: { code: "invalid_json", message: "Request body must be JSON" } }, 400);
+  }
+
+  const parsedBody = parseScheduleBody(parsedJson.body);
+
+  if (parsedBody.code !== "parsed") {
+    return c.json({
+      error: {
+        code: parsedBody.code,
+        message: `${parsedBody.field} is ${parsedBody.code === "missing_field" ? "required" : "invalid"}`,
+      },
+    }, 400);
+  }
+
+  const clientIpHash = await readCloudflareClientIpHash(c.req.raw);
+
+  if (clientIpHash.code === "client_ip_unavailable") {
+    return c.json({ error: { code: "client_ip_unavailable", message: "Client IP header is unavailable" } }, 500);
+  }
+
+  const db = createDb(c.env.DB);
+  const now = new Date();
+  const authorizedParticipants: AuthorizedParticipant[] = [];
+
+  for (const participant of parsedBody.body.participants) {
+    const authorization = await authorizeBookingCode(db, {
+      bookingCode: participant.bookingCode,
+      ipHash: clientIpHash.ipHash,
+      now,
+      username: participant.username,
+    });
+
+    if (authorization.code === "booking_code_rate_limited") {
+      return c.json({ error: { code: "booking_code_rate_limited", message: "Too many failed booking code attempts" } }, 429);
+    }
+
+    if (authorization.code === "booking_code_invalid") {
+      return c.json({ error: { code: "booking_code_invalid", message: "Invalid booking code" } }, 404);
+    }
+
+    authorizedParticipants.push({
+      hostId: authorization.access.host.id,
+      username: authorization.access.host.username,
+    });
+  }
+
+  const engine = createSchedulingEngine({
+    busyIntervalSource: createD1BusyIntervalSource(db, authorizedParticipants),
+  });
+  const scheduleRequest = {
+    durationMinutes: parsedBody.body.durationMinutes,
+    granularityMinutes: parsedBody.body.granularityMinutes,
+    maxAlternativeSlotCount: parsedBody.body.maxAlternativeSlotCount,
+    maxExactSlotCount: parsedBody.body.maxExactSlotCount,
+    requiredProfileIds: authorizedParticipants.map((participant) => participant.hostId),
+    timeZone: parsedBody.body.timeZone,
+    window: parsedBody.body.window,
+  } satisfies ScheduleRequest;
+  const validation = validateScheduleRequest(scheduleRequest);
+
+  if (validation.kind === "invalid") {
+    return c.json({
+      error: {
+        code: "invalid_schedule_request",
+        message: validation.code,
+      },
+    }, 400);
+  }
+
+  const result = await engine.schedule(scheduleRequest);
+
+  return c.json(serializeScheduleResult(result, authorizedParticipants));
+});
+
+export function parseScheduleBody(body: unknown): ScheduleBodyParseResult {
+  if (!isRecord(body)) {
+    return { code: "missing_field", field: "participants" };
+  }
+
+  const participants = parseParticipants(body["participants"]);
+
+  if (participants.code !== "parsed") {
+    return participants;
+  }
+
+  const durationMinutes = parsePositiveInteger(body["durationMinutes"]);
+  if (durationMinutes === null) return { code: "invalid_field", field: "durationMinutes" };
+
+  const granularityMinutes = parsePositiveInteger(body["granularityMinutes"]);
+  if (granularityMinutes === null) return { code: "invalid_field", field: "granularityMinutes" };
+
+  const maxExactSlotCount = parsePositiveInteger(body["maxExactSlotCount"]);
+  if (maxExactSlotCount === null) return { code: "invalid_field", field: "maxExactSlotCount" };
+
+  const maxAlternativeSlotCount = parsePositiveInteger(body["maxAlternativeSlotCount"]);
+  if (maxAlternativeSlotCount === null) return { code: "invalid_field", field: "maxAlternativeSlotCount" };
+
+  if (typeof body["timeZone"] !== "string") {
+    return { code: "missing_field", field: "timeZone" };
+  }
+
+  const window = parseWindow(body["window"]);
+  if (window.code !== "parsed") return window;
+
+  return {
+    code: "parsed",
+    body: {
+      durationMinutes,
+      granularityMinutes,
+      maxAlternativeSlotCount,
+      maxExactSlotCount,
+      participants: participants.participants,
+      timeZone: body["timeZone"],
+      window: window.window,
+    },
+  };
+}
+
+function parseJsonBody(text: string):
+  | { readonly body: unknown; readonly code: "parsed" }
+  | { readonly code: "invalid_json" } {
+  if (text.trim().length === 0) {
+    return { code: "invalid_json" };
+  }
+
+  try {
+    return { code: "parsed", body: JSON.parse(text) as unknown };
+  } catch {
+    return { code: "invalid_json" };
+  }
+}
+
+function parseParticipants(value: unknown):
+  | { readonly code: "parsed"; readonly participants: readonly ParsedParticipant[] }
+  | { readonly code: "invalid_field" | "missing_field"; readonly field: string } {
+  if (!Array.isArray(value) || value.length === 0) {
+    return { code: "missing_field", field: "participants" };
+  }
+
+  const participants: ParsedParticipant[] = [];
+
+  for (const rawParticipant of value) {
+    if (!isRecord(rawParticipant)) {
+      return { code: "invalid_field", field: "participants" };
+    }
+
+    const username = typeof rawParticipant["user"] === "string" ? normalizeUsername(rawParticipant["user"]) : null;
+    const bookingCode = typeof rawParticipant["code"] === "string" ? normalizeBookingCode(rawParticipant["code"]) : null;
+
+    if (username === null || bookingCode === null) {
+      return { code: "invalid_field", field: "participants" };
+    }
+
+    participants.push({ username, bookingCode });
+  }
+
+  return { code: "parsed", participants };
+}
+
+function parseWindow(value: unknown):
+  | { readonly code: "parsed"; readonly window: TimeInterval }
+  | { readonly code: "invalid_field" | "missing_field"; readonly field: string } {
+  if (!isRecord(value)) {
+    return { code: "missing_field", field: "window" };
+  }
+
+  if (typeof value["start"] !== "string" || typeof value["end"] !== "string") {
+    return { code: "missing_field", field: "window" };
+  }
+
+  const startAtMs = Date.parse(value["start"]);
+  const endAtMs = Date.parse(value["end"]);
+
+  if (!Number.isSafeInteger(startAtMs) || !Number.isSafeInteger(endAtMs)) {
+    return { code: "invalid_field", field: "window" };
+  }
+
+  try {
+    return { code: "parsed", window: timeInterval({ startAtMs, endAtMs }) };
+  } catch {
+    return { code: "invalid_field", field: "window" };
+  }
+}
+
+function parsePositiveInteger(value: unknown) {
+  return typeof value === "number" && Number.isInteger(value) && value > 0
+    ? value
+    : null;
+}
+
+function createD1BusyIntervalSource(
+  db: ReturnType<typeof createDb>,
+  participants: readonly AuthorizedParticipant[],
+): BusyIntervalSource {
+  return {
+    fetchBusyIntervals: async (query) => {
+      const participantByHostId = new Map(
+        participants.map((participant) => [participant.hostId, participant]),
+      );
+      const busyIntervals = await Promise.all(
+        query.profileIds.map(async (profileId) => {
+          const participant = participantByHostId.get(profileId);
+
+          if (participant === undefined) {
+            throw new Error(`authorized participant missing for ${profileId}`);
+          }
+
+          const bookings = await findConfirmedBookingsForHost(db, {
+            hostId: participant.hostId,
+            startsAt: new Date(query.window.startAtMs),
+            endsAt: new Date(query.window.endAtMs),
+          });
+
+          return bookings.map((booking): BusyInterval => ({
+            ...timeInterval({
+              startAtMs: booking.slotStartAt.getTime(),
+              endAtMs: booking.slotEndAt.getTime(),
+            }),
+            eventId: booking.id,
+            flexibility: { kind: "hard" },
+            profileId: participant.hostId,
+          }));
+        }),
+      );
+
+      return busyIntervals.flat();
+    },
+  };
+}
+
+export function serializeScheduleResult(
+  result: ScheduleResult,
+  participants: readonly AuthorizedParticipant[],
+) {
+  const usernameByHostId = new Map(
+    participants.map((participant) => [participant.hostId, participant.username]),
+  );
+
+  if (result.kind === "exact") {
+    return { kind: "exact", slots: result.slots.map(serializeInterval) };
+  }
+
+  if (result.kind === "alternatives") {
+    return {
+      kind: "alternatives",
+      slots: result.rankedSlots.map((slot) => serializeScoredSlot(slot, usernameByHostId)),
+    };
+  }
+
+  return result;
+}
+
+function serializeScoredSlot(
+  scoredSlot: ScoredSlot,
+  usernameByHostId: ReadonlyMap<string, string>,
+) {
+  return {
+    slot: serializeInterval(scoredSlot.slot),
+    conflictCost: scoredSlot.conflictCost,
+    hardConflicts: scoredSlot.hardConflicts.map((conflict) => ({
+      user: readUsername(usernameByHostId, conflict.busyInterval.profileId),
+      interval: serializeInterval(conflict.busyInterval),
+    })),
+    softConflicts: scoredSlot.softConflicts.map((conflict) => ({
+      user: readUsername(usernameByHostId, conflict.busyInterval.profileId),
+      interval: serializeInterval(conflict.busyInterval),
+      moveCost: conflict.busyInterval.flexibility.moveCost,
+    })),
+  };
+}
+
+function serializeInterval(interval: TimeInterval) {
+  return {
+    start: new Date(interval.startAtMs).toISOString(),
+    end: new Date(interval.endAtMs).toISOString(),
+  };
+}
+
+function readUsername(
+  usernameByHostId: ReadonlyMap<string, string>,
+  hostId: string,
+) {
+  const username = usernameByHostId.get(hostId);
+
+  if (username === undefined) {
+    throw new Error(`username missing for ${hostId}`);
+  }
+
+  return username;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}

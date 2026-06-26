@@ -3,18 +3,18 @@ export function meta() {
     { title: "schedule.pizza" },
     {
       name: "description",
-      content: "booking links with codes.",
+      content: "easiest way to find a time.",
     },
     { property: "og:title", content: "schedule.pizza" },
     {
       property: "og:description",
-      content: "booking links with codes.",
+      content: "easiest way to find a time.",
     },
     { property: "og:url", content: "https://schedule.pizza" },
     { name: "twitter:title", content: "schedule.pizza" },
     {
       name: "twitter:description",
-      content: "booking links with codes.",
+      content: "easiest way to find a time.",
     },
   ];
 }
@@ -52,27 +52,26 @@ export default function Home({
       {loaderData.loggedIn && (
         <div className="mt-8 space-y-2">
           <p className="text-sm text-muted-foreground">
-            your booking link:{" "}
-            <span className="font-mono">schedule.pizza/you/code</span>
+            create your username and booking code.
           </p>
           <a
-            href="/auth/google"
+            href="/dashboard"
             className="underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
           >
-            connect google calendar
+            dashboard
           </a>
         </div>
       )}
 
       <nav className="mt-10 flex items-center gap-3 text-sm text-muted-foreground">
         <a
-          href="/api/v1/availability?user=demo"
+          href="/api/v1"
           className="underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
         >
           api
         </a>
         <a
-          href="/api/v1"
+          href="/docs"
           className="underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
         >
           docs

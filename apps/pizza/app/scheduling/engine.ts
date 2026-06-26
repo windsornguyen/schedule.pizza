@@ -136,10 +136,16 @@ export type IntervalOps = {
   ) => readonly TimeInterval[];
 };
 
+const HARD_CONFLICT_COST = 1_000;
+const MINUTE_MS = 60_000;
+
 export type ScheduleEngineErrorCode =
   | "busy_interval_source_failed"
+  | "invalid_busy_interval"
   | "invalid_instant"
-  | "invalid_interval";
+  | "invalid_interval"
+  | "invalid_request"
+  | "invalid_slot_configuration";
 
 export class ScheduleEngineError extends Error {
   constructor(
@@ -215,6 +221,152 @@ export function validateScheduleRequest(
   return { kind: "valid" };
 }
 
+export const defaultIntervalOps = {
+  merge(intervals) {
+    const sortedIntervals = [...intervals].sort(compareIntervals);
+    const mergedIntervals: TimeInterval[] = [];
+
+    for (const interval of sortedIntervals) {
+      assertValidInterval(interval, "invalid_interval");
+      const previous = mergedIntervals.at(-1);
+
+      if (previous === undefined || previous.endAtMs < interval.startAtMs) {
+        mergedIntervals.push(interval);
+        continue;
+      }
+
+      if (interval.endAtMs > previous.endAtMs) {
+        mergedIntervals[mergedIntervals.length - 1] = {
+          startAtMs: previous.startAtMs,
+          endAtMs: interval.endAtMs,
+        };
+      }
+    }
+
+    return mergedIntervals;
+  },
+
+  invert(busy, window) {
+    assertValidInterval(window, "invalid_interval");
+    const freeIntervals: TimeInterval[] = [];
+    let cursorMs = window.startAtMs;
+
+    for (const interval of clipIntervalsToWindow(this.merge(busy), window)) {
+      if (cursorMs < interval.startAtMs) {
+        freeIntervals.push({ startAtMs: cursorMs, endAtMs: interval.startAtMs });
+      }
+
+      cursorMs = interval.endAtMs;
+    }
+
+    if (cursorMs < window.endAtMs) {
+      freeIntervals.push({ startAtMs: cursorMs, endAtMs: window.endAtMs });
+    }
+
+    return freeIntervals;
+  },
+
+  intersect(left, right) {
+    const intersections: TimeInterval[] = [];
+    const leftIntervals = this.merge(left);
+    const rightIntervals = this.merge(right);
+    let leftIndex = 0;
+    let rightIndex = 0;
+
+    while (leftIndex < leftIntervals.length && rightIndex < rightIntervals.length) {
+      const leftInterval = leftIntervals[leftIndex];
+      const rightInterval = rightIntervals[rightIndex];
+
+      if (leftInterval === undefined || rightInterval === undefined) {
+        throw new ScheduleEngineError(
+          "invalid_interval",
+          "interval intersection index escaped bounds",
+        );
+      }
+
+      const intersection = intersectIntervals(leftInterval, rightInterval);
+
+      if (intersection !== null) {
+        intersections.push(intersection);
+      }
+
+      if (leftInterval.endAtMs < rightInterval.endAtMs) {
+        leftIndex += 1;
+      } else {
+        rightIndex += 1;
+      }
+    }
+
+    return intersections;
+  },
+
+  intersectAll(intervalLists) {
+    const [firstIntervals, ...remainingIntervals] = intervalLists;
+
+    if (firstIntervals === undefined) {
+      return [];
+    }
+
+    return remainingIntervals.reduce(
+      (free, next) => this.intersect(free, next),
+      this.merge(firstIntervals),
+    );
+  },
+
+  slotify(free, durationMinutes, granularityMinutes) {
+    assertValidSlotConfiguration(durationMinutes, granularityMinutes);
+    const durationMs = durationMinutes * MINUTE_MS;
+    const granularityMs = granularityMinutes * MINUTE_MS;
+    const slots: TimeInterval[] = [];
+
+    for (const interval of this.merge(free)) {
+      for (
+        let startAtMs = interval.startAtMs;
+        startAtMs + durationMs <= interval.endAtMs;
+        startAtMs = utcEpochMs(startAtMs + granularityMs)
+      ) {
+        slots.push({
+          startAtMs,
+          endAtMs: utcEpochMs(startAtMs + durationMs),
+        });
+      }
+    }
+
+    return slots;
+  },
+} satisfies IntervalOps;
+
+export function createSchedulingEngine(input: {
+  readonly busyIntervalSource: BusyIntervalSource;
+  readonly intervalOps?: IntervalOps;
+}): SchedulingEngine {
+  const intervalOps = input.intervalOps ?? defaultIntervalOps;
+
+  return {
+    findExactSlots: async (request) =>
+      planSchedule(request, input.busyIntervalSource, intervalOps).then(
+        (plan) => plan.exactSlots,
+      ),
+    rankAlternatives: async (request) =>
+      planSchedule(request, input.busyIntervalSource, intervalOps).then(
+        (plan) => plan.rankedSlots,
+      ),
+    schedule: async (request) => {
+      const plan = await planSchedule(request, input.busyIntervalSource, intervalOps);
+
+      if (plan.exactSlots.length > 0) {
+        return { kind: "exact", slots: plan.exactSlots };
+      }
+
+      if (plan.rankedSlots.length > 0) {
+        return { kind: "alternatives", rankedSlots: plan.rankedSlots };
+      }
+
+      return { kind: "none", reason: plan.noneReason };
+    },
+  };
+}
+
 function validateProfileIds(
   profileIds: readonly ProfileId[],
 ): ScheduleRequestValidation {
@@ -237,6 +389,187 @@ function validateProfileIds(
   }
 
   return { kind: "valid" };
+}
+
+function assertValidInterval(
+  interval: TimeInterval,
+  code: "invalid_busy_interval" | "invalid_interval",
+) {
+  if (!isValidInterval(interval)) {
+    throw new ScheduleEngineError(code, "interval start must be before interval end");
+  }
+}
+
+function assertValidSlotConfiguration(
+  durationMinutes: number,
+  granularityMinutes: number,
+) {
+  if (!isPositiveInteger(durationMinutes) || !isPositiveInteger(granularityMinutes)) {
+    throw new ScheduleEngineError(
+      "invalid_slot_configuration",
+      "duration and granularity must be positive integers",
+    );
+  }
+}
+
+function clipIntervalsToWindow(
+  intervals: readonly TimeInterval[],
+  window: TimeInterval,
+) {
+  const clippedIntervals: TimeInterval[] = [];
+
+  for (const interval of intervals) {
+    if (interval.endAtMs <= window.startAtMs || interval.startAtMs >= window.endAtMs) {
+      continue;
+    }
+
+    clippedIntervals.push({
+      startAtMs: utcEpochMs(Math.max(interval.startAtMs, window.startAtMs)),
+      endAtMs: utcEpochMs(Math.min(interval.endAtMs, window.endAtMs)),
+    });
+  }
+
+  return clippedIntervals;
+}
+
+function compareIntervals(left: TimeInterval, right: TimeInterval) {
+  return left.startAtMs - right.startAtMs || left.endAtMs - right.endAtMs;
+}
+
+function intersectIntervals(left: TimeInterval, right: TimeInterval) {
+  const startAtMs = utcEpochMs(Math.max(left.startAtMs, right.startAtMs));
+  const endAtMs = utcEpochMs(Math.min(left.endAtMs, right.endAtMs));
+
+  if (startAtMs >= endAtMs) {
+    return null;
+  }
+
+  return { startAtMs, endAtMs };
+}
+
+type SchedulePlan = {
+  readonly exactSlots: readonly TimeInterval[];
+  readonly noneReason: NoScheduleReason;
+  readonly rankedSlots: readonly ScoredSlot[];
+};
+
+async function planSchedule(
+  request: ScheduleRequest,
+  source: BusyIntervalSource,
+  intervalOps: IntervalOps,
+): Promise<SchedulePlan> {
+  const validation = validateScheduleRequest(request);
+
+  if (validation.kind === "invalid") {
+    throw new ScheduleEngineError("invalid_request", validation.code);
+  }
+
+  const allCandidateSlots = intervalOps.slotify(
+    [request.window],
+    request.durationMinutes,
+    request.granularityMinutes,
+  );
+  const busyIntervals = await source.fetchBusyIntervals({
+    profileIds: request.requiredProfileIds,
+    window: request.window,
+  });
+  const exactSlots = findExactSlots(
+    request,
+    busyIntervals,
+    intervalOps,
+  ).slice(0, request.maxExactSlotCount);
+
+  return {
+    exactSlots,
+    noneReason: allCandidateSlots.length === 0 ? "window_too_small" : "no_candidate_slots",
+    rankedSlots: rankCandidateSlots(
+      allCandidateSlots,
+      busyIntervals,
+      request.maxAlternativeSlotCount,
+    ),
+  };
+}
+
+function findExactSlots(
+  request: ScheduleRequest,
+  busyIntervals: readonly BusyInterval[],
+  intervalOps: IntervalOps,
+) {
+  const freeByProfile = request.requiredProfileIds.map((profileId) => {
+    const busyForProfile = busyIntervals.filter(
+      (interval) => interval.profileId === profileId,
+    );
+
+    return intervalOps.invert(busyForProfile, request.window);
+  });
+
+  return intervalOps.slotify(
+    intervalOps.intersectAll(freeByProfile),
+    request.durationMinutes,
+    request.granularityMinutes,
+  );
+}
+
+function rankCandidateSlots(
+  candidateSlots: readonly TimeInterval[],
+  busyIntervals: readonly BusyInterval[],
+  limit: number,
+) {
+  return candidateSlots
+    .map((slot) => scoreCandidateSlot(slot, busyIntervals))
+    .sort(compareScoredSlots)
+    .slice(0, limit);
+}
+
+function scoreCandidateSlot(
+  slot: TimeInterval,
+  busyIntervals: readonly BusyInterval[],
+): ScoredSlot {
+  const hardConflicts: HardScheduleConflict[] = [];
+  const softConflicts: SoftScheduleConflict[] = [];
+
+  for (const busyInterval of busyIntervals) {
+    assertValidInterval(busyInterval, "invalid_busy_interval");
+
+    if (!overlaps(slot, busyInterval)) {
+      continue;
+    }
+
+    if (isHardBusyInterval(busyInterval)) {
+      hardConflicts.push({ busyInterval });
+    } else if (isSoftBusyInterval(busyInterval)) {
+      softConflicts.push({ busyInterval });
+    }
+  }
+
+  return {
+    slot,
+    hardConflicts,
+    softConflicts,
+    conflictCost:
+      hardConflicts.length * HARD_CONFLICT_COST +
+      softConflicts.reduce((sum, conflict) => sum + conflict.busyInterval.flexibility.moveCost, 0),
+  };
+}
+
+function compareScoredSlots(left: ScoredSlot, right: ScoredSlot) {
+  return (
+    left.hardConflicts.length - right.hardConflicts.length ||
+    left.conflictCost - right.conflictCost ||
+    left.slot.startAtMs - right.slot.startAtMs
+  );
+}
+
+function overlaps(left: TimeInterval, right: TimeInterval) {
+  return left.startAtMs < right.endAtMs && left.endAtMs > right.startAtMs;
+}
+
+function isHardBusyInterval(interval: BusyInterval): interval is HardBusyInterval {
+  return interval.flexibility.kind === "hard";
+}
+
+function isSoftBusyInterval(interval: BusyInterval): interval is SoftBusyInterval {
+  return interval.flexibility.kind === "soft";
 }
 
 function isPositiveInteger(value: number) {

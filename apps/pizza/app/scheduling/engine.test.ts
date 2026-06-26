@@ -1,12 +1,15 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
+  createSchedulingEngine,
+  defaultIntervalOps,
   ScheduleEngineError,
   timeInterval,
   utcEpochMs,
   validateScheduleRequest,
 } from "./engine";
 import type {
+  BusyInterval,
   BusyIntervalSource,
   ScheduleRequest,
   ScheduleRequestErrorCode,
@@ -147,3 +150,141 @@ describe("scheduling engine contract", () => {
     expect(thrown.code).toBe("invalid_interval");
   });
 });
+
+describe("default interval ops", () => {
+  it("intersects merged free intervals and splits them into slots", () => {
+    const free = defaultIntervalOps.intersectAll([
+      [
+        interval("2026-06-26T16:00:00.000Z", "2026-06-26T18:00:00.000Z"),
+      ],
+      [
+        interval("2026-06-26T16:30:00.000Z", "2026-06-26T17:30:00.000Z"),
+      ],
+    ]);
+
+    expect(defaultIntervalOps.slotify(free, 30, 15)).toEqual([
+      interval("2026-06-26T16:30:00.000Z", "2026-06-26T17:00:00.000Z"),
+      interval("2026-06-26T16:45:00.000Z", "2026-06-26T17:15:00.000Z"),
+      interval("2026-06-26T17:00:00.000Z", "2026-06-26T17:30:00.000Z"),
+    ]);
+  });
+
+  it("inverts busy intervals inside the requested window", () => {
+    expect(
+      defaultIntervalOps.invert(
+        [
+          interval("2026-06-26T16:30:00.000Z", "2026-06-26T17:00:00.000Z"),
+          interval("2026-06-26T17:30:00.000Z", "2026-06-26T19:00:00.000Z"),
+        ],
+        interval("2026-06-26T16:00:00.000Z", "2026-06-26T18:00:00.000Z"),
+      ),
+    ).toEqual([
+      interval("2026-06-26T16:00:00.000Z", "2026-06-26T16:30:00.000Z"),
+      interval("2026-06-26T17:00:00.000Z", "2026-06-26T17:30:00.000Z"),
+    ]);
+  });
+});
+
+describe("default scheduling engine", () => {
+  it("finds exact slots when every requested profile is free", async () => {
+    const engine = createSchedulingEngine({
+      busyIntervalSource: {
+        fetchBusyIntervals: async () => [
+          busy("profile_alice", "hard", "2026-06-26T16:30:00.000Z", "2026-06-26T17:00:00.000Z"),
+          busy("profile_bob", "hard", "2026-06-26T17:30:00.000Z", "2026-06-26T18:00:00.000Z"),
+        ],
+      },
+    });
+
+    expect(await engine.schedule(validRequest)).toEqual({
+      kind: "exact",
+      slots: [
+        interval("2026-06-26T16:00:00.000Z", "2026-06-26T16:30:00.000Z"),
+        interval("2026-06-26T17:00:00.000Z", "2026-06-26T17:30:00.000Z"),
+      ],
+    });
+  });
+
+  it("ranks alternatives by hard conflicts and soft conflict cost", async () => {
+    const request = {
+      ...validRequest,
+      window: interval("2026-06-26T16:00:00.000Z", "2026-06-26T17:00:00.000Z"),
+      maxAlternativeSlotCount: 2,
+      maxExactSlotCount: 20,
+    } satisfies ScheduleRequest;
+    const engine = createSchedulingEngine({
+      busyIntervalSource: {
+        fetchBusyIntervals: async () => [
+          busy("profile_alice", "hard", "2026-06-26T16:00:00.000Z", "2026-06-26T18:00:00.000Z"),
+          busy("profile_bob", "soft", "2026-06-26T16:30:00.000Z", "2026-06-26T17:00:00.000Z", 3),
+        ],
+      },
+    });
+
+    expect(await engine.schedule(request)).toMatchObject({
+      kind: "alternatives",
+      rankedSlots: [
+        {
+          conflictCost: 1_000,
+          hardConflicts: [{ busyInterval: { profileId: "profile_alice" } }],
+          softConflicts: [],
+          slot: interval("2026-06-26T16:00:00.000Z", "2026-06-26T16:30:00.000Z"),
+        },
+        {
+          conflictCost: 1_003,
+          hardConflicts: [{ busyInterval: { profileId: "profile_alice" } }],
+          softConflicts: [{ busyInterval: { profileId: "profile_bob" } }],
+          slot: interval("2026-06-26T16:05:00.000Z", "2026-06-26T16:35:00.000Z"),
+        },
+      ],
+    });
+  });
+
+  it("rejects malformed requests before provider I/O", async () => {
+    let fetchCount = 0;
+    const engine = createSchedulingEngine({
+      busyIntervalSource: {
+        fetchBusyIntervals: async () => {
+          fetchCount += 1;
+          return [];
+        },
+      },
+    });
+
+    await expect(
+      engine.schedule({ ...validRequest, requiredProfileIds: [] }),
+    ).rejects.toMatchObject({ code: "invalid_request" });
+    expect(fetchCount).toBe(0);
+  });
+});
+
+function interval(start: string, end: string) {
+  return timeInterval({
+    startAtMs: Date.parse(start),
+    endAtMs: Date.parse(end),
+  });
+}
+
+function busy(
+  profileId: string,
+  kind: "hard" | "soft",
+  start: string,
+  end: string,
+  moveCost = 1,
+): BusyInterval {
+  if (kind === "hard") {
+    return {
+      ...interval(start, end),
+      profileId,
+      eventId: null,
+      flexibility: { kind },
+    };
+  }
+
+  return {
+    ...interval(start, end),
+    profileId,
+    eventId: null,
+    flexibility: { kind, moveCost },
+  };
+}
