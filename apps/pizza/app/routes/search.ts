@@ -1,6 +1,6 @@
 import { redirect } from "react-router";
 
-import { normalizeUsername } from "@/db/functions/host_profiles.server";
+import { normalizeUsername } from "@/db/functions/host_profile_values";
 import type { Route } from "./+types/search";
 
 export function loader({ request }: Route.LoaderArgs) {
@@ -10,7 +10,7 @@ export function loader({ request }: Route.LoaderArgs) {
   throw redirect(target);
 }
 
-function readSearchTarget(value: string | null) {
+export function readSearchTarget(value: string | null) {
   if (value === null || value.trim() === "") {
     return "/";
   }
@@ -27,8 +27,14 @@ function readSearchTarget(value: string | null) {
 }
 
 function parseScheduleUrl(value: string) {
+  const normalizedValue = value.trim();
+
   try {
-    const parsed = new URL(value.trim());
+    const parsed = new URL(
+      /^[a-z][a-z0-9+.-]*:/iu.test(normalizedValue)
+        ? normalizedValue
+        : `https://${normalizedValue}`,
+    );
 
     return parsed.hostname === "schedule.pizza" ||
       parsed.hostname === "www.schedule.pizza"
