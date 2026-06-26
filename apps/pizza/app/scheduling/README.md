@@ -43,8 +43,10 @@ The authoritative backend contract is `engine.ts`.
 
 ## Semantics
 
-`requiredProfileIds` must be non-empty and deduplicated. `window` uses
-half-open UTC intervals: `[startAtMs, endAtMs)`.
+`requiredProfileIds` must be non-empty, deduplicated, and no larger than
+eight profiles. `window` uses half-open UTC intervals: `[startAtMs, endAtMs)`.
+Public requests are capped at a 31-day window, 100 exact slots, and 50 ranked
+alternatives.
 
 The contract uses UTC epoch milliseconds. API routes and CLIs may accept ISO
 strings, but they must parse them before calling the engine. `Date` objects do

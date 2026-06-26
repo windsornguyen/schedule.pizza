@@ -44,6 +44,23 @@ const invalidRequestCases = [
     code: "duplicate_profile_id",
   },
   {
+    name: "too many participant ids",
+    patch: {
+      requiredProfileIds: [
+        "profile_1",
+        "profile_2",
+        "profile_3",
+        "profile_4",
+        "profile_5",
+        "profile_6",
+        "profile_7",
+        "profile_8",
+        "profile_9",
+      ],
+    },
+    code: "too_many_profile_ids",
+  },
+  {
     name: "impossible windows",
     patch: {
       window: {
@@ -54,9 +71,29 @@ const invalidRequestCases = [
     code: "invalid_window",
   },
   {
+    name: "oversized windows",
+    patch: {
+      window: {
+        startAtMs: utcEpochMs(Date.parse("2026-06-01T00:00:00.000Z")),
+        endAtMs: utcEpochMs(Date.parse("2026-07-03T00:00:00.000Z")),
+      },
+    },
+    code: "window_too_large",
+  },
+  {
     name: "invalid time zones",
     patch: { timeZone: "Mars/Olympus_Mons" },
     code: "invalid_time_zone",
+  },
+  {
+    name: "oversized exact slot limits",
+    patch: { maxExactSlotCount: 101 },
+    code: "invalid_exact_slot_limit",
+  },
+  {
+    name: "oversized alternative slot limits",
+    patch: { maxAlternativeSlotCount: 51 },
+    code: "invalid_alternative_slot_limit",
   },
 ] satisfies readonly {
   readonly code: ScheduleRequestErrorCode;

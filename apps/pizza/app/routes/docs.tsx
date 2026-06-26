@@ -62,7 +62,8 @@ export default function Docs() {
           Send every participant with their booking code. The scheduler returns
           exact slots when everyone is free. If none exist, it returns ranked
           alternatives with the conflicting people and time ranges. Google event
-          details stay private.
+          details stay private. Requests are capped at eight people and a
+          31-day window.
         </p>
         <pre className="whitespace-pre-wrap break-words rounded-md border bg-muted p-3 font-mono text-sm">
           <code>{`POST /api/v1/schedule

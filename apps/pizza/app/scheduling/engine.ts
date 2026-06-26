@@ -90,7 +90,9 @@ export type ScheduleRequestErrorCode =
   | "invalid_granularity_minutes"
   | "invalid_profile_id"
   | "invalid_time_zone"
-  | "invalid_window";
+  | "invalid_window"
+  | "too_many_profile_ids"
+  | "window_too_large";
 
 export type ScheduleRequestValidation =
   | { readonly kind: "valid" }
@@ -138,6 +140,12 @@ export type IntervalOps = {
 
 const HARD_CONFLICT_COST = 1_000;
 const MINUTE_MS = 60_000;
+const MAX_ALTERNATIVE_SLOT_COUNT = 50;
+const MAX_DURATION_MINUTES = 8 * 60;
+const MAX_EXACT_SLOT_COUNT = 100;
+const MAX_GRANULARITY_MINUTES = 4 * 60;
+const MAX_PROFILE_COUNT = 8;
+const MAX_WINDOW_MS = 31 * 24 * 60 * MINUTE_MS;
 
 export type ScheduleEngineErrorCode =
   | "busy_interval_source_failed"
@@ -194,24 +202,40 @@ export function validateScheduleRequest(
     return profileValidation;
   }
 
-  if (!isPositiveInteger(request.durationMinutes)) {
+  if (
+    !isPositiveInteger(request.durationMinutes) ||
+    request.durationMinutes > MAX_DURATION_MINUTES
+  ) {
     return { kind: "invalid", code: "invalid_duration_minutes" };
   }
 
-  if (!isPositiveInteger(request.granularityMinutes)) {
+  if (
+    !isPositiveInteger(request.granularityMinutes) ||
+    request.granularityMinutes > MAX_GRANULARITY_MINUTES
+  ) {
     return { kind: "invalid", code: "invalid_granularity_minutes" };
   }
 
-  if (!isPositiveInteger(request.maxExactSlotCount)) {
+  if (
+    !isPositiveInteger(request.maxExactSlotCount) ||
+    request.maxExactSlotCount > MAX_EXACT_SLOT_COUNT
+  ) {
     return { kind: "invalid", code: "invalid_exact_slot_limit" };
   }
 
-  if (!isPositiveInteger(request.maxAlternativeSlotCount)) {
+  if (
+    !isPositiveInteger(request.maxAlternativeSlotCount) ||
+    request.maxAlternativeSlotCount > MAX_ALTERNATIVE_SLOT_COUNT
+  ) {
     return { kind: "invalid", code: "invalid_alternative_slot_limit" };
   }
 
   if (!isValidInterval(request.window)) {
     return { kind: "invalid", code: "invalid_window" };
+  }
+
+  if (request.window.endAtMs - request.window.startAtMs > MAX_WINDOW_MS) {
+    return { kind: "invalid", code: "window_too_large" };
   }
 
   if (!isValidTimeZone(request.timeZone)) {
@@ -372,6 +396,10 @@ function validateProfileIds(
 ): ScheduleRequestValidation {
   if (profileIds.length === 0) {
     return { kind: "invalid", code: "empty_profile_set" };
+  }
+
+  if (profileIds.length > MAX_PROFILE_COUNT) {
+    return { kind: "invalid", code: "too_many_profile_ids" };
   }
 
   const seenProfileIds = new Set<ProfileId>();
