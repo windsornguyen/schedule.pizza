@@ -174,17 +174,17 @@ export function parseScheduleBody(body: unknown): ScheduleBodyParseResult {
     return participants;
   }
 
-  const durationMinutes = parsePositiveInteger(body["durationMinutes"]);
-  if (durationMinutes === null) return { code: "invalid_field", field: "durationMinutes" };
+  const durationMinutes = parseRequiredPositiveInteger(body["durationMinutes"]);
+  if (durationMinutes.code !== "parsed") return { code: durationMinutes.code, field: "durationMinutes" };
 
-  const granularityMinutes = parsePositiveInteger(body["granularityMinutes"]);
-  if (granularityMinutes === null) return { code: "invalid_field", field: "granularityMinutes" };
+  const granularityMinutes = parseRequiredPositiveInteger(body["granularityMinutes"]);
+  if (granularityMinutes.code !== "parsed") return { code: granularityMinutes.code, field: "granularityMinutes" };
 
-  const maxExactSlotCount = parsePositiveInteger(body["maxExactSlotCount"]);
-  if (maxExactSlotCount === null) return { code: "invalid_field", field: "maxExactSlotCount" };
+  const maxExactSlotCount = parseRequiredPositiveInteger(body["maxExactSlotCount"]);
+  if (maxExactSlotCount.code !== "parsed") return { code: maxExactSlotCount.code, field: "maxExactSlotCount" };
 
-  const maxAlternativeSlotCount = parsePositiveInteger(body["maxAlternativeSlotCount"]);
-  if (maxAlternativeSlotCount === null) return { code: "invalid_field", field: "maxAlternativeSlotCount" };
+  const maxAlternativeSlotCount = parseRequiredPositiveInteger(body["maxAlternativeSlotCount"]);
+  if (maxAlternativeSlotCount.code !== "parsed") return { code: maxAlternativeSlotCount.code, field: "maxAlternativeSlotCount" };
 
   if (typeof body["timeZone"] !== "string") {
     return { code: "missing_field", field: "timeZone" };
@@ -196,10 +196,10 @@ export function parseScheduleBody(body: unknown): ScheduleBodyParseResult {
   return {
     code: "parsed",
     body: {
-      durationMinutes,
-      granularityMinutes,
-      maxAlternativeSlotCount,
-      maxExactSlotCount,
+      durationMinutes: durationMinutes.value,
+      granularityMinutes: granularityMinutes.value,
+      maxAlternativeSlotCount: maxAlternativeSlotCount.value,
+      maxExactSlotCount: maxExactSlotCount.value,
       participants: participants.participants,
       timeZone: body["timeZone"],
       window: window.window,
@@ -273,10 +273,16 @@ function parseWindow(value: unknown):
   }
 }
 
-function parsePositiveInteger(value: unknown) {
+function parseRequiredPositiveInteger(value: unknown):
+  | { readonly code: "parsed"; readonly value: number }
+  | { readonly code: "invalid_field" | "missing_field" } {
+  if (value === undefined || value === null) {
+    return { code: "missing_field" };
+  }
+
   return typeof value === "number" && Number.isInteger(value) && value > 0
-    ? value
-    : null;
+    ? { code: "parsed", value }
+    : { code: "invalid_field" };
 }
 
 function createD1BusyIntervalSource(

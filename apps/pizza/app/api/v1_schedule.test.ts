@@ -53,6 +53,39 @@ describe("schedule API body parser", () => {
       },
     })).toEqual({ code: "missing_field", field: "participants" });
   });
+
+  it("rejects missing numeric limits before booking-code authorization", () => {
+    expect(parseScheduleBody({
+      participants: [
+        { user: "Alice", code: "moon tiger seven" },
+      ],
+      granularityMinutes: 15,
+      maxExactSlotCount: 10,
+      maxAlternativeSlotCount: 5,
+      timeZone: "America/Los_Angeles",
+      window: {
+        start: "2026-06-26T16:00:00.000Z",
+        end: "2026-06-26T18:00:00.000Z",
+      },
+    })).toEqual({ code: "missing_field", field: "durationMinutes" });
+  });
+
+  it("rejects malformed numeric limits before booking-code authorization", () => {
+    expect(parseScheduleBody({
+      participants: [
+        { user: "Alice", code: "moon tiger seven" },
+      ],
+      durationMinutes: 0,
+      granularityMinutes: 15,
+      maxExactSlotCount: 10,
+      maxAlternativeSlotCount: 5,
+      timeZone: "America/Los_Angeles",
+      window: {
+        start: "2026-06-26T16:00:00.000Z",
+        end: "2026-06-26T18:00:00.000Z",
+      },
+    })).toEqual({ code: "invalid_field", field: "durationMinutes" });
+  });
 });
 
 describe("schedule API serializer", () => {
