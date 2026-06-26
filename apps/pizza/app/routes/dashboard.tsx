@@ -397,9 +397,11 @@ function readValidTimeZone(formData: FormData) {
     return null;
   }
 
+  const timeZone = value.trim();
+
   try {
-    new Intl.DateTimeFormat("en-US", { timeZone: value });
-    return value;
+    new Intl.DateTimeFormat("en-US", { timeZone });
+    return timeZone;
   } catch {
     return null;
   }
@@ -412,7 +414,11 @@ function readSlotSizeMinutes(formData: FormData) {
     return null;
   }
 
-  const slotSizeMinutes = Number.parseInt(value, 10);
+  if (!/^\d+$/u.test(value.trim())) {
+    return null;
+  }
+
+  const slotSizeMinutes = Number.parseInt(value.trim(), 10);
 
   return [15, 30, 45, 60].includes(slotSizeMinutes) ? slotSizeMinutes : null;
 }
