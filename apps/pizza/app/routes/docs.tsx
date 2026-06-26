@@ -67,6 +67,16 @@ export default function Docs() {
           details stay private. Requests are capped at eight people and a
           31-day window.
         </p>
+        <p className="text-sm leading-6 text-muted-foreground">
+          For people, use <a
+            href="/group"
+            className="underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
+          >
+            group scheduling
+          </a>{" "}
+          and paste one schedule.pizza link per line. For agents, call the API
+          directly.
+        </p>
         <pre className="whitespace-pre-wrap break-words rounded-md border bg-muted p-3 font-mono text-sm">
           <code>{`POST /api/v1/schedule
 {

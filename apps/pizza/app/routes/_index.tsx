@@ -82,6 +82,12 @@ export default function Home({
           docs
         </a>
         <a
+          href="/group"
+          className="underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
+        >
+          group
+        </a>
+        <a
           href="https://github.com/windsornguyen/schedule.pizza"
           className="underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
         >

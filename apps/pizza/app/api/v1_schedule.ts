@@ -19,6 +19,8 @@ import {
   validateScheduleRequest,
   type BusyInterval,
   type BusyIntervalSource,
+  type NoScheduleReason,
+  type ScheduleRequestErrorCode,
   type ScheduleRequest,
   type ScheduleResult,
   type ScoredSlot,
@@ -38,7 +40,7 @@ type ParsedParticipant = {
   readonly username: string;
 };
 
-type ParsedScheduleBody = {
+export type ParsedScheduleBody = {
   readonly durationMinutes: number;
   readonly granularityMinutes: number;
   readonly maxAlternativeSlotCount: number;
@@ -52,12 +54,51 @@ type ScheduleBodyParseResult =
   | { readonly code: "parsed"; readonly body: ParsedScheduleBody }
   | { readonly code: "invalid_field" | "missing_field"; readonly field: string };
 
-type AuthorizedParticipant = {
+export type AuthorizedParticipant = {
   readonly authUserId: string;
   readonly calendarId: string | null;
   readonly hostId: string;
   readonly username: string;
 };
+
+type SerializedInterval = {
+  readonly end: string;
+  readonly start: string;
+};
+
+type SerializedScheduleConflict = {
+  readonly interval: SerializedInterval;
+  readonly user: string;
+};
+
+type SerializedSoftScheduleConflict = SerializedScheduleConflict & {
+  readonly moveCost: number;
+};
+
+type SerializedScoredSlot = {
+  readonly conflictCost: number;
+  readonly hardConflicts: readonly SerializedScheduleConflict[];
+  readonly slot: SerializedInterval;
+  readonly softConflicts: readonly SerializedSoftScheduleConflict[];
+};
+
+export type SerializedScheduleResult =
+  | { readonly kind: "exact"; readonly slots: readonly SerializedInterval[] }
+  | {
+      readonly kind: "alternatives";
+      readonly slots: readonly SerializedScoredSlot[];
+    }
+  | { readonly kind: "none"; readonly reason: NoScheduleReason };
+
+export type ScheduleExecutionResult =
+  | { readonly body: SerializedScheduleResult; readonly code: "scheduled" }
+  | { readonly code: "booking_code_invalid" }
+  | { readonly code: "booking_code_rate_limited" }
+  | {
+      readonly code: "invalid_schedule_request";
+      readonly requestCode: ScheduleRequestErrorCode;
+    }
+  | { readonly code: GoogleCalendarErrorCode };
 
 class ScheduleCalendarError extends Error {
   constructor(readonly code: GoogleCalendarErrorCode) {
@@ -95,22 +136,65 @@ scheduleRoute.post("/", async (c) => {
 
   const db = createDb(c.env.DB);
   const now = new Date();
+  const scheduled = await executeScheduleRequest(db, {
+    body: parsedBody.body,
+    env: c.env,
+    ipHash: clientIpHash.ipHash,
+    now,
+  });
+
+  if (scheduled.code === "booking_code_rate_limited") {
+    return c.json({ error: { code: "booking_code_rate_limited", message: "Too many failed booking code attempts" } }, 429);
+  }
+
+  if (scheduled.code === "booking_code_invalid") {
+    return c.json({ error: { code: "booking_code_invalid", message: "Invalid booking code" } }, 404);
+  }
+
+  if (scheduled.code === "invalid_schedule_request") {
+    return c.json({
+      error: {
+        code: "invalid_schedule_request",
+        message: scheduled.requestCode,
+      },
+    }, 400);
+  }
+
+  if (scheduled.code !== "scheduled") {
+    return c.json(
+      googleCalendarErrorBody(scheduled.code),
+      googleCalendarStatus(scheduled.code),
+    );
+  }
+
+  return c.json(scheduled.body);
+});
+
+export async function executeScheduleRequest(
+  db: ReturnType<typeof createDb>,
+  input: {
+    readonly body: ParsedScheduleBody;
+    readonly env: ServerEnv;
+    readonly ipHash: string;
+    readonly now: Date;
+  },
+): Promise<ScheduleExecutionResult> {
   const authorizedParticipants: AuthorizedParticipant[] = [];
 
-  for (const participant of parsedBody.body.participants) {
+  for (const participant of input.body.participants) {
     const authorization = await authorizeBookingCode(db, {
       bookingCode: participant.bookingCode,
-      ipHash: clientIpHash.ipHash,
-      now,
+      ipHash: input.ipHash,
+      now: input.now,
       username: participant.username,
     });
 
     if (authorization.code === "booking_code_rate_limited") {
-      return c.json({ error: { code: "booking_code_rate_limited", message: "Too many failed booking code attempts" } }, 429);
+      return { code: "booking_code_rate_limited" };
     }
 
     if (authorization.code === "booking_code_invalid") {
-      return c.json({ error: { code: "booking_code_invalid", message: "Invalid booking code" } }, 404);
+      return { code: "booking_code_invalid" };
     }
 
     authorizedParticipants.push({
@@ -122,29 +206,27 @@ scheduleRoute.post("/", async (c) => {
   }
 
   const engine = createSchedulingEngine({
-    busyIntervalSource: createD1BusyIntervalSource(c.env, db, {
-      now,
+    busyIntervalSource: createD1BusyIntervalSource(input.env, db, {
+      now: input.now,
       participants: authorizedParticipants,
     }),
   });
   const scheduleRequest = {
-    durationMinutes: parsedBody.body.durationMinutes,
-    granularityMinutes: parsedBody.body.granularityMinutes,
-    maxAlternativeSlotCount: parsedBody.body.maxAlternativeSlotCount,
-    maxExactSlotCount: parsedBody.body.maxExactSlotCount,
+    durationMinutes: input.body.durationMinutes,
+    granularityMinutes: input.body.granularityMinutes,
+    maxAlternativeSlotCount: input.body.maxAlternativeSlotCount,
+    maxExactSlotCount: input.body.maxExactSlotCount,
     requiredProfileIds: authorizedParticipants.map((participant) => participant.hostId),
-    timeZone: parsedBody.body.timeZone,
-    window: parsedBody.body.window,
+    timeZone: input.body.timeZone,
+    window: input.body.window,
   } satisfies ScheduleRequest;
   const validation = validateScheduleRequest(scheduleRequest);
 
   if (validation.kind === "invalid") {
-    return c.json({
-      error: {
-        code: "invalid_schedule_request",
-        message: validation.code,
-      },
-    }, 400);
+    return {
+      code: "invalid_schedule_request",
+      requestCode: validation.code,
+    };
   }
 
   const result = await engine.schedule(scheduleRequest).catch((error: unknown) => {
@@ -156,14 +238,14 @@ scheduleRoute.post("/", async (c) => {
   });
 
   if (result instanceof ScheduleCalendarError) {
-    return c.json(
-      googleCalendarErrorBody(result.code),
-      googleCalendarStatus(result.code),
-    );
+    return { code: result.code };
   }
 
-  return c.json(serializeScheduleResult(result, authorizedParticipants));
-});
+  return {
+    code: "scheduled",
+    body: serializeScheduleResult(result, authorizedParticipants),
+  };
+}
 
 export function parseScheduleBody(body: unknown): ScheduleBodyParseResult {
   if (!isRecord(body)) {
@@ -432,7 +514,7 @@ async function fetchGoogleBusyIntervals(input: {
 export function serializeScheduleResult(
   result: ScheduleResult,
   participants: readonly AuthorizedParticipant[],
-) {
+): SerializedScheduleResult {
   const usernameByHostId = new Map(
     participants.map((participant) => [participant.hostId, participant.username]),
   );
@@ -454,7 +536,7 @@ export function serializeScheduleResult(
 function serializeScoredSlot(
   scoredSlot: ScoredSlot,
   usernameByHostId: ReadonlyMap<string, string>,
-) {
+): SerializedScoredSlot {
   return {
     slot: serializeInterval(scoredSlot.slot),
     conflictCost: scoredSlot.conflictCost,
@@ -470,7 +552,7 @@ function serializeScoredSlot(
   };
 }
 
-function serializeInterval(interval: TimeInterval) {
+function serializeInterval(interval: TimeInterval): SerializedInterval {
   return {
     start: new Date(interval.startAtMs).toISOString(),
     end: new Date(interval.endAtMs).toISOString(),

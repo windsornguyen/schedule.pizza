@@ -7,6 +7,7 @@ export default [
   route("dashboard", "routes/dashboard.tsx"),
   route("design.md", "routes/design.md.ts"),
   route("docs", "routes/docs.tsx"),
+  route("group", "routes/group.tsx"),
   route("login", "routes/login.tsx"),
   route("search", "routes/search.ts"),
   route(":username", "routes/profile.tsx"),
