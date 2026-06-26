@@ -15,7 +15,8 @@ export default function Docs() {
       <p className="mt-2 text-sm leading-6 text-muted-foreground">
         schedule.pizza gives each host a booking code. If you have the code,
         you can ask for times, book a time, or ask the scheduler to find a time
-        across several people.
+        across several people. When a host rotates their code, previous codes
+        stop working.
       </p>
 
       <section className="mt-10 space-y-3">
