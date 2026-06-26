@@ -151,6 +151,14 @@ function ProfileState({
   readonly actionData: ProfileActionData | null;
   readonly loaderData: Route.ComponentProps["loaderData"];
 }) {
+  if (actionData?.code === "booked") {
+    return (
+      <p className="mt-4 text-sm text-muted-foreground">
+        the host's calendar has been updated.
+      </p>
+    );
+  }
+
   if (loaderData.state === "code_required") {
     return <CodeForm username={loaderData.username} />;
   }
@@ -241,7 +249,7 @@ function BookingForm({
         ) : (
           slots.slice(0, 12).map((slot) => (
             <label key={slot.start} className="flex items-center gap-2 text-sm">
-              <input type="radio" name="slot" value={slot.start} />
+              <input type="radio" name="slot" value={slot.start} required />
               <span>{formatSlotLabel(slot, timezone)}</span>
             </label>
           ))
@@ -249,7 +257,8 @@ function BookingForm({
       </div>
       <button
         type="submit"
-        className="rounded-md border px-3 py-2 text-sm transition-colors hover:bg-muted"
+        disabled={slots.length === 0}
+        className="rounded-md border px-3 py-2 text-sm transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
       >
         book
       </button>
