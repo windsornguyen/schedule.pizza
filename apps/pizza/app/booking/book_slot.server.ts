@@ -1,5 +1,6 @@
 import {
   createGoogleCalendarEvent,
+  deleteGoogleCalendarEvent,
   readGoogleCalendarAccess,
   readGoogleCalendarId,
   type GoogleCalendarErrorCode,
@@ -127,9 +128,10 @@ export async function bookHostSlot(
     return failPendingBooking(db, pending.id, input.now, googleAccess.code);
   }
 
+  const calendarId = readGoogleCalendarId(input.host.calendarId);
   const calendarEvent = await createGoogleCalendarEvent({
     accessToken: googleAccess.accessToken,
-    calendarId: readGoogleCalendarId(input.host.calendarId),
+    calendarId,
     endAt: slot.endAt,
     guestEmail: input.guestEmail,
     guestName: input.guestName,
@@ -149,7 +151,16 @@ export async function bookHostSlot(
   });
 
   if (confirmed === null) {
-    return { code: "booking_confirmation_failed" };
+    const deleted = await deleteGoogleCalendarEvent({
+      accessToken: googleAccess.accessToken,
+      calendarId,
+      eventId: calendarEvent.eventId,
+      notifyGuests: input.guestEmail !== null,
+    });
+
+    return deleted.code === "deleted"
+      ? { code: "booking_confirmation_failed" }
+      : deleted;
   }
 
   await markBookingCodeUsed(db, {

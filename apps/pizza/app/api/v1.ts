@@ -107,6 +107,7 @@ v1.get("/", (c) => {
         "host_configuration_invalid",
       ],
       502: [
+        "google_event_delete_failed",
         "google_event_insert_failed",
         "google_event_insert_response_invalid",
         "google_freebusy_failed",

@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   confirmCalendarBooking: vi.fn<AsyncMock>(),
   createGoogleCalendarEvent: vi.fn<AsyncMock>(),
   createPendingCalendarBooking: vi.fn<AsyncMock>(),
+  deleteGoogleCalendarEvent: vi.fn<AsyncMock>(),
   listHostAvailableSlots: vi.fn<AsyncMock>(),
   markBookingCodeUsed: vi.fn<AsyncMock>(),
   markCalendarBookingFailed: vi.fn<AsyncMock>(),
@@ -20,6 +21,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/calendar/google.server", () => ({
   createGoogleCalendarEvent: mocks.createGoogleCalendarEvent,
+  deleteGoogleCalendarEvent: mocks.deleteGoogleCalendarEvent,
   readGoogleCalendarAccess: mocks.readGoogleCalendarAccess,
   readGoogleCalendarId: mocks.readGoogleCalendarId,
 }));
@@ -55,6 +57,7 @@ describe("bookHostSlot", () => {
       code: "created",
       eventId: "google_event_1",
     });
+    mocks.deleteGoogleCalendarEvent.mockResolvedValue({ code: "deleted" });
     mocks.createPendingCalendarBooking.mockResolvedValue({ id: "booking_1" });
     mocks.listHostAvailableSlots.mockResolvedValue({
       code: "listed",
@@ -97,6 +100,7 @@ describe("bookHostSlot", () => {
       usedAt: now,
     });
     expect(mocks.markCalendarBookingFailed).not.toHaveBeenCalled();
+    expect(mocks.deleteGoogleCalendarEvent).not.toHaveBeenCalled();
   });
 
   it("marks the pending booking failed when Google event creation fails", async () => {
@@ -112,6 +116,33 @@ describe("bookHostSlot", () => {
       failedAt: now,
     });
     expect(mocks.confirmCalendarBooking).not.toHaveBeenCalled();
+    expect(mocks.markBookingCodeUsed).not.toHaveBeenCalled();
+  });
+
+  it("deletes the Google event when local confirmation fails", async () => {
+    mocks.confirmCalendarBooking.mockResolvedValueOnce(null);
+
+    await expect(bookHostSlot(db, createInput())).resolves.toEqual({
+      code: "booking_confirmation_failed",
+    });
+    expect(mocks.deleteGoogleCalendarEvent).toHaveBeenCalledWith({
+      accessToken: "google_access_token",
+      calendarId: "primary",
+      eventId: "google_event_1",
+      notifyGuests: true,
+    });
+    expect(mocks.markBookingCodeUsed).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a typed error when confirmation rollback fails", async () => {
+    mocks.confirmCalendarBooking.mockResolvedValueOnce(null);
+    mocks.deleteGoogleCalendarEvent.mockResolvedValueOnce({
+      code: "google_event_delete_failed",
+    });
+
+    await expect(bookHostSlot(db, createInput())).resolves.toEqual({
+      code: "google_event_delete_failed",
+    });
     expect(mocks.markBookingCodeUsed).not.toHaveBeenCalled();
   });
 });

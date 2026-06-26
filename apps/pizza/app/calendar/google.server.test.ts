@@ -4,6 +4,7 @@ import {
   GOOGLE_CALENDAR_EVENTS_SCOPE,
   GOOGLE_CALENDAR_FREEBUSY_SCOPE,
   createGoogleCalendarEvent,
+  deleteGoogleCalendarEvent,
   hasGoogleCalendarScope,
   listGoogleFreeBusyIntervals,
   refreshGoogleAccessToken,
@@ -117,6 +118,26 @@ describe("createGoogleCalendarEvent", () => {
     });
 
     expect(result).toEqual({ code: "created", eventId: "google_event_1" });
+  });
+});
+
+describe("deleteGoogleCalendarEvent", () => {
+  it("deletes a Google event and asks Google to notify guests", async () => {
+    const result = await deleteGoogleCalendarEvent({
+      accessToken: "access_token",
+      calendarId: "primary",
+      eventId: "google_event_1",
+      notifyGuests: true,
+      fetcher: async (input: string, init: RequestInit) => {
+        expect(input).toContain("/calendars/primary/events/google_event_1");
+        expect(input).toContain("sendUpdates=all");
+        expect(init.method).toBe("DELETE");
+
+        return new Response(null, { status: 204 });
+      },
+    });
+
+    expect(result).toEqual({ code: "deleted" });
   });
 });
 

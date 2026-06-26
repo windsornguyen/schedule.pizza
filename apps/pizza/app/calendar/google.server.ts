@@ -22,6 +22,7 @@ export type GoogleCalendarErrorCode =
   | "google_account_missing"
   | "google_access_token_missing"
   | "google_calendar_scope_missing"
+  | "google_event_delete_failed"
   | "google_event_insert_failed"
   | "google_event_insert_response_invalid"
   | "google_freebusy_failed"
@@ -311,6 +312,34 @@ export async function createGoogleCalendarEvent(input: {
   }
 
   return { code: "created", eventId };
+}
+
+export async function deleteGoogleCalendarEvent(input: {
+  readonly accessToken: string;
+  readonly calendarId: string;
+  readonly eventId: string;
+  readonly fetcher?: Fetcher;
+  readonly notifyGuests: boolean;
+}): Promise<
+  | { readonly code: "deleted" }
+  | { readonly code: "google_event_delete_failed" }
+> {
+  const url = new URL(
+    `${GOOGLE_CALENDAR_API_URL}/calendars/${encodeURIComponent(input.calendarId)}/events/${encodeURIComponent(input.eventId)}`,
+  );
+
+  if (input.notifyGuests) {
+    url.searchParams.set("sendUpdates", "all");
+  }
+
+  const response = await (input.fetcher ?? fetch)(url.toString(), {
+    headers: { Authorization: `Bearer ${input.accessToken}` },
+    method: "DELETE",
+  }).catch((): null => null);
+
+  return response !== null && response.ok
+    ? { code: "deleted" }
+    : { code: "google_event_delete_failed" };
 }
 
 export function hasGoogleCalendarScope(
