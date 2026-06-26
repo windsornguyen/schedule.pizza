@@ -58,7 +58,7 @@ export function Layout({
         <Links />
       </head>
       <body className="font-sans">
-        <header className="fixed top-0 right-0 px-16 py-10">
+        <header className="mx-auto flex w-full max-w-[550px] justify-end px-4 pt-8">
           {loggedIn ? (
             <a
               href="/auth/logout"
@@ -104,11 +104,11 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center px-4">
+    <main className="mx-auto w-full max-w-[550px] px-4 pt-20 pb-24">
       <h1 className="text-sm font-semibold">{message}</h1>
       <p className="mt-2 text-sm text-muted-foreground">{details}</p>
       {stack && (
-        <pre className="mt-4 w-full max-w-2xl overflow-x-auto rounded-lg bg-secondary p-4 font-mono text-xs">
+        <pre className="mt-4 w-full overflow-x-auto rounded-md bg-secondary p-4 font-mono text-sm">
           <code>{stack}</code>
         </pre>
       )}
