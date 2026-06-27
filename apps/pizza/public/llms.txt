@@ -1,0 +1,30 @@
+# schedule.pizza
+
+> easiest way to find a time.
+
+schedule.pizza is a small calendar scheduling service built around shareable
+booking codes. A host shares a schedule.pizza link with a code. A human or agent
+can use that capability to list availability, book an exact slot, or ask for a
+time across several people.
+
+## Docs
+
+- [Docs](https://schedule.pizza/docs): Human and agent guide for availability,
+  booking, group scheduling, recommendations, and calendar errors.
+- [API index](https://schedule.pizza/api/v1): Machine-readable JSON index of the
+  v1 endpoints, request shapes, and typed error codes.
+- [Group scheduling](https://schedule.pizza/group): Minimal human UI for finding
+  a time across several schedule.pizza links.
+- [Security policy](https://schedule.pizza/.well-known/security.txt): Security
+  contact and reporting policy.
+
+## Core API
+
+- `GET /api/v1/availability?user=alice&code=moon-tiger-seven`
+- `POST /api/v1/book`
+- `POST /api/v1/schedule`
+- `POST /api/v1/recommend`
+- `POST /api/v1/book-group`
+
+All calendar times are UTC ISO 8601 strings ending in `Z`. Booking codes are
+capabilities. Calls without a valid code should not expose availability.
