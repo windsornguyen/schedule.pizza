@@ -28,6 +28,9 @@ describe("docs page examples", () => {
     const html = renderToStaticMarkup(<Docs />);
 
     expect(html).toContain("/api/v1/account");
+    expect(html).toContain("/api/v1/me/bootstrap");
+    expect(html).toContain("/api/v1/me/booking-code");
+    expect(html).toContain("/api/v1/account/bookings/booking_123/cancel");
     expect(html).toContain("bookingUrl");
   });
 

@@ -174,6 +174,20 @@ export default function Docs() {
             POST /api/v1/account/bookings/:bookingId/cancel
           </code>. Group bookings stay visible in each host's dashboard.
         </p>
+        <pre className="whitespace-pre-wrap break-words rounded-md border bg-muted p-3 font-mono text-sm">
+          <code>{`POST /api/v1/me/bootstrap
+{
+  "username": "alice",
+  "timezone": "America/Los_Angeles",
+  "displayName": "Alice",
+  "slotSizeMinutes": 30,
+  "calendarId": "primary"
+}
+
+POST /api/v1/me/booking-code
+GET /api/v1/account/bookings
+POST /api/v1/account/bookings/booking_123/cancel`}</code>
+        </pre>
       </section>
 
       <section className="mt-10 space-y-3">

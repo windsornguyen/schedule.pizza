@@ -353,6 +353,50 @@ v1.get("/", (c) => {
           timezone: "America/Los_Angeles",
         },
       },
+      account: {
+        method: "GET",
+        path: "/api/v1/account",
+        auth: "Better Auth session cookie",
+      },
+      bootstrap: {
+        method: "POST",
+        path: "/api/v1/me/bootstrap",
+        auth: "Better Auth session cookie",
+        body: {
+          username: "alice",
+          timezone: "America/Los_Angeles",
+          displayName: "Alice",
+          slotSizeMinutes: 30,
+          calendarId: "primary",
+        },
+      },
+      saveProfile: {
+        method: "PUT",
+        path: "/api/v1/account/profile",
+        auth: "Better Auth session cookie",
+        body: {
+          username: "alice",
+          timezone: "America/Los_Angeles",
+          displayName: "Alice",
+          slotSizeMinutes: 30,
+          calendarId: "primary",
+        },
+      },
+      rotateBookingCode: {
+        method: "POST",
+        path: "/api/v1/me/booking-code",
+        auth: "Better Auth session cookie",
+      },
+      accountBookings: {
+        method: "GET",
+        path: "/api/v1/account/bookings",
+        auth: "Better Auth session cookie",
+      },
+      cancelBooking: {
+        method: "POST",
+        path: "/api/v1/account/bookings/booking_123/cancel",
+        auth: "Better Auth session cookie",
+      },
     },
     errors: {
       400: [

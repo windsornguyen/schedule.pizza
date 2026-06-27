@@ -301,6 +301,30 @@ describe("v1 API CORS", () => {
           maxAlternativeSlotCount: 5,
         },
       },
+      bootstrap: {
+        method: "POST",
+        path: "/api/v1/me/bootstrap",
+        auth: "Better Auth session cookie",
+        body: {
+          username: "alice",
+          slotSizeMinutes: 30,
+        },
+      },
+      rotateBookingCode: {
+        method: "POST",
+        path: "/api/v1/me/booking-code",
+        auth: "Better Auth session cookie",
+      },
+      accountBookings: {
+        method: "GET",
+        path: "/api/v1/account/bookings",
+        auth: "Better Auth session cookie",
+      },
+      cancelBooking: {
+        method: "POST",
+        path: "/api/v1/account/bookings/booking_123/cancel",
+        auth: "Better Auth session cookie",
+      },
     });
   });
 
