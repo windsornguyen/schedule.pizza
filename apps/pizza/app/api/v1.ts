@@ -25,7 +25,6 @@ import { listUpcomingConfirmedBookingsForHost } from "@/db/functions/bookings.se
 import {
   createHostProfileWithBookingCode,
   findHostProfileByAuthUserId,
-  findHostProfileByUsername,
   normalizeUsername,
   updateHostProfile,
 } from "@/db/functions/host_profiles.server";
@@ -614,12 +613,6 @@ v1.post("/me/bootstrap", async (c) => {
     return c.json({ error: { code: "host_profile_exists", message: "Host profile already exists" } }, 409);
   }
 
-  const usernameOwner = await findHostProfileByUsername(db, parsed.body.username);
-
-  if (usernameOwner !== null) {
-    return c.json({ error: { code: "username_taken", message: "Username is taken" } }, 409);
-  }
-
   const calendarStatus = await readConnectedCalendarStatus(db, c.env, session.session.user.id);
 
   if (calendarStatus.code !== "connected") {
@@ -686,12 +679,6 @@ v1.put("/account/profile", async (c) => {
 
   if (existingProfile === null) {
     return c.json({ error: { code: "host_profile_missing", message: "Host profile is missing" } }, 409);
-  }
-
-  const usernameOwner = await findHostProfileByUsername(db, parsed.body.username);
-
-  if (usernameOwner !== null && usernameOwner.authUserId !== session.session.user.id) {
-    return c.json({ error: { code: "username_taken", message: "Username is taken" } }, 409);
   }
 
   const calendarStatus = await readConnectedCalendarStatus(db, c.env, session.session.user.id);

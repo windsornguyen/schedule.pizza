@@ -37,10 +37,6 @@ describe("updateExistingProfile", () => {
       id: "host_1",
       username: "alice",
     });
-    mocks.findHostProfileByUsername.mockResolvedValue({
-      authUserId: "auth_user_1",
-      username: "alice",
-    });
     mocks.readGoogleCalendarAccess.mockResolvedValue({
       code: "authorized",
       accessToken: "google_access_token",
@@ -51,7 +47,7 @@ describe("updateExistingProfile", () => {
     });
   });
 
-  it("updates the existing profile after validating ownership and calendar access", async () => {
+  it("updates the existing profile through the atomic profile writer", async () => {
     await expect(updateExistingProfile(db, {
       authUserId: "auth_user_1",
       email: "alice@example.com",
@@ -59,7 +55,7 @@ describe("updateExistingProfile", () => {
       formData: profileFormData(),
     })).resolves.toEqual({ code: "updated_profile" });
 
-    expect(mocks.findHostProfileByUsername).toHaveBeenCalledWith(db, "alice");
+    expect(mocks.findHostProfileByUsername).not.toHaveBeenCalled();
     expect(mocks.readGoogleCalendarAccess).toHaveBeenCalledTimes(2);
     expect(mocks.updateHostProfile).toHaveBeenCalledWith(env.DB, {
       authUserId: "auth_user_1",
@@ -77,7 +73,6 @@ describe("updateExistingProfile", () => {
   });
 
   it("rotates and returns a fresh booking code when the username changes", async () => {
-    mocks.findHostProfileByUsername.mockResolvedValueOnce(null);
     mocks.updateHostProfile.mockResolvedValueOnce({
       code: "updated_profile",
       bookingCode: "sun-river-ten",
@@ -107,9 +102,10 @@ describe("updateExistingProfile", () => {
       slotSizeMinutes: 30,
       now: expect.any(Date) as Date,
     });
+    expect(mocks.findHostProfileByUsername).not.toHaveBeenCalled();
   });
 
-  it("rejects usernames owned by another profile", async () => {
+  it("does not use preflight username ownership as a write authority", async () => {
     mocks.findHostProfileByUsername.mockResolvedValueOnce({
       authUserId: "auth_user_2",
       username: "alice",
@@ -120,13 +116,13 @@ describe("updateExistingProfile", () => {
       email: "alice@example.com",
       env,
       formData: profileFormData(),
-    })).resolves.toEqual({ code: "username_taken" });
+    })).resolves.toEqual({ code: "updated_profile" });
 
-    expect(mocks.updateHostProfile).not.toHaveBeenCalled();
+    expect(mocks.findHostProfileByUsername).not.toHaveBeenCalled();
+    expect(mocks.updateHostProfile).toHaveBeenCalled();
   });
 
   it("reports atomic rename conflicts as username taken", async () => {
-    mocks.findHostProfileByUsername.mockResolvedValueOnce(null);
     mocks.updateHostProfile.mockResolvedValueOnce({
       code: "profile_conflict",
     });
@@ -137,6 +133,7 @@ describe("updateExistingProfile", () => {
       env,
       formData: profileFormData("Alice-New"),
     })).resolves.toEqual({ code: "username_taken" });
+    expect(mocks.findHostProfileByUsername).not.toHaveBeenCalled();
   });
 
   it("requires an authenticated account email before writing the profile", async () => {

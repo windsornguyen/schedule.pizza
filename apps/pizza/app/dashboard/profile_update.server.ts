@@ -9,7 +9,6 @@
 import type { createDb } from "@/db/client.server";
 import {
   findHostProfileByAuthUserId,
-  findHostProfileByUsername,
   updateHostProfile,
 } from "@/db/functions/host_profiles.server";
 import type { ServerEnv } from "@/server-context";
@@ -35,15 +34,6 @@ export async function updateExistingProfile(
 
   if (existingProfile === null) {
     return { code: "profile_missing" as const };
-  }
-
-  const usernameOwner = await findHostProfileByUsername(db, parsed.username);
-
-  if (
-    usernameOwner !== null &&
-    usernameOwner.authUserId !== input.authUserId
-  ) {
-    return { code: "username_taken" as const };
   }
 
   const email = readAccountEmail(input.email);

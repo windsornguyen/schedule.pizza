@@ -711,8 +711,6 @@ describe("account profile API", () => {
         timezone: "America/Los_Angeles",
         username: "alice",
       });
-    mocks.findHostProfileByUsername.mockResolvedValue(null);
-
     const response = await v1.request("https://schedule.pizza/me/bootstrap", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -745,6 +743,7 @@ describe("account profile API", () => {
       slotSizeMinutes: 30,
       now: expect.any(Date) as Date,
     });
+    expect(mocks.findHostProfileByUsername).not.toHaveBeenCalled();
   });
 
   it("rejects cross-site account mutations before rotating booking codes", async () => {
@@ -815,7 +814,6 @@ describe("account profile API", () => {
         timezone: "America/Los_Angeles",
         username: "alice-new",
       });
-    mocks.findHostProfileByUsername.mockResolvedValue(null);
     mocks.updateHostProfile.mockResolvedValue({
       code: "updated_profile",
       bookingCode: "sun-river-ten",
@@ -855,6 +853,7 @@ describe("account profile API", () => {
       now: expect.any(Date) as Date,
     });
     expect(mocks.rotateBookingCode).not.toHaveBeenCalled();
+    expect(mocks.findHostProfileByUsername).not.toHaveBeenCalled();
   });
 
   it("reports atomic profile rename conflicts as username taken", async () => {
@@ -863,7 +862,6 @@ describe("account profile API", () => {
       id: "host_1",
       username: "alice",
     });
-    mocks.findHostProfileByUsername.mockResolvedValue(null);
     mocks.updateHostProfile.mockResolvedValue({
       code: "profile_conflict",
     });
@@ -884,6 +882,7 @@ describe("account profile API", () => {
       },
     });
     expect(response.status).toBe(409);
+    expect(mocks.findHostProfileByUsername).not.toHaveBeenCalled();
   });
 });
 
