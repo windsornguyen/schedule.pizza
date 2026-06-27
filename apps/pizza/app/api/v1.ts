@@ -427,11 +427,13 @@ v1.put("/account/profile", async (c) => {
   }
 
   const now = new Date();
-  const updated = await updateHostProfile(db, {
+  const updated = await updateHostProfile(c.env.DB, {
     authUserId: session.session.user.id,
     calendarAccountEmail: email,
     calendarId: parsed.body.calendarId,
     calendarProvider: "google",
+    currentHostId: existingProfile.id,
+    currentUsername: existingProfile.username,
     displayName: parsed.body.displayName ?? parsed.body.username,
     username: parsed.body.username,
     timezone: parsed.body.timezone,
@@ -439,25 +441,17 @@ v1.put("/account/profile", async (c) => {
     now,
   });
 
-  if (updated === null) {
+  if (updated.code === "profile_missing") {
     return c.json({ error: { code: "host_profile_missing", message: "Host profile is missing" } }, 409);
   }
-
-  const bookingCode = existingProfile.username === parsed.body.username
-    ? null
-    : await rotateBookingCode(c.env.DB, {
-        hostId: existingProfile.id,
-        hostUsername: parsed.body.username,
-        wordCount: 3,
-        label: null,
-        now,
-      });
 
   return c.json(await buildAccountPayload(
     db,
     c.env,
     session.session,
-    bookingCode === null ? { now } : { bookingCode: bookingCode.code, now },
+    updated.bookingCode === null
+      ? { now }
+      : { bookingCode: updated.bookingCode, now },
   ));
 });
 

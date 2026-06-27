@@ -8,16 +8,11 @@ const mocks = vi.hoisted(() => ({
   findHostProfileByAuthUserId: vi.fn<AsyncMock>(),
   findHostProfileByUsername: vi.fn<AsyncMock>(),
   readGoogleCalendarAccess: vi.fn<AsyncMock>(),
-  rotateBookingCode: vi.fn<AsyncMock>(),
   updateHostProfile: vi.fn<AsyncMock>(),
 }));
 
 vi.mock("@/calendar/google.server", () => ({
   readGoogleCalendarAccess: mocks.readGoogleCalendarAccess,
-}));
-
-vi.mock("@/db/functions/booking_codes.server", () => ({
-  rotateBookingCode: mocks.rotateBookingCode,
 }));
 
 vi.mock("@/db/functions/host_profiles.server", () => ({
@@ -51,12 +46,8 @@ describe("updateExistingProfile", () => {
       accessToken: "google_access_token",
     });
     mocks.updateHostProfile.mockResolvedValue({
-      authUserId: "auth_user_1",
-      username: "alice",
-    });
-    mocks.rotateBookingCode.mockResolvedValue({
-      code: "sun-river-ten",
-      codeHash: "booking_code_hash",
+      code: "updated_profile",
+      bookingCode: null,
     });
   });
 
@@ -70,22 +61,27 @@ describe("updateExistingProfile", () => {
 
     expect(mocks.findHostProfileByUsername).toHaveBeenCalledWith(db, "alice");
     expect(mocks.readGoogleCalendarAccess).toHaveBeenCalledTimes(2);
-    expect(mocks.updateHostProfile).toHaveBeenCalledWith(db, {
+    expect(mocks.updateHostProfile).toHaveBeenCalledWith(env.DB, {
       authUserId: "auth_user_1",
       calendarAccountEmail: "alice@example.com",
       calendarId: "primary",
       calendarProvider: "google",
+      currentHostId: "host_1",
+      currentUsername: "alice",
       displayName: "alice",
       username: "alice",
       timezone: "America/Los_Angeles",
       slotSizeMinutes: 30,
       now: expect.any(Date) as Date,
     });
-    expect(mocks.rotateBookingCode).not.toHaveBeenCalled();
   });
 
   it("rotates and returns a fresh booking code when the username changes", async () => {
     mocks.findHostProfileByUsername.mockResolvedValueOnce(null);
+    mocks.updateHostProfile.mockResolvedValueOnce({
+      code: "updated_profile",
+      bookingCode: "sun-river-ten",
+    });
 
     await expect(updateExistingProfile(db, {
       authUserId: "auth_user_1",
@@ -98,11 +94,17 @@ describe("updateExistingProfile", () => {
       username: "alice-new",
     });
 
-    expect(mocks.rotateBookingCode).toHaveBeenCalledWith(env.DB, {
-      hostId: "host_1",
-      hostUsername: "alice-new",
-      wordCount: 3,
-      label: null,
+    expect(mocks.updateHostProfile).toHaveBeenCalledWith(env.DB, {
+      authUserId: "auth_user_1",
+      calendarAccountEmail: "alice@example.com",
+      calendarId: "primary",
+      calendarProvider: "google",
+      currentHostId: "host_1",
+      currentUsername: "alice",
+      displayName: "alice-new",
+      username: "alice-new",
+      timezone: "America/Los_Angeles",
+      slotSizeMinutes: 30,
       now: expect.any(Date) as Date,
     });
   });
@@ -121,7 +123,6 @@ describe("updateExistingProfile", () => {
     })).resolves.toEqual({ code: "username_taken" });
 
     expect(mocks.updateHostProfile).not.toHaveBeenCalled();
-    expect(mocks.rotateBookingCode).not.toHaveBeenCalled();
   });
 
   it("requires an authenticated account email before writing the profile", async () => {
@@ -133,7 +134,6 @@ describe("updateExistingProfile", () => {
     })).resolves.toEqual({ code: "auth_user_email_missing" });
 
     expect(mocks.updateHostProfile).not.toHaveBeenCalled();
-    expect(mocks.rotateBookingCode).not.toHaveBeenCalled();
   });
 });
 

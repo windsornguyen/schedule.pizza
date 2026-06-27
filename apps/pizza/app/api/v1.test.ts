@@ -148,9 +148,8 @@ describe("account profile API", () => {
       });
     mocks.findHostProfileByUsername.mockResolvedValue(null);
     mocks.updateHostProfile.mockResolvedValue({
-      authUserId: "auth_user_1",
-      id: "host_1",
-      username: "alice-new",
+      code: "updated_profile",
+      bookingCode: "sun-river-ten",
     });
 
     const response = await v1.request("https://schedule.pizza/account/profile", {
@@ -172,13 +171,20 @@ describe("account profile API", () => {
         bookingPath: "/alice-new?code=sun-river-ten",
       },
     });
-    expect(mocks.rotateBookingCode).toHaveBeenCalledWith(env.DB, {
-      hostId: "host_1",
-      hostUsername: "alice-new",
-      wordCount: 3,
-      label: null,
+    expect(mocks.updateHostProfile).toHaveBeenCalledWith(env.DB, {
+      authUserId: "auth_user_1",
+      calendarAccountEmail: "alice@example.com",
+      calendarId: "primary",
+      calendarProvider: "google",
+      currentHostId: "host_1",
+      currentUsername: "alice",
+      displayName: "alice-new",
+      username: "alice-new",
+      timezone: "America/Los_Angeles",
+      slotSizeMinutes: 30,
       now: expect.any(Date) as Date,
     });
+    expect(mocks.rotateBookingCode).not.toHaveBeenCalled();
   });
 });
 

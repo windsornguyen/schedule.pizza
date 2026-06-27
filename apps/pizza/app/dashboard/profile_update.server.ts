@@ -7,7 +7,6 @@
  */
 
 import type { createDb } from "@/db/client.server";
-import { rotateBookingCode } from "@/db/functions/booking_codes.server";
 import {
   findHostProfileByAuthUserId,
   findHostProfileByUsername,
@@ -60,11 +59,13 @@ export async function updateExistingProfile(
     return { code: "calendar_authorization_required" as const };
   }
 
-  const updated = await updateHostProfile(db, {
+  const updated = await updateHostProfile(input.env.DB, {
     authUserId: input.authUserId,
     calendarAccountEmail: email,
     calendarId: existingProfile.calendarId ?? "primary",
     calendarProvider: "google",
+    currentHostId: existingProfile.id,
+    currentUsername: existingProfile.username,
     displayName: parsed.username,
     username: parsed.username,
     timezone: parsed.timezone,
@@ -72,25 +73,17 @@ export async function updateExistingProfile(
     now,
   });
 
-  if (updated === null) {
+  if (updated.code === "profile_missing") {
     return { code: "profile_missing" as const };
   }
 
-  if (existingProfile.username === parsed.username) {
+  if (updated.bookingCode === null) {
     return { code: "updated_profile" as const };
   }
 
-  const bookingCode = await rotateBookingCode(input.env.DB, {
-    hostId: existingProfile.id,
-    hostUsername: parsed.username,
-    wordCount: 3,
-    label: null,
-    now,
-  });
-
   return {
     code: "updated_profile" as const,
-    bookingCode: bookingCode.code,
+    bookingCode: updated.bookingCode,
     username: parsed.username,
   };
 }
