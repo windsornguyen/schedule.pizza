@@ -23,6 +23,10 @@ Development
     pnpm install
     pnpm dev
     pnpm smoke
+    SCHEDULE_PIZZA_URL=https://schedule.pizza \
+      SCHEDULE_PIZZA_SMOKE_USER={username} \
+      SCHEDULE_PIZZA_SMOKE_CODE={booking_code} \
+      pnpm smoke-authorized
     pnpm build
     pnpm deploy
 
