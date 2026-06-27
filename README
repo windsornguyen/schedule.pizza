@@ -30,6 +30,9 @@ Development
     pnpm build
     pnpm deploy
 
+Use a real booking code for authorized smoke checks. Failed code checks are
+rate-limited.
+
 Contributing
 ------------
 
