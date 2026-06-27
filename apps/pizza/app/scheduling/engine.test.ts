@@ -335,6 +335,22 @@ describe("default scheduling engine", () => {
     ).rejects.toMatchObject({ code: "invalid_request" });
     expect(fetchCount).toBe(0);
   });
+
+  it("wraps busy source failures in a typed engine error", async () => {
+    const sourceFailure = new Error("google freebusy failed");
+    const engine = createSchedulingEngine({
+      busyIntervalSource: {
+        fetchBusyIntervals: async () => {
+          throw sourceFailure;
+        },
+      },
+    });
+
+    await expect(engine.schedule(validRequest)).rejects.toMatchObject({
+      code: "busy_interval_source_failed",
+      source: sourceFailure,
+    });
+  });
 });
 
 function interval(start: string, end: string) {

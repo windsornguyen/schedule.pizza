@@ -164,6 +164,7 @@ export class ScheduleEngineError extends Error {
   constructor(
     readonly code: ScheduleEngineErrorCode,
     message: string,
+    readonly source: unknown = null,
   ) {
     super(message);
     this.name = "ScheduleEngineError";
@@ -532,10 +533,7 @@ async function planSchedule(
   }
 
   const allCandidateSlots = listCandidateSlots(request, intervalOps);
-  const busyIntervals = await source.fetchBusyIntervals({
-    profileIds: request.requiredProfileIds,
-    window: request.window,
-  });
+  const busyIntervals = await fetchBusyIntervals(source, request);
   const exactSlots = findExactSlots(
     request,
     allCandidateSlots,
@@ -552,6 +550,28 @@ async function planSchedule(
       request.maxAlternativeSlotCount,
     ),
   };
+}
+
+async function fetchBusyIntervals(
+  source: BusyIntervalSource,
+  request: ScheduleRequest,
+) {
+  try {
+    return await source.fetchBusyIntervals({
+      profileIds: request.requiredProfileIds,
+      window: request.window,
+    });
+  } catch (error: unknown) {
+    if (error instanceof ScheduleEngineError) {
+      throw error;
+    }
+
+    throw new ScheduleEngineError(
+      "busy_interval_source_failed",
+      "busy interval source failed",
+      error,
+    );
+  }
 }
 
 function findExactSlots(

@@ -16,6 +16,7 @@ import {
   createSchedulingEngine,
   defaultIntervalOps,
   SCHEDULE_REQUEST_LIMITS,
+  ScheduleEngineError,
   timeInterval,
   validateScheduleRequest,
   type BusyInterval,
@@ -108,7 +109,7 @@ export type ScheduleExecutionResult =
     }
   | { readonly code: GoogleCalendarErrorCode };
 
-class ScheduleCalendarError extends Error {
+export class ScheduleCalendarError extends Error {
   constructor(readonly code: GoogleCalendarErrorCode) {
     super(code);
     this.name = "ScheduleCalendarError";
@@ -241,8 +242,10 @@ export async function executeScheduleRequest(
   }
 
   const result = await engine.schedule(scheduleRequest).catch((error: unknown) => {
-    if (error instanceof ScheduleCalendarError) {
-      return error;
+    const calendarError = readScheduleCalendarError(error);
+
+    if (calendarError !== null) {
+      return calendarError;
     }
 
     throw error;
@@ -257,6 +260,22 @@ export async function executeScheduleRequest(
     authorizedParticipants,
     body: serializeScheduleResult(result, authorizedParticipants),
   };
+}
+
+export function readScheduleCalendarError(error: unknown) {
+  if (error instanceof ScheduleCalendarError) {
+    return error;
+  }
+
+  if (
+    error instanceof ScheduleEngineError &&
+    error.code === "busy_interval_source_failed" &&
+    error.source instanceof ScheduleCalendarError
+  ) {
+    return error.source;
+  }
+
+  return null;
 }
 
 export function listScheduleCandidateSlots(

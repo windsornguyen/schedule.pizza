@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   listScheduleCandidateSlots,
   parseScheduleBody,
+  readScheduleCalendarError,
+  ScheduleCalendarError,
   serializeScheduleResult,
 } from "./v1_schedule";
-import { timeInterval } from "@/scheduling/engine";
+import { ScheduleEngineError, timeInterval } from "@/scheduling/engine";
 import type { ScheduleResult } from "@/scheduling/engine";
 
 describe("schedule API body parser", () => {
@@ -283,6 +285,26 @@ describe("schedule API serializer", () => {
         },
       ],
     });
+  });
+});
+
+describe("schedule API error mapping", () => {
+  it("unwraps calendar errors wrapped by the scheduling engine", () => {
+    const calendarError = new ScheduleCalendarError("google_freebusy_failed");
+
+    expect(readScheduleCalendarError(
+      new ScheduleEngineError(
+        "busy_interval_source_failed",
+        "busy interval source failed",
+        calendarError,
+      ),
+    )).toBe(calendarError);
+  });
+
+  it("does not hide non-calendar engine errors", () => {
+    expect(readScheduleCalendarError(
+      new ScheduleEngineError("invalid_request", "invalid request"),
+    )).toBeNull();
   });
 });
 
