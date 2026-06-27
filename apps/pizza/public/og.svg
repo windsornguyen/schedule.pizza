@@ -16,18 +16,10 @@
     <path d="M0 400 Q200 370 400 400" fill="none" stroke="#C4A87A" stroke-width="18" stroke-linecap="round"/>
   </g>
 
-  <!-- calendar icon - looks like a tear-off calendar -->
+  <!-- logo -->
   <g transform="translate(60, 45)">
-    <!-- calendar body -->
-    <rect x="0" y="10" width="52" height="48" rx="6" fill="#FFFFFF" stroke="#D32F2F" stroke-width="2"/>
-    <!-- top red strip (month bar) -->
-    <rect x="0" y="10" width="52" height="14" rx="6" fill="#D32F2F"/>
-    <rect x="0" y="18" width="52" height="6" fill="#D32F2F"/>
-    <!-- binding rings -->
-    <rect x="14" y="6" width="4" height="12" rx="2" fill="#D32F2F"/>
-    <rect x="34" y="6" width="4" height="12" rx="2" fill="#D32F2F"/>
-    <!-- number -->
-    <text x="26" y="52" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="700" fill="#1A1A1A">67</text>
+    <rect x="0" y="0" width="58" height="58" rx="13" fill="#D32F2F"/>
+    <text x="29" y="39" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="25" font-weight="800" fill="#FFFFFF">67</text>
   </g>
 
   <!-- headline -->
