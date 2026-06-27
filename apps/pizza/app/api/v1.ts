@@ -275,7 +275,7 @@ v1.get("/", (c) => {
     examples: {
       availability: {
         method: "GET",
-        url: "/api/v1/availability?user=alice&code=moon-tiger-seven",
+        url: "/api/v1/availability?url=https%3A%2F%2Fschedule.pizza%2Falice%3Fcode%3Dmoon-tiger-seven",
       },
       book: {
         method: "POST",
