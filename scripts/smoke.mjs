@@ -19,7 +19,8 @@ await checkHtml("/privacy", "privacy", [
   "Limited Use requirements",
 ]);
 await checkText("/llms.txt", "llms", [
-  "GET /api/v1/availability?url=",
+  "GET /api/v1/availability?user=alice&code=moon-tiger-seven",
+  "full shared schedule.pizza link",
   "POST /api/v1/recommend",
   "GET /api/v1/me",
   "PUT /api/v1/account/profile",
