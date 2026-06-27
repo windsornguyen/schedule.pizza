@@ -6,6 +6,9 @@ await checkJson("/api/v1", "api descriptor", (body) => {
   assertRecord(body, "api descriptor");
   assertEqual(body["name"], "schedule.pizza", "api descriptor name");
   assertEqual(body["apiVersion"], "v1", "api descriptor version");
+  assertField(body, ["limits", "maxProfileCount"]);
+  assertField(body, ["examples", "schedule", "body", "participants"]);
+  assertField(body, ["examples", "bookGroup", "body", "slot"]);
   assertEndpoint(body, "schedule");
   assertEndpoint(body, "recommend");
   assertEndpoint(body, "book");

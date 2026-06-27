@@ -216,6 +216,14 @@ describe("v1 API CORS", () => {
     expect(body["name"]).toBe("schedule.pizza");
     expect(body["apiVersion"]).toBe("v1");
     expect(body["version"]).toBeUndefined();
+    expect(body["limits"]).toMatchObject({
+      maxAlternativeSlotCount: 50,
+      maxDurationMinutes: 480,
+      maxExactSlotCount: 100,
+      maxGranularityMinutes: 240,
+      maxProfileCount: 8,
+      maxWindowDays: 31,
+    });
     expect(body["endpoints"]).toMatchObject({
       availability: {
         method: "GET",
@@ -245,6 +253,34 @@ describe("v1 API CORS", () => {
       schedule: {
         method: "POST",
         path: "/api/v1/schedule",
+      },
+    });
+    expect(body["examples"]).toMatchObject({
+      book: {
+        method: "POST",
+        path: "/api/v1/book",
+        body: {
+          url: "https://schedule.pizza/alice?code=moon-tiger-seven",
+          slot: "2030-01-07T17:00:00.000Z",
+          email: "ada@example.com",
+        },
+      },
+      bookGroup: {
+        method: "POST",
+        path: "/api/v1/book-group",
+        body: {
+          slot: "2030-01-07T18:00:00.000Z",
+        },
+      },
+      schedule: {
+        method: "POST",
+        path: "/api/v1/schedule",
+        body: {
+          participants: [
+            { url: "https://schedule.pizza/alice?code=moon-tiger-seven" },
+            { url: "https://schedule.pizza/bob?code=river-lime-harbor" },
+          ],
+        },
       },
     });
   });

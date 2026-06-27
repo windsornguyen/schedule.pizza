@@ -12,7 +12,7 @@ time across several people.
 - [Docs](https://schedule.pizza/docs): Human and agent guide for availability,
   booking, group scheduling, recommendations, and calendar errors.
 - [API index](https://schedule.pizza/api/v1): Machine-readable JSON index of the
-  v1 endpoints, request shapes, and typed error codes.
+  v1 endpoints, limits, copyable request examples, and typed error codes.
 - [Group scheduling](https://schedule.pizza/group): Minimal human UI for finding
   a time across several schedule.pizza links.
 - [Security policy](https://schedule.pizza/.well-known/security.txt): Security

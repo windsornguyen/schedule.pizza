@@ -33,6 +33,7 @@ import {
 import { hostProfile } from "@/db/schema";
 import { readCloudflareClientIpHash } from "@/http/client_ip.server";
 import { listHostAvailableSlots } from "@/scheduling/host_availability.server";
+import { SCHEDULE_REQUEST_LIMITS } from "@/scheduling/engine";
 import {
   getDefaultSearchWindow,
   isValidSlotConfiguration,
@@ -108,6 +109,8 @@ type AccountProfileBodyParseResult =
   | { readonly body: ParsedAccountProfileBody; readonly code: "parsed" }
   | { readonly code: "invalid_field" | "missing_field"; readonly field: string };
 
+const DAY_MS = 24 * 60 * 60 * 1_000;
+
 export const v1 = new Hono<{ Bindings: Bindings }>();
 
 v1.use("*", async (c, next) => {
@@ -129,6 +132,14 @@ v1.get("/", (c) => {
   return c.json({
     name: "schedule.pizza",
     apiVersion: "v1",
+    limits: {
+      maxAlternativeSlotCount: SCHEDULE_REQUEST_LIMITS.maxAlternativeSlotCount,
+      maxDurationMinutes: SCHEDULE_REQUEST_LIMITS.maxDurationMinutes,
+      maxExactSlotCount: SCHEDULE_REQUEST_LIMITS.maxExactSlotCount,
+      maxGranularityMinutes: SCHEDULE_REQUEST_LIMITS.maxGranularityMinutes,
+      maxProfileCount: SCHEDULE_REQUEST_LIMITS.maxProfileCount,
+      maxWindowDays: SCHEDULE_REQUEST_LIMITS.maxWindowMs / DAY_MS,
+    },
     endpoints: {
       availability: {
         method: "GET",
@@ -259,6 +270,65 @@ v1.get("/", (c) => {
         method: "POST",
         path: "/api/v1/me/booking-code",
         auth: "Better Auth session cookie",
+      },
+    },
+    examples: {
+      availability: {
+        method: "GET",
+        url: "/api/v1/availability?user=alice&code=moon-tiger-seven",
+      },
+      book: {
+        method: "POST",
+        path: "/api/v1/book",
+        body: {
+          url: "https://schedule.pizza/alice?code=moon-tiger-seven",
+          slot: "2030-01-07T17:00:00.000Z",
+          name: "Ada",
+          email: "ada@example.com",
+          timezone: "America/Los_Angeles",
+        },
+      },
+      schedule: {
+        method: "POST",
+        path: "/api/v1/schedule",
+        body: {
+          participants: [
+            { url: "https://schedule.pizza/alice?code=moon-tiger-seven" },
+            { url: "https://schedule.pizza/bob?code=river-lime-harbor" },
+          ],
+          durationMinutes: 30,
+          granularityMinutes: 15,
+          maxExactSlotCount: 10,
+          maxAlternativeSlotCount: 5,
+          timeZone: "America/Los_Angeles",
+          window: {
+            start: "2030-01-07T17:00:00.000Z",
+            end: "2030-01-08T01:00:00.000Z",
+          },
+        },
+      },
+      bookGroup: {
+        method: "POST",
+        path: "/api/v1/book-group",
+        body: {
+          participants: [
+            { url: "https://schedule.pizza/alice?code=moon-tiger-seven" },
+            { url: "https://schedule.pizza/bob?code=river-lime-harbor" },
+          ],
+          durationMinutes: 30,
+          granularityMinutes: 15,
+          maxExactSlotCount: 10,
+          maxAlternativeSlotCount: 5,
+          timeZone: "America/Los_Angeles",
+          window: {
+            start: "2030-01-07T17:00:00.000Z",
+            end: "2030-01-08T01:00:00.000Z",
+          },
+          slot: "2030-01-07T18:00:00.000Z",
+          name: "Ada",
+          email: "ada@example.com",
+          timezone: "America/Los_Angeles",
+        },
       },
     },
     errors: {
