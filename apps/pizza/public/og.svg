@@ -23,7 +23,7 @@
   </g>
 
   <!-- headline -->
-  <text x="60" y="270" font-family="system-ui, -apple-system, sans-serif" font-size="58" font-weight="600" fill="#1A1A1A">The easiest way</text>
+  <text x="60" y="270" font-family="system-ui, -apple-system, sans-serif" font-size="58" font-weight="600" fill="#1A1A1A">easiest way</text>
   <text x="60" y="345" font-family="system-ui, -apple-system, sans-serif" font-size="58" font-weight="600" fill="#1A1A1A">to find a time</text>
 
   <!-- byline -->
