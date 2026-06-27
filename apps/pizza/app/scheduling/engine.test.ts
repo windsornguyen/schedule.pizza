@@ -206,6 +206,19 @@ describe("default interval ops", () => {
     ]);
   });
 
+  it("snaps slots to the requested granularity grid", () => {
+    expect(
+      defaultIntervalOps.slotify(
+        [interval("2026-06-26T16:07:12.123Z", "2026-06-26T17:00:00.000Z")],
+        30,
+        15,
+      ),
+    ).toEqual([
+      interval("2026-06-26T16:15:00.000Z", "2026-06-26T16:45:00.000Z"),
+      interval("2026-06-26T16:30:00.000Z", "2026-06-26T17:00:00.000Z"),
+    ]);
+  });
+
   it("inverts busy intervals inside the requested window", () => {
     expect(
       defaultIntervalOps.invert(

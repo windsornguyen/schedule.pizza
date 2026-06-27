@@ -352,7 +352,7 @@ export const defaultIntervalOps = {
 
     for (const interval of this.merge(free)) {
       for (
-        let startAtMs = interval.startAtMs;
+        let startAtMs = ceilToStep(interval.startAtMs, granularityMs);
         startAtMs + durationMs <= interval.endAtMs;
         startAtMs = utcEpochMs(startAtMs + granularityMs)
       ) {
@@ -469,6 +469,14 @@ function clipIntervalsToWindow(
 
 function compareIntervals(left: TimeInterval, right: TimeInterval) {
   return left.startAtMs - right.startAtMs || left.endAtMs - right.endAtMs;
+}
+
+function ceilToStep(value: UtcEpochMs, stepMs: number): UtcEpochMs {
+  const remainder = value % stepMs;
+
+  return remainder === 0
+    ? value
+    : utcEpochMs(value + stepMs - remainder);
 }
 
 function intersectIntervals(left: TimeInterval, right: TimeInterval) {
