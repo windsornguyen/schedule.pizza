@@ -2,6 +2,11 @@ const baseUrl = readBaseUrl(process.env["SCHEDULE_PIZZA_URL"]);
 
 await checkHtml("/", "schedule.pizza", ["easiest way to find a time."]);
 await checkHtml("/docs", "docs", ["group scheduling", "recommendations", "bookingUrl"]);
+await checkHtml("/login", "login", ["free/busy access", "privacy policy"]);
+await checkHtml("/privacy", "privacy", [
+  "Google API Services User Data Policy",
+  "Limited Use requirements",
+]);
 await checkText("/robots.txt", "robots", ["Allow: /api/v1", "Disallow: /api/"]);
 await checkJson("/api/v1", "api descriptor", (body) => {
   assertRecord(body, "api descriptor");
