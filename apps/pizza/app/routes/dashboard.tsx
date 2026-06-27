@@ -144,17 +144,32 @@ export default function Dashboard({
   const dashboardActionData = actionData ?? null;
 
   return (
+    <DashboardContent
+      actionData={dashboardActionData}
+      loaderData={loaderData}
+    />
+  );
+}
+
+export function DashboardContent({
+  actionData,
+  loaderData,
+}: {
+  readonly actionData: DashboardActionData;
+  readonly loaderData: Route.ComponentProps["loaderData"];
+}) {
+  return (
     <main className="mx-auto w-full max-w-[550px] px-4 pt-20 pb-24 antialiased">
       <h1 className="text-sm font-semibold">dashboard</h1>
       <p className="mt-2 text-sm text-muted-foreground">{loaderData.email}</p>
 
       {loaderData.profile === null ? (
         <CreateProfileForm
-          actionData={dashboardActionData}
+          actionData={actionData}
           defaultUsername={readDefaultUsernameFromEmail(loaderData.email)}
         />
       ) : (
-        <ProfilePanel actionData={dashboardActionData} profile={loaderData.profile} />
+        <ProfilePanel actionData={actionData} profile={loaderData.profile} />
       )}
     </main>
   );
@@ -278,8 +293,8 @@ function ProfilePanel({
       {profile.calendarStatus === "connected" ? (
         <BookingCodeForm hasActiveBookingCode={profile.hasActiveBookingCode} />
       ) : null}
-      <UpcomingBookings bookings={profile.bookings} timezone={profile.timezone} />
       <ActionMessage actionData={actionData} />
+      <UpcomingBookings bookings={profile.bookings} timezone={profile.timezone} />
     </section>
   );
 }
@@ -611,17 +626,17 @@ export function readActiveBookingCodeNotice(input: {
 }) {
   if (input.calendarStatus === "reconnect_required") {
     return input.hasActiveBookingCode
-      ? "active booking code exists. reconnect google calendar before people or agents can see times."
+      ? "a share link exists. reconnect google calendar before people or agents can see times."
       : "reconnect google calendar before creating a share link.";
   }
 
   return input.hasActiveBookingCode
-    ? "active booking code exists. create a new share link to reveal it and revoke the hidden one."
-    : "no active booking code. create one to reveal a share link.";
+    ? "a share link exists. create a new one to reveal it and revoke the old one."
+    : "no share link yet. create one to reveal the code.";
 }
 
 export function readBookingCodeActionLabel(hasActiveBookingCode: boolean) {
-  return hasActiveBookingCode ? "show new share link" : "create share link";
+  return hasActiveBookingCode ? "create new share link" : "create share link";
 }
 
 function hasDashboardBookingUrl(

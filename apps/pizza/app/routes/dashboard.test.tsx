@@ -1,3 +1,5 @@
+import { renderToStaticMarkup } from "react-dom/server";
+import { createRoutesStub } from "react-router";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -5,6 +7,7 @@ import {
   readDefaultUsernameFromEmail,
 } from "@/dashboard/profile_form";
 import {
+  DashboardContent,
   formatDashboardBookingUrl,
   readActiveBookingCodeNotice,
   readBookingCodeActionLabel,
@@ -85,7 +88,7 @@ describe("dashboard profile form parser", () => {
       calendarStatus: "connected",
       hasActiveBookingCode: false,
     })).toBe(
-      "no active booking code. create one to reveal a share link.",
+      "no share link yet. create one to reveal the code.",
     );
   });
 
@@ -94,7 +97,7 @@ describe("dashboard profile form parser", () => {
       calendarStatus: "connected",
       hasActiveBookingCode: true,
     })).toBe(
-      "active booking code exists. create a new share link to reveal it and revoke the hidden one.",
+      "a share link exists. create a new one to reveal it and revoke the old one.",
     );
   });
 
@@ -103,12 +106,52 @@ describe("dashboard profile form parser", () => {
       calendarStatus: "reconnect_required",
       hasActiveBookingCode: true,
     })).toBe(
-      "active booking code exists. reconnect google calendar before people or agents can see times.",
+      "a share link exists. reconnect google calendar before people or agents can see times.",
     );
   });
 
   it("names booking-code actions by the host outcome", () => {
     expect(readBookingCodeActionLabel(false)).toBe("create share link");
-    expect(readBookingCodeActionLabel(true)).toBe("show new share link");
+    expect(readBookingCodeActionLabel(true)).toBe("create new share link");
+  });
+
+  it("renders a newly created share link before upcoming bookings", () => {
+    const Stub = createRoutesStub([{
+      Component: () => <DashboardContent
+        actionData={{
+          code: "created_code",
+          bookingCode: "moon-tiger-seven",
+          username: "alice",
+        }}
+        loaderData={{
+          email: "alice@example.com",
+          profile: {
+            bookings: [{
+              canCancel: true,
+              guestEmail: "ada@example.com",
+              guestName: "Ada",
+              id: "booking_1",
+              slot: {
+                start: "2030-01-07T17:00:00.000Z",
+                end: "2030-01-07T17:30:00.000Z",
+              },
+            }],
+            calendarStatus: "connected",
+            hasActiveBookingCode: true,
+            slotSizeMinutes: 30,
+            timezone: "America/Los_Angeles",
+            username: "alice",
+          },
+        }}
+      />,
+      path: "/dashboard",
+    }]);
+    const html = renderToStaticMarkup(
+      <Stub initialEntries={["/dashboard"]} />,
+    );
+
+    expect(html.indexOf("moon-tiger-seven")).toBeLessThan(
+      html.indexOf("upcoming"),
+    );
   });
 });
