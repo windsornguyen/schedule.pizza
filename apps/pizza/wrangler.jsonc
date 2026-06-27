@@ -8,7 +8,8 @@
     "head_sampling_rate": 1
   },
   "workers_dev": false,
-  "routes": [{ "pattern": "schedule.pizza/*", "zone_name": "schedule.pizza" }],
+  // The production route is owned by Terraform in apps/pizza/iac/route.tf.
+  // Wrangler owns script deployment only, so CI does not need zone route access.
   // Created by Terraform in apps/pizza/iac.
   // Copy the prod value from: terraform output -json d1_database_ids
   "d1_databases": [
