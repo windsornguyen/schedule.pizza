@@ -350,6 +350,13 @@ describe("v1 API CORS", () => {
         auth: "Better Auth session cookie",
       },
     });
+    expect(body["errors"]).toMatchObject({
+      500: expect.not.arrayContaining([
+        "database_schema_missing",
+        "runtime_secret_missing",
+      ]),
+      503: ["database_unavailable", "runtime_secret_missing"],
+    });
   });
 
   it("allows browser-hosted agents to read the API descriptor", async () => {

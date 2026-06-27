@@ -437,9 +437,7 @@ v1.get("/", (c) => {
         "booking_failure_record_failed",
         "auth_user_email_missing",
         "client_ip_unavailable",
-        "database_schema_missing",
         "host_configuration_invalid",
-        "runtime_secret_missing",
       ],
       502: [
         "google_event_delete_failed",
