@@ -12,6 +12,10 @@ await checkText("/llms.txt", "llms", [
   "POST /api/v1/recommend",
 ]);
 await checkText("/robots.txt", "robots", ["Allow: /api/v1", "Disallow: /api/"]);
+await checkText("/.well-known/security.txt", "security policy", [
+  "Contact: mailto:security@schedule.pizza",
+  "Expires:",
+]);
 await checkJson("/api/v1", "api descriptor", (body) => {
   assertRecord(body, "api descriptor");
   assertEqual(body["name"], "schedule.pizza", "api descriptor name");

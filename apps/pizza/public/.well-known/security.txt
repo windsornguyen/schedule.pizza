@@ -1,4 +1,5 @@
 Contact: mailto:security@schedule.pizza
+Expires: 2027-06-26T00:00:00.000Z
 Policy: https://github.com/windsornguyen/schedule.pizza/security/policy
 Preferred-Languages: en
 Canonical: https://schedule.pizza/.well-known/security.txt
