@@ -357,6 +357,7 @@ describe("v1 API CORS", () => {
       ]),
       503: ["database_unavailable", "runtime_secret_missing"],
     });
+    expect(readDuplicateErrorCodes(body["errors"])).toEqual([]);
   });
 
   it("allows browser-hosted agents to read the API descriptor", async () => {
@@ -394,6 +395,36 @@ describe("v1 API CORS", () => {
     );
   });
 });
+
+function readDuplicateErrorCodes(errors: unknown): readonly string[] {
+  if (typeof errors !== "object" || errors === null || Array.isArray(errors)) {
+    throw new TypeError("API errors descriptor must be an object");
+  }
+
+  const duplicateCodes: string[] = [];
+
+  for (const values of Object.values(errors)) {
+    if (!Array.isArray(values)) {
+      throw new TypeError("API errors descriptor values must be arrays");
+    }
+
+    const seenCodes = new Set<string>();
+
+    for (const value of values) {
+      if (typeof value !== "string") {
+        throw new TypeError("API error codes must be strings");
+      }
+
+      if (seenCodes.has(value)) {
+        duplicateCodes.push(value);
+      }
+
+      seenCodes.add(value);
+    }
+  }
+
+  return duplicateCodes;
+}
 
 describe("availability API", () => {
   it("accepts a shared schedule link as the capability", async () => {
