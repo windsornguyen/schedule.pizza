@@ -153,7 +153,7 @@ export function ProfileContent({
 
       {bookedSlotLabel !== null ? (
         <p className="mt-8 text-sm text-muted-foreground">
-          booked {bookedSlotLabel}
+          booked {bookedSlotLabel}.
         </p>
       ) : null}
 
@@ -172,7 +172,7 @@ function ProfileState({
   if (actionData?.code === "booked") {
     return (
       <p className="mt-4 text-sm text-muted-foreground">
-        the host's calendar has been updated.
+        the host's calendar has been updated and the invite was sent.
       </p>
     );
   }

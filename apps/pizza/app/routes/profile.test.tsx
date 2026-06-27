@@ -141,6 +141,38 @@ describe("profile booking form", () => {
     expect(html).not.toContain("booking_confirmation_failed");
     expect(html).not.toContain("booking_failure_record_failed");
   });
+
+  it("renders a complete guest booking confirmation", () => {
+    const Stub = createRoutesStub([{
+      Component: () => (
+        <ProfileContent
+          actionData={{
+            code: "booked",
+            slot: {
+              start: "2030-01-07T17:00:00.000Z",
+              end: "2030-01-07T17:30:00.000Z",
+            },
+          }}
+          loaderData={{
+            state: "available",
+            username: "alice",
+            bookingCode: "moon-tiger-seven",
+            slotSizeMinutes: 30,
+            timezone: "America/Los_Angeles",
+            slots: [{
+              start: "2030-01-07T17:00:00.000Z",
+              end: "2030-01-07T17:30:00.000Z",
+            }],
+          }}
+        />
+      ),
+      path: "/alice",
+    }]);
+    const html = renderToStaticMarkup(<Stub initialEntries={["/alice"]} />);
+
+    expect(html).toContain("booked Mon, Jan 7, 9:00 AM - 9:30 AM PST.");
+    expect(html).toContain("the host&#x27;s calendar has been updated and the invite was sent.");
+  });
 });
 
 function createLoaderArgs(input: {
