@@ -171,6 +171,10 @@ export default function Docs() {
           Each booking includes <code className="font-mono">kind</code> and a
           structured <code className="font-mono">cancel</code> object, so
           agents can tell individual bookings from shared group bookings.
+          To update a host profile, call{" "}
+          <code className="font-mono">PUT /api/v1/account/profile</code>.
+          Renaming a profile revokes previous codes and returns a new{" "}
+          <code className="font-mono">bookingUrl</code>.
           When a host creates or rotates a booking code, account responses
           include the absolute <code className="font-mono">bookingUrl</code>{" "}
           that can be handed to people or agents. Later account reads do not
@@ -184,6 +188,15 @@ export default function Docs() {
         </p>
         <pre className="whitespace-pre-wrap break-words rounded-md border bg-muted p-3 font-mono text-sm">
           <code>{`POST /api/v1/me/bootstrap
+{
+  "username": "alice",
+  "timezone": "America/Los_Angeles",
+  "displayName": "Alice",
+  "slotSizeMinutes": 30,
+  "calendarId": "primary"
+}
+
+PUT /api/v1/account/profile
 {
   "username": "alice",
   "timezone": "America/Los_Angeles",

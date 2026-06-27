@@ -21,12 +21,14 @@ await checkHtml("/privacy", "privacy", [
 await checkText("/llms.txt", "llms", [
   "GET /api/v1/availability?url=",
   "POST /api/v1/recommend",
+  "GET /api/v1/me",
+  "PUT /api/v1/account/profile",
   "GET /api/v1/account/bookings",
   "kind",
   "structured `cancel`",
   "object",
-  "not the plaintext booking code",
-  "cancels the shared event",
+  "plaintext booking code",
+  "group organizer cancels",
 ]);
 await checkText("/robots.txt", "robots", ["Allow: /api/v1", "Disallow: /api/"]);
 await checkText("/sitemap.xml", "sitemap", [

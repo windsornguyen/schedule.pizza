@@ -26,7 +26,9 @@ time across several people.
 - `POST /api/v1/recommend`
 - `POST /api/v1/book-group`
 - `GET /api/v1/account`
+- `GET /api/v1/me`
 - `POST /api/v1/me/bootstrap`
+- `PUT /api/v1/account/profile`
 - `POST /api/v1/me/booking-code`
 - `GET /api/v1/account/bookings`
 - `POST /api/v1/account/bookings/:bookingId/cancel`
@@ -39,10 +41,12 @@ first, then ranked alternatives only when no exact slot exists.
 ## Host agents
 
 Signed-in host agents use the Better Auth session cookie. `GET /api/v1/account`
-returns profile state. Bootstrap, profile rename, and code rotation responses
-include the newly generated `bookingUrl`; later account reads return active code
-metadata but not the plaintext booking code. `GET /api/v1/account/bookings`
-returns upcoming confirmed bookings with `kind` and a structured `cancel`
-object. Individual bookings can be cancelled through the account cancellation
-endpoint. Group bookings are visible to each host, but the group organizer
-cancels the shared event from Google Calendar.
+and `GET /api/v1/me` return profile state. `PUT /api/v1/account/profile`
+updates username, display name, calendar id, time zone, and slot size.
+Bootstrap, profile rename, and code rotation responses include the newly
+generated `bookingUrl`; later account reads return active code metadata but not
+the plaintext booking code. `GET /api/v1/account/bookings` returns upcoming
+confirmed bookings with `kind` and a structured `cancel` object. Individual
+bookings can be cancelled through the account cancellation endpoint. Group
+bookings are visible to each host, but the group organizer cancels the shared
+event from Google Calendar.
