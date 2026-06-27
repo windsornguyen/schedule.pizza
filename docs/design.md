@@ -23,8 +23,8 @@ Rounded-square yellow mark. Black lowercase **p**. Black border.
 
 - Favicon: the same **p** mark, no alternate mascot
 - Product surfaces: **p** mark next to `schedule.pizza`
-- Browser install surfaces: same mark via `favicon.svg`, `apple-touch-icon.png`,
-  and `site.webmanifest`
+- Browser install surfaces: same mark via `favicon.svg`, `favicon.ico`,
+  `apple-touch-icon.png`, and `site.webmanifest`
 - No pizza slice in the logo. Pizza is in the name.
 
 ## Colors

@@ -1,6 +1,10 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import faviconSvg from "../public/favicon.svg?raw";
+import ogSvg from "../public/og.svg?raw";
+import siteManifest from "../public/site.webmanifest?raw";
+import { LOGO_MARK_PATH } from "./components/logo_mark";
 import { AccountHeader, DocumentSecurityMeta, links } from "./root";
 
 describe("root account header", () => {
@@ -9,7 +13,7 @@ describe("root account header", () => {
 
     expect(html).toContain('aria-label="schedule.pizza home"');
     expect(html).toContain('viewBox="0 0 32 32"');
-    expect(html).toContain("M10.8 25V8.2");
+    expect(html).toContain(LOGO_MARK_PATH);
     expect(html).toContain("schedule.pizza");
   });
 
@@ -26,9 +30,26 @@ describe("root browser chrome", () => {
   it("publishes the launch-video mark to install and favicon surfaces", () => {
     expect(links()).toEqual(expect.arrayContaining([
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+      {
+        rel: "icon",
+        type: "image/x-icon",
+        sizes: "16x16 32x32 48x48",
+        href: "/favicon.ico",
+      },
       { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
       { rel: "manifest", href: "/site.webmanifest" },
     ]));
+  });
+
+  it("uses the same mark in static brand assets", () => {
+    expect(faviconSvg).toContain(LOGO_MARK_PATH);
+    expect(ogSvg).toContain(LOGO_MARK_PATH);
+    expect(JSON.parse(siteManifest)).toMatchObject({
+      icons: [
+        { src: "/favicon.svg", sizes: "any", type: "image/svg+xml" },
+        { src: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+      ],
+    });
   });
 });
 
