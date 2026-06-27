@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  listDefaultAvailabilityWindows,
   listDefaultCandidateSlots,
   parseSlotStart,
   removeBookedSlots,
@@ -8,6 +9,25 @@ import {
 } from "./slots.server";
 
 describe("default slots", () => {
+  it("returns weekday availability windows clipped to the request window", () => {
+    const windows = listDefaultAvailabilityWindows({
+      startsAt: new Date("2026-06-26T16:15:00.000Z"),
+      endsAt: new Date("2026-06-29T18:00:00.000Z"),
+      timeZone: "America/Los_Angeles",
+    });
+
+    expect(windows.map(serializeSlot)).toEqual([
+      {
+        start: "2026-06-26T16:15:00.000Z",
+        end: "2026-06-27T00:00:00.000Z",
+      },
+      {
+        start: "2026-06-29T16:00:00.000Z",
+        end: "2026-06-29T18:00:00.000Z",
+      },
+    ]);
+  });
+
   it("returns future weekday slots at the host slot size", () => {
     const slots = listDefaultCandidateSlots({
       now: new Date("2026-06-26T15:15:00.000Z"),

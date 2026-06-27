@@ -14,6 +14,7 @@ import { normalizeUsername } from "@/db/functions/host_profiles.server";
 import { readCloudflareClientIpHash } from "@/http/client_ip.server";
 import {
   createSchedulingEngine,
+  defaultIntervalOps,
   SCHEDULE_REQUEST_LIMITS,
   timeInterval,
   validateScheduleRequest,
@@ -27,6 +28,7 @@ import {
   type TimeInterval,
 } from "@/scheduling/engine";
 import { parseUtcDateTimeMs } from "@/scheduling/utc_datetime";
+import { listDefaultAvailabilityWindows } from "@/scheduling/slots.server";
 import type { ServerEnv } from "@/server-context";
 import {
   googleCalendarErrorBody,
@@ -220,6 +222,7 @@ export async function executeScheduleRequest(
     }),
   });
   const scheduleRequest = {
+    candidateSlots: listScheduleCandidateSlots(input.body),
     durationMinutes: input.body.durationMinutes,
     granularityMinutes: input.body.granularityMinutes,
     maxAlternativeSlotCount: input.body.maxAlternativeSlotCount,
@@ -254,6 +257,27 @@ export async function executeScheduleRequest(
     authorizedParticipants,
     body: serializeScheduleResult(result, authorizedParticipants),
   };
+}
+
+export function listScheduleCandidateSlots(
+  body: ParsedScheduleBody,
+): readonly TimeInterval[] {
+  const availabilityWindows = listDefaultAvailabilityWindows({
+    startsAt: new Date(body.window.startAtMs),
+    endsAt: new Date(body.window.endAtMs),
+    timeZone: body.timeZone,
+  }).map((window) =>
+    timeInterval({
+      startAtMs: window.startAt.getTime(),
+      endAtMs: window.endAt.getTime(),
+    })
+  );
+
+  return defaultIntervalOps.slotify(
+    availabilityWindows,
+    body.durationMinutes,
+    body.granularityMinutes,
+  );
 }
 
 export function parseScheduleBody(body: unknown): ScheduleBodyParseResult {

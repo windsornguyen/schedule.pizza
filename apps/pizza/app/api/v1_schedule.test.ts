@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  listScheduleCandidateSlots,
   parseScheduleBody,
   serializeScheduleResult,
 } from "./v1_schedule";
@@ -196,6 +197,35 @@ describe("schedule API body parser", () => {
         end: "2026-06-26T18:00:00",
       },
     })).toEqual({ code: "invalid_field", field: "window" });
+  });
+});
+
+describe("schedule API candidate slots", () => {
+  it("uses weekday work windows instead of the whole request window", () => {
+    const parsed = parseScheduleBody({
+      participants: [
+        { user: "Alice", code: "moon tiger seven" },
+      ],
+      durationMinutes: 30,
+      granularityMinutes: 15,
+      maxExactSlotCount: 10,
+      maxAlternativeSlotCount: 5,
+      timeZone: "America/Los_Angeles",
+      window: {
+        start: "2026-06-27T00:01:00.000Z",
+        end: "2026-06-29T17:00:00.000Z",
+      },
+    });
+
+    if (parsed.code !== "parsed") {
+      throw new Error("expected schedule body to parse");
+    }
+
+    expect(listScheduleCandidateSlots(parsed.body)).toEqual([
+      interval("2026-06-29T16:00:00.000Z", "2026-06-29T16:30:00.000Z"),
+      interval("2026-06-29T16:15:00.000Z", "2026-06-29T16:45:00.000Z"),
+      interval("2026-06-29T16:30:00.000Z", "2026-06-29T17:00:00.000Z"),
+    ]);
   });
 });
 

@@ -95,6 +95,15 @@ const invalidRequestCases = [
     patch: { maxAlternativeSlotCount: 51 },
     code: "invalid_alternative_slot_limit",
   },
+  {
+    name: "candidate slots outside the request window",
+    patch: {
+      candidateSlots: [
+        interval("2026-06-26T18:00:00.000Z", "2026-06-26T18:30:00.000Z"),
+      ],
+    },
+    code: "invalid_candidate_slot",
+  },
 ] satisfies readonly {
   readonly code: ScheduleRequestErrorCode;
   readonly name: string;
@@ -250,6 +259,26 @@ describe("default scheduling engine", () => {
       kind: "exact",
       slots: [
         interval("2026-06-26T16:00:00.000Z", "2026-06-26T16:30:00.000Z"),
+        interval("2026-06-26T17:00:00.000Z", "2026-06-26T17:30:00.000Z"),
+      ],
+    });
+  });
+
+  it("does not return exact slots outside the candidate grid", async () => {
+    const engine = createSchedulingEngine({
+      busyIntervalSource: {
+        fetchBusyIntervals: async () => [],
+      },
+    });
+
+    expect(await engine.schedule({
+      ...validRequest,
+      candidateSlots: [
+        interval("2026-06-26T17:00:00.000Z", "2026-06-26T17:30:00.000Z"),
+      ],
+    })).toEqual({
+      kind: "exact",
+      slots: [
         interval("2026-06-26T17:00:00.000Z", "2026-06-26T17:30:00.000Z"),
       ],
     });

@@ -72,6 +72,7 @@ export type ScoredSlot = {
 };
 
 export type ScheduleRequest = {
+  readonly candidateSlots?: readonly TimeInterval[];
   readonly durationMinutes: number;
   readonly granularityMinutes: number;
   readonly maxAlternativeSlotCount: number;
@@ -85,6 +86,7 @@ export type ScheduleRequestErrorCode =
   | "duplicate_profile_id"
   | "empty_profile_set"
   | "invalid_alternative_slot_limit"
+  | "invalid_candidate_slot"
   | "invalid_duration_minutes"
   | "invalid_exact_slot_limit"
   | "invalid_granularity_minutes"
@@ -247,6 +249,14 @@ export function validateScheduleRequest(
 
   if (!isValidTimeZone(request.timeZone)) {
     return { kind: "invalid", code: "invalid_time_zone" };
+  }
+
+  if (request.candidateSlots !== undefined) {
+    for (const slot of request.candidateSlots) {
+      if (!isValidCandidateSlot(slot, request)) {
+        return { kind: "invalid", code: "invalid_candidate_slot" };
+      }
+    }
   }
 
   return { kind: "valid" };
@@ -447,6 +457,20 @@ function assertValidSlotConfiguration(
   }
 }
 
+function isValidCandidateSlot(
+  slot: TimeInterval,
+  request: ScheduleRequest,
+) {
+  const durationMs = request.durationMinutes * MINUTE_MS;
+
+  return (
+    isValidInterval(slot) &&
+    slot.startAtMs >= request.window.startAtMs &&
+    slot.endAtMs <= request.window.endAtMs &&
+    slot.endAtMs - slot.startAtMs === durationMs
+  );
+}
+
 function clipIntervalsToWindow(
   intervals: readonly TimeInterval[],
   window: TimeInterval,
@@ -507,17 +531,14 @@ async function planSchedule(
     throw new ScheduleEngineError("invalid_request", validation.code);
   }
 
-  const allCandidateSlots = intervalOps.slotify(
-    [request.window],
-    request.durationMinutes,
-    request.granularityMinutes,
-  );
+  const allCandidateSlots = listCandidateSlots(request, intervalOps);
   const busyIntervals = await source.fetchBusyIntervals({
     profileIds: request.requiredProfileIds,
     window: request.window,
   });
   const exactSlots = findExactSlots(
     request,
+    allCandidateSlots,
     busyIntervals,
     intervalOps,
   ).slice(0, request.maxExactSlotCount);
@@ -535,6 +556,7 @@ async function planSchedule(
 
 function findExactSlots(
   request: ScheduleRequest,
+  candidateSlots: readonly TimeInterval[],
   busyIntervals: readonly BusyInterval[],
   intervalOps: IntervalOps,
 ) {
@@ -546,11 +568,13 @@ function findExactSlots(
     return intervalOps.invert(busyForProfile, request.window);
   });
 
-  return intervalOps.slotify(
+  const freeSlots = intervalOps.slotify(
     intervalOps.intersectAll(freeByProfile),
     request.durationMinutes,
     request.granularityMinutes,
   );
+
+  return filterToCandidateGrid(freeSlots, candidateSlots);
 }
 
 function rankCandidateSlots(
@@ -562,6 +586,30 @@ function rankCandidateSlots(
     .map((slot) => scoreCandidateSlot(slot, busyIntervals))
     .sort(compareScoredSlots)
     .slice(0, limit);
+}
+
+function listCandidateSlots(
+  request: ScheduleRequest,
+  intervalOps: IntervalOps,
+) {
+  return request.candidateSlots ?? intervalOps.slotify(
+    [request.window],
+    request.durationMinutes,
+    request.granularityMinutes,
+  );
+}
+
+function filterToCandidateGrid(
+  slots: readonly TimeInterval[],
+  candidateSlots: readonly TimeInterval[],
+) {
+  const candidateKeys = new Set(candidateSlots.map(slotKey));
+
+  return slots.filter((slot) => candidateKeys.has(slotKey(slot)));
+}
+
+function slotKey(slot: TimeInterval) {
+  return `${slot.startAtMs}:${slot.endAtMs}`;
 }
 
 function scoreCandidateSlot(
