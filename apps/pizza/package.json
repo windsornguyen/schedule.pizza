@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "CLOUDFLARE_ENV=dev react-router dev",
-    "build": "react-router build",
+    "build": "react-router build && rm -f build/server/.dev.vars",
     "preview": "wrangler dev --env dev",
     "deploy": "pnpm build && wrangler deploy",
     "check": "npm run lint && npm run typecheck && npm test && npm run db -- check && npm run build",
