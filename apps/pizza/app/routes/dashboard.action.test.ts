@@ -108,6 +108,32 @@ describe("dashboard action origin checks", () => {
     expect(mocks.readAuthSession).not.toHaveBeenCalled();
   });
 
+  it("rejects dashboard mutations without origin before reading the session", async () => {
+    const formData = new FormData();
+    formData.set("intent", "create_code");
+
+    let thrown: unknown;
+
+    try {
+      await action(createActionArgs(new Request("https://schedule.pizza/dashboard", {
+        method: "POST",
+        body: formData,
+      })));
+    } catch (error: unknown) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(Response);
+
+    if (!(thrown instanceof Response)) {
+      throw new Error("expected missing-origin dashboard action to throw");
+    }
+
+    expect(thrown.status).toBe(403);
+    await expect(thrown.text()).resolves.toBe("forbidden_origin");
+    expect(mocks.readAuthSession).not.toHaveBeenCalled();
+  });
+
   it("rejects dashboard mutations when the trusted origin is not http", async () => {
     const formData = new FormData();
     formData.set("intent", "create_code");
@@ -151,6 +177,7 @@ describe("dashboard action origin checks", () => {
 
     await expect(action(createActionArgs(new Request("https://schedule.pizza/dashboard", {
       method: "POST",
+      headers: { Origin: "https://schedule.pizza" },
       body: formData,
     })))).resolves.toEqual({ code: "auth_user_email_missing" });
     expect(mocks.findHostProfileByAuthUserId).not.toHaveBeenCalled();

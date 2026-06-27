@@ -1335,7 +1335,12 @@ function rejectCrossSiteAccountMutation(c: V1Context) {
   const origin = c.req.header("Origin");
 
   if (origin === undefined || origin.trim() === "") {
-    return null;
+    return c.json({
+      error: {
+        code: "forbidden_origin",
+        message: "Cross-site account mutation rejected",
+      },
+    }, 403);
   }
 
   const trustedOrigin = readTrustedAccountOrigin(c.env);

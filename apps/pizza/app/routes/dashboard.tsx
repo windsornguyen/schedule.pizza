@@ -155,7 +155,7 @@ function rejectCrossSiteDashboardAction(env: ServerEnv, request: Request) {
   const origin = request.headers.get("Origin");
 
   if (origin === null || origin.trim() === "") {
-    return null;
+    return new Response("forbidden_origin", { status: 403 });
   }
 
   const trustedOrigin = readTrustedDashboardOrigin(env);

@@ -728,7 +728,7 @@ describe("account bookings API", () => {
 
     const response = await v1.request(
       "https://schedule.pizza/account/bookings/booking_1/cancel",
-      { method: "POST" },
+      { method: "POST", headers: { Origin: "https://schedule.pizza" } },
       env,
     );
 
@@ -919,7 +919,10 @@ describe("account profile API", () => {
       });
     const response = await v1.request("https://schedule.pizza/me/bootstrap", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "https://schedule.pizza",
+      },
       body: JSON.stringify({
         username: "Alice",
         timezone: "America/Los_Angeles",
@@ -971,6 +974,22 @@ describe("account profile API", () => {
       },
     });
     expect(response.status).toBe(403);
+    expect(mocks.rotateBookingCode).not.toHaveBeenCalled();
+  });
+
+  it("rejects missing-origin account mutations before reading the session", async () => {
+    const response = await v1.request("https://schedule.pizza/me/booking-code", {
+      method: "POST",
+    }, env);
+
+    await expect(response.json()).resolves.toEqual({
+      error: {
+        code: "forbidden_origin",
+        message: "Cross-site account mutation rejected",
+      },
+    });
+    expect(response.status).toBe(403);
+    expect(mocks.readAuthSession).not.toHaveBeenCalled();
     expect(mocks.rotateBookingCode).not.toHaveBeenCalled();
   });
 
@@ -1083,7 +1102,10 @@ describe("account profile API", () => {
 
     const response = await v1.request("https://schedule.pizza/account/profile", {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "https://schedule.pizza",
+      },
       body: JSON.stringify({
         username: "Alice-New",
         timezone: "America/Los_Angeles",
@@ -1130,7 +1152,10 @@ describe("account profile API", () => {
 
     const response = await v1.request("https://schedule.pizza/account/profile", {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "https://schedule.pizza",
+      },
       body: JSON.stringify({
         username: "Alice-New",
         timezone: "America/Los_Angeles",

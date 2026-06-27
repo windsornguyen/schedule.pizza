@@ -290,7 +290,7 @@ async function bookAndCancelSmoke(baseUrl, target, availability, config) {
       `/api/v1/account/bookings/${encodeURIComponent(bookingId)}/cancel`,
       "cancel smoke booking",
       {},
-      { Cookie: config.sessionCookie },
+      { Cookie: config.sessionCookie, Origin: baseUrl.origin },
     );
   } catch (error) {
     throw new Error(`smoke booking ${bookingId} cancellation failed: ${readErrorMessage(error)}`);
