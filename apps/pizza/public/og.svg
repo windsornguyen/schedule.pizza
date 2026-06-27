@@ -23,8 +23,8 @@
   </g>
 
   <!-- headline -->
-  <text x="60" y="270" font-family="system-ui, -apple-system, sans-serif" font-size="58" font-weight="600" fill="#1A1A1A" letter-spacing="-1">The easiest way</text>
-  <text x="60" y="345" font-family="system-ui, -apple-system, sans-serif" font-size="58" font-weight="600" fill="#1A1A1A" letter-spacing="-1">to find a time</text>
+  <text x="60" y="270" font-family="system-ui, -apple-system, sans-serif" font-size="58" font-weight="600" fill="#1A1A1A">The easiest way</text>
+  <text x="60" y="345" font-family="system-ui, -apple-system, sans-serif" font-size="58" font-weight="600" fill="#1A1A1A">to find a time</text>
 
   <!-- byline -->
   <text x="60" y="400" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="400" fill="#8B7355">schedule.pizza</text>
