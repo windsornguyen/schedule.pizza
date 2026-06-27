@@ -360,6 +360,27 @@ describe("v1 API CORS", () => {
     expect(readDuplicateErrorCodes(body["errors"])).toEqual([]);
   });
 
+  it("advertises every agent-callable route", async () => {
+    const response = await v1.request("https://schedule.pizza/");
+    const body = await response.json() as Record<string, unknown>;
+
+    expect(readAdvertisedRoutes(body["endpoints"])).toEqual([
+      "GET /api/v1/account",
+      "GET /api/v1/account/bookings",
+      "GET /api/v1/availability",
+      "GET /api/v1/health",
+      "GET /api/v1/me",
+      "POST /api/v1/account/bookings/:bookingId/cancel",
+      "POST /api/v1/book",
+      "POST /api/v1/book-group",
+      "POST /api/v1/me/booking-code",
+      "POST /api/v1/me/bootstrap",
+      "POST /api/v1/recommend",
+      "POST /api/v1/schedule",
+      "PUT /api/v1/account/profile",
+    ]);
+  });
+
   it("allows browser-hosted agents to read the API descriptor", async () => {
     const response = await v1.request("https://schedule.pizza/", {
       headers: { Origin: "https://agent.example" },
@@ -424,6 +445,31 @@ function readDuplicateErrorCodes(errors: unknown): readonly string[] {
   }
 
   return duplicateCodes;
+}
+
+function readAdvertisedRoutes(endpoints: unknown): readonly string[] {
+  if (typeof endpoints !== "object" || endpoints === null || Array.isArray(endpoints)) {
+    throw new TypeError("API endpoints descriptor must be an object");
+  }
+
+  return Object.values(endpoints)
+    .map((endpoint) => readAdvertisedRoute(endpoint))
+    .sort();
+}
+
+function readAdvertisedRoute(endpoint: unknown): string {
+  if (typeof endpoint !== "object" || endpoint === null || Array.isArray(endpoint)) {
+    throw new TypeError("API endpoint descriptor must be an object");
+  }
+
+  const method = "method" in endpoint ? endpoint.method : null;
+  const path = "path" in endpoint ? endpoint.path : null;
+
+  if (typeof method !== "string" || typeof path !== "string") {
+    throw new TypeError("API endpoint descriptor must include method and path");
+  }
+
+  return `${method} ${path}`;
 }
 
 describe("availability API", () => {
