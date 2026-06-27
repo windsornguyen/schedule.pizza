@@ -37,13 +37,9 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 
 export function Layout({
   children,
-  loaderData,
 }: {
   children: React.ReactNode;
-  loaderData?: { loggedIn: boolean };
 }) {
-  const loggedIn = loaderData?.loggedIn ?? false;
-
   return (
     <html lang="en">
       <head>
@@ -60,23 +56,6 @@ export function Layout({
         <Links />
       </head>
       <body className="font-sans">
-        <header className="mx-auto flex w-full max-w-[550px] justify-end px-4 pt-8">
-          {loggedIn ? (
-            <a
-              href="/auth/logout"
-              className="text-sm text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
-            >
-              logout
-            </a>
-          ) : (
-            <a
-              href="/login"
-              className="text-sm text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
-            >
-              login
-            </a>
-          )}
-        </header>
         {children}
         <ScrollRestoration />
         <Scripts />
@@ -85,8 +64,35 @@ export function Layout({
   );
 }
 
-export default function App() {
-  return <Outlet />;
+export default function App({ loaderData }: Route.ComponentProps) {
+  return (
+    <>
+      <AccountHeader loggedIn={loaderData.loggedIn} />
+      <Outlet />
+    </>
+  );
+}
+
+function AccountHeader({ loggedIn }: { readonly loggedIn: boolean }) {
+  return (
+    <header className="mx-auto flex w-full max-w-[550px] justify-end px-4 pt-8">
+      {loggedIn ? (
+        <a
+          href="/auth/logout"
+          className="text-sm text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
+        >
+          logout
+        </a>
+      ) : (
+        <a
+          href="/login"
+          className="text-sm text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
+        >
+          login
+        </a>
+      )}
+    </header>
+  );
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
