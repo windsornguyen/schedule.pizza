@@ -96,6 +96,16 @@ await checkJsonStatus("/api/v1/availability?user=alice", "availability without c
   assertField(body, ["error", "code"]);
   assertEqual(body["error"]["code"], "missing_parameter", "availability error code");
 });
+await checkJsonStatus("/api/v1/account", "account without session", 401, (body) => {
+  assertRecord(body, "account without session");
+  assertField(body, ["error", "code"]);
+  assertEqual(body["error"]["code"], "unauthenticated", "account error code");
+});
+await checkJsonStatus("/api/v1/me", "me without session", 401, (body) => {
+  assertRecord(body, "me without session");
+  assertField(body, ["error", "code"]);
+  assertEqual(body["error"]["code"], "unauthenticated", "me error code");
+});
 await checkJson("/api/v1/health", "health", (body) => {
   assertRecord(body, "health");
   assertEqual(body["ok"], true, "health ok");
