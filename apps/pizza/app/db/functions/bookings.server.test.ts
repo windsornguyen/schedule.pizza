@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  createPendingCalendarBooking,
   createPendingCalendarBookings,
   type PendingCalendarBookingInsert,
 } from "./bookings.server";
@@ -11,16 +12,16 @@ type CapturedStatement = {
 };
 
 describe("group booking reservations", () => {
-  it("reserves pending calendar bookings with one D1 batch", async () => {
-    const { database, statements } = createD1BatchRecorder();
+  it("reserves one pending calendar booking only when no host booking overlaps", async () => {
+    const { database, statements } = createD1Recorder();
 
-    await expect(createPendingCalendarBookings(database, [
+    await expect(createPendingCalendarBooking(
+      database,
       pendingBooking("booking_1", "host_alice"),
-      pendingBooking("booking_2", "host_bob"),
-    ])).resolves.toEqual(["booking_1", "booking_2"]);
-    expect(statements).toHaveLength(2);
+    )).resolves.toEqual({ id: "booking_1" });
+    expect(statements).toHaveLength(1);
     expect(compactSql(statements[0]?.sql ?? "")).toBe(
-      "insert into booking ( id, hostId, hostUsername, bookingCodeId, guestName, guestEmail, guestEmailNormalized, guestTimezone, slotStartAt, slotEndAt, status, source, calendarProvider, calendarEventId, cancelledAt, createdAt, updatedAt ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, null, null, ?, ?)",
+      "insert into booking ( id, hostId, hostUsername, bookingCodeId, guestName, guestEmail, guestEmailNormalized, guestTimezone, slotStartAt, slotEndAt, status, source, calendarProvider, calendarEventId, cancelledAt, createdAt, updatedAt ) select ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, null, null, ?, ? where not exists ( select 1 from booking where hostId = ? and status in ('pending_calendar', 'confirmed') and slotStartAt < ? and slotEndAt > ? )",
     );
     expect(statements[0]?.params).toEqual([
       "booking_1",
@@ -37,11 +38,64 @@ describe("group booking reservations", () => {
       "api",
       1_782_486_000,
       1_782_486_000,
+      "host_alice",
+      1_782_491_400,
+      1_782_489_600,
     ]);
   });
 
+  it("returns null when one pending calendar booking overlaps", async () => {
+    const { database } = createD1Recorder({ changes: [0] });
+
+    await expect(createPendingCalendarBooking(
+      database,
+      pendingBooking("booking_1", "host_alice"),
+    )).resolves.toBeNull();
+  });
+
+  it("reserves pending calendar bookings with one D1 batch", async () => {
+    const { database, statements } = createD1Recorder();
+
+    await expect(createPendingCalendarBookings(database, [
+      pendingBooking("booking_1", "host_alice"),
+      pendingBooking("booking_2", "host_bob"),
+    ])).resolves.toEqual(["booking_1", "booking_2"]);
+    expect(statements).toHaveLength(2);
+    expect(compactSql(statements[0]?.sql ?? "")).toBe(
+      "insert into booking ( id, hostId, hostUsername, bookingCodeId, guestName, guestEmail, guestEmailNormalized, guestTimezone, slotStartAt, slotEndAt, status, source, calendarProvider, calendarEventId, cancelledAt, createdAt, updatedAt ) select ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, null, null, ?, ? where not exists ( select 1 from booking where hostId = ? and status in ('pending_calendar', 'confirmed') and slotStartAt < ? and slotEndAt > ? )",
+    );
+    expect(statements[0]?.params).toEqual([
+      "booking_1",
+      "host_alice",
+      "alice",
+      "code_alice",
+      "Ada",
+      "ada@example.com",
+      "ada@example.com",
+      "America/Los_Angeles",
+      1_782_489_600,
+      1_782_491_400,
+      "pending_calendar",
+      "api",
+      1_782_486_000,
+      1_782_486_000,
+      "host_alice",
+      1_782_491_400,
+      1_782_489_600,
+    ]);
+  });
+
+  it("returns null when one batched reservation overlaps", async () => {
+    const { database } = createD1Recorder({ changes: [1, 0] });
+
+    await expect(createPendingCalendarBookings(database, [
+      pendingBooking("booking_1", "host_alice"),
+      pendingBooking("booking_2", "host_bob"),
+    ])).resolves.toBeNull();
+  });
+
   it("returns null when D1 rejects a conflicting reservation batch", async () => {
-    const { database } = createD1BatchRecorder({
+    const { database } = createD1Recorder({
       error: new Error(
         "D1_ERROR: UNIQUE constraint failed: booking.hostId, booking.slotStartAt, booking.slotEndAt",
       ),
@@ -73,12 +127,16 @@ function pendingBooking(
   };
 }
 
-function createD1BatchRecorder(input?: { readonly error: Error }): {
+function createD1Recorder(input?: {
+  readonly changes?: readonly number[];
+  readonly error?: Error;
+}): {
   readonly database: D1Database;
   readonly statements: CapturedStatement[];
 } {
   const captured = new WeakMap<D1PreparedStatement, CapturedStatement>();
   const statements: CapturedStatement[] = [];
+  let runCount = 0;
   const database = {
     async batch(batchStatements: D1PreparedStatement[]) {
       if (input?.error !== undefined) {
@@ -95,10 +153,31 @@ function createD1BatchRecorder(input?: { readonly error: Error }): {
         statements.push(capturedStatement);
       }
 
-      return [];
+      return batchStatements.map((_statement, index) => ({
+        meta: { changes: input?.changes?.[index] ?? 1 },
+        results: [],
+        success: true,
+      }));
     },
     prepare(sql: string) {
-      return createPreparedStatement(captured, sql, []);
+      return createPreparedStatement({
+        captured,
+        onRun: (statement) => {
+          const capturedStatement = captured.get(statement);
+
+          if (capturedStatement === undefined) {
+            throw new Error("uncaptured D1 statement");
+          }
+
+          statements.push(capturedStatement);
+          const changes = input?.changes?.[runCount] ?? 1;
+          runCount += 1;
+
+          return changes;
+        },
+        params: [],
+        sql,
+      });
     },
   };
 
@@ -108,16 +187,19 @@ function createD1BatchRecorder(input?: { readonly error: Error }): {
 }
 
 function createPreparedStatement(
-  captured: WeakMap<D1PreparedStatement, CapturedStatement>,
-  sql: string,
-  params: readonly unknown[],
+  input: {
+    readonly captured: WeakMap<D1PreparedStatement, CapturedStatement>;
+    readonly onRun: (statement: D1PreparedStatement) => number;
+    readonly params: readonly unknown[];
+    readonly sql: string;
+  },
 ): D1PreparedStatement {
   const statement = {
     async all() {
       return { meta: {}, results: [], success: true };
     },
     bind(...boundParams: unknown[]) {
-      return createPreparedStatement(captured, sql, boundParams);
+      return createPreparedStatement({ ...input, params: boundParams });
     },
     async first() {
       return null;
@@ -126,11 +208,18 @@ function createPreparedStatement(
       return [];
     },
     async run() {
-      return { meta: {}, results: [], success: true };
+      return {
+        meta: { changes: input.onRun(statement) },
+        results: [],
+        success: true,
+      };
     },
   } as unknown as D1PreparedStatement;
 
-  captured.set(statement, { params, sql });
+  input.captured.set(statement, {
+    params: input.params,
+    sql: input.sql,
+  });
 
   return statement;
 }

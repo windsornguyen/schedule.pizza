@@ -25,6 +25,7 @@ export type PendingCalendarBookingInsert = {
   slotStartAt: Date;
   source: "api" | "web";
 };
+type D1ReservationDatabase = Pick<D1Database, "prepare">;
 type D1BatchDatabase = Pick<D1Database, "batch" | "prepare">;
 
 export const PENDING_CALENDAR_BOOKING_TTL_MS = 15 * 60 * 1_000;
@@ -70,31 +71,12 @@ export async function findBlockingBookingsForHost(
 }
 
 export async function createPendingCalendarBooking(
-  db: Database,
+  database: D1ReservationDatabase,
   input: PendingCalendarBookingInsert
 ) {
-  const rows = await db
-    .insert(booking)
-    .values({
-      id: input.id,
-      hostId: input.hostId,
-      hostUsername: input.hostUsername,
-      bookingCodeId: input.bookingCodeId,
-      guestName: input.guestName,
-      guestEmail: input.guestEmail,
-      guestEmailNormalized: input.guestEmailNormalized,
-      guestTimezone: input.guestTimezone,
-      slotStartAt: input.slotStartAt,
-      slotEndAt: input.slotEndAt,
-      status: "pending_calendar",
-      source: input.source,
-      createdAt: input.createdAt,
-      updatedAt: input.createdAt,
-    })
-    .onConflictDoNothing()
-    .returning({ id: booking.id });
+  const result = await preparePendingCalendarBooking(database, input).run();
 
-  return rows[0] ?? null;
+  return result.meta.changes === 1 ? { id: input.id } : null;
 }
 
 export async function createPendingCalendarBookings(
@@ -102,33 +84,13 @@ export async function createPendingCalendarBookings(
   inputs: readonly PendingCalendarBookingInsert[],
 ) {
   try {
-    await database.batch(inputs.map((input) =>
-      database
-        .prepare(
-          `insert into booking (
-            id, hostId, hostUsername, bookingCodeId, guestName, guestEmail,
-            guestEmailNormalized, guestTimezone, slotStartAt, slotEndAt,
-            status, source, calendarProvider, calendarEventId, cancelledAt,
-            createdAt, updatedAt
-          ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, null, null, ?, ?)`,
-        )
-        .bind(
-          input.id,
-          input.hostId,
-          input.hostUsername,
-          input.bookingCodeId,
-          input.guestName,
-          input.guestEmail,
-          input.guestEmailNormalized,
-          input.guestTimezone,
-          toUnixSeconds(input.slotStartAt),
-          toUnixSeconds(input.slotEndAt),
-          "pending_calendar",
-          input.source,
-          toUnixSeconds(input.createdAt),
-          toUnixSeconds(input.createdAt),
-        ),
+    const results = await database.batch(inputs.map((input) =>
+      preparePendingCalendarBooking(database, input)
     ));
+
+    if (!results.every((result) => result.meta.changes === 1)) {
+      return null;
+    }
 
     return inputs.map((input) => input.id);
   } catch (error: unknown) {
@@ -138,6 +100,48 @@ export async function createPendingCalendarBookings(
 
     throw error;
   }
+}
+
+function preparePendingCalendarBooking(
+  database: D1ReservationDatabase,
+  input: PendingCalendarBookingInsert,
+) {
+  return database
+    .prepare(
+      `insert into booking (
+        id, hostId, hostUsername, bookingCodeId, guestName, guestEmail,
+        guestEmailNormalized, guestTimezone, slotStartAt, slotEndAt,
+        status, source, calendarProvider, calendarEventId, cancelledAt,
+        createdAt, updatedAt
+      )
+      select ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, null, null, ?, ?
+      where not exists (
+        select 1 from booking
+        where hostId = ?
+          and status in ('pending_calendar', 'confirmed')
+          and slotStartAt < ?
+          and slotEndAt > ?
+      )`,
+    )
+    .bind(
+      input.id,
+      input.hostId,
+      input.hostUsername,
+      input.bookingCodeId,
+      input.guestName,
+      input.guestEmail,
+      input.guestEmailNormalized,
+      input.guestTimezone,
+      toUnixSeconds(input.slotStartAt),
+      toUnixSeconds(input.slotEndAt),
+      "pending_calendar",
+      input.source,
+      toUnixSeconds(input.createdAt),
+      toUnixSeconds(input.createdAt),
+      input.hostId,
+      toUnixSeconds(input.slotEndAt),
+      toUnixSeconds(input.slotStartAt),
+    );
 }
 
 export async function countRecentBookingsForCode(
