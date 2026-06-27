@@ -22,6 +22,7 @@ await checkJson("/api/v1", "api descriptor", (body) => {
   assertEqual(body["apiVersion"], "v1", "api descriptor version");
   assertField(body, ["limits", "maxProfileCount"]);
   assertField(body, ["examples", "schedule", "body", "participants"]);
+  assertField(body, ["examples", "recommend", "body", "participants"]);
   assertField(body, ["examples", "bookGroup", "body", "slot"]);
   assertEndpoint(body, "schedule");
   assertEndpoint(body, "recommend");

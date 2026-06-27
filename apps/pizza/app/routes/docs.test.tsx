@@ -35,6 +35,7 @@ describe("docs page examples", () => {
     const html = renderToStaticMarkup(<Docs />);
 
     expect(html).toContain("It returns exact slots first");
+    expect(html).toContain("copyable recommendation request body");
     expect(html).toContain("kind: &quot;alternatives&quot;");
   });
 

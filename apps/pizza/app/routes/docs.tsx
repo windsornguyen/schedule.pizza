@@ -155,6 +155,7 @@ export default function Docs() {
           <code className="font-mono">kind: "alternatives"</code> is a ranked
           recommendation: lower conflict cost is better, hard conflicts are
           shown before soft conflicts, and event details stay private.
+          The API index includes a copyable recommendation request body.
         </p>
       </section>
 

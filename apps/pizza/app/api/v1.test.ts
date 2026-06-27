@@ -290,6 +290,17 @@ describe("v1 API CORS", () => {
           ],
         },
       },
+      recommend: {
+        method: "POST",
+        path: "/api/v1/recommend",
+        body: {
+          participants: [
+            { url: "https://schedule.pizza/alice?code=moon-tiger-seven" },
+            { url: "https://schedule.pizza/bob?code=river-lime-harbor" },
+          ],
+          maxAlternativeSlotCount: 5,
+        },
+      },
     });
   });
 

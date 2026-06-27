@@ -311,6 +311,25 @@ v1.get("/", (c) => {
           },
         },
       },
+      recommend: {
+        method: "POST",
+        path: "/api/v1/recommend",
+        body: {
+          participants: [
+            { url: "https://schedule.pizza/alice?code=moon-tiger-seven" },
+            { url: "https://schedule.pizza/bob?code=river-lime-harbor" },
+          ],
+          durationMinutes: 30,
+          granularityMinutes: 15,
+          maxExactSlotCount: 10,
+          maxAlternativeSlotCount: 5,
+          timeZone: "America/Los_Angeles",
+          window: {
+            start: "2030-01-07T17:00:00.000Z",
+            end: "2030-01-08T01:00:00.000Z",
+          },
+        },
+      },
       bookGroup: {
         method: "POST",
         path: "/api/v1/book-group",
