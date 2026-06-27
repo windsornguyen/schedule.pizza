@@ -341,6 +341,7 @@ v1.get("/", (c) => {
         "invalid_schedule_request",
       ],
       401: ["unauthenticated"],
+      403: ["forbidden_origin"],
       404: ["booking_code_invalid", "booking_missing"],
       409: [
         "booking_calendar_missing",
@@ -449,6 +450,12 @@ v1.get("/account/bookings", async (c) => {
 });
 
 v1.post("/account/bookings/:bookingId/cancel", async (c) => {
+  const originError = rejectCrossSiteAccountMutation(c);
+
+  if (originError !== null) {
+    return originError;
+  }
+
   const session = await readApiSession(c);
 
   if (session.code !== "authenticated") {
@@ -503,6 +510,12 @@ v1.post("/account/bookings/:bookingId/cancel", async (c) => {
 });
 
 v1.post("/me/bootstrap", async (c) => {
+  const originError = rejectCrossSiteAccountMutation(c);
+
+  if (originError !== null) {
+    return originError;
+  }
+
   const session = await readApiSession(c);
 
   if (session.code !== "authenticated") {
@@ -579,6 +592,12 @@ v1.post("/me/bootstrap", async (c) => {
 });
 
 v1.put("/account/profile", async (c) => {
+  const originError = rejectCrossSiteAccountMutation(c);
+
+  if (originError !== null) {
+    return originError;
+  }
+
   const session = await readApiSession(c);
 
   if (session.code !== "authenticated") {
@@ -652,6 +671,12 @@ v1.put("/account/profile", async (c) => {
 });
 
 v1.post("/me/booking-code", async (c) => {
+  const originError = rejectCrossSiteAccountMutation(c);
+
+  if (originError !== null) {
+    return originError;
+  }
+
   const session = await readApiSession(c);
 
   if (session.code !== "authenticated") {
@@ -1249,6 +1274,50 @@ function apiSessionError(
   }
 
   return c.json({ error: { code, message: "Authentication required" } }, 401);
+}
+
+function rejectCrossSiteAccountMutation(c: V1Context) {
+  const origin = c.req.header("Origin");
+
+  if (origin === undefined || origin.trim() === "") {
+    return null;
+  }
+
+  const trustedOrigin = readTrustedAccountOrigin(c.env);
+
+  if (trustedOrigin.code === "runtime_secret_missing") {
+    return c.json({
+      error: {
+        code: trustedOrigin.code,
+        message: "Runtime auth URL is missing or invalid",
+      },
+    }, 503);
+  }
+
+  if (origin !== trustedOrigin.origin) {
+    return c.json({
+      error: {
+        code: "forbidden_origin",
+        message: "Cross-site account mutation rejected",
+      },
+    }, 403);
+  }
+
+  return null;
+}
+
+function readTrustedAccountOrigin(env: ServerEnv) {
+  const authUrl = env.BETTER_AUTH_URL;
+
+  if (authUrl === undefined || authUrl.trim() === "") {
+    return { code: "runtime_secret_missing" as const };
+  }
+
+  try {
+    return { code: "read" as const, origin: new URL(authUrl).origin };
+  } catch {
+    return { code: "runtime_secret_missing" as const };
+  }
 }
 
 async function buildAccountPayload(

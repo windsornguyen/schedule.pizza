@@ -587,6 +587,59 @@ describe("v1 health API", () => {
 });
 
 describe("account profile API", () => {
+  it("rejects cross-site account mutations before rotating booking codes", async () => {
+    mocks.findHostProfileByAuthUserId.mockResolvedValue({
+      authUserId: "auth_user_1",
+      id: "host_1",
+      username: "alice",
+    });
+
+    const response = await v1.request("https://schedule.pizza/me/booking-code", {
+      method: "POST",
+      headers: { Origin: "https://evil.example" },
+    }, env);
+
+    await expect(response.json()).resolves.toEqual({
+      error: {
+        code: "forbidden_origin",
+        message: "Cross-site account mutation rejected",
+      },
+    });
+    expect(response.status).toBe(403);
+    expect(mocks.rotateBookingCode).not.toHaveBeenCalled();
+  });
+
+  it("allows same-site account mutations", async () => {
+    mocks.findHostProfileByAuthUserId
+      .mockResolvedValueOnce({
+        authUserId: "auth_user_1",
+        id: "host_1",
+        username: "alice",
+      })
+      .mockResolvedValueOnce({
+        authUserId: "auth_user_1",
+        displayName: "Alice",
+        id: "host_1",
+        slotSizeMinutes: 30,
+        timezone: "America/Los_Angeles",
+        username: "alice",
+      });
+
+    const response = await v1.request("https://schedule.pizza/me/booking-code", {
+      method: "POST",
+      headers: { Origin: "https://schedule.pizza" },
+    }, env);
+
+    expect(response.status).toBe(200);
+    expect(mocks.rotateBookingCode).toHaveBeenCalledWith(env.DB, {
+      hostId: "host_1",
+      hostUsername: "alice",
+      wordCount: 3,
+      label: null,
+      now: expect.any(Date) as Date,
+    });
+  });
+
   it("rotates and returns a fresh booking code when the username changes", async () => {
     mocks.findHostProfileByAuthUserId
       .mockResolvedValueOnce({
