@@ -14,8 +14,9 @@ The backend contract for this behavior lives in
 - slot granularity
 - display timezone
 
-Profiles are keyed by `orgId`. An individual user is an org. A future team is
-an org with child orgIds.
+Scheduling runs on host profile ids after the booking-code link authorizes each
+participant. `orgId` remains the account and billing boundary for future teams;
+it is not the scheduling identity today.
 
 ## Exact Availability
 
@@ -33,9 +34,9 @@ the requested duration is bookable.
 The overlap query for source intervals is:
 
 ```sql
-org_id = :orgId
-starts_at < :windowEnd
-ends_at > :windowStart
+hostId = :profileId
+slotStartAt < :windowEnd
+slotEndAt > :windowStart
 ```
 
 With unsorted input, the query is `O(m log m)`. With sorted intervals, it is
