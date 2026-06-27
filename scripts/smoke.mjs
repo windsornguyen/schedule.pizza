@@ -1,6 +1,10 @@
 const baseUrl = readBaseUrl(process.env["SCHEDULE_PIZZA_URL"]);
 
 await checkHtml("/", "schedule.pizza", ["easiest way to find a time."]);
+await checkHtml("/", "homepage metadata", [
+  "https://schedule.pizza/og.svg",
+  "summary_large_image",
+]);
 await checkRedirect(
   "/search?q=schedule.pizza%2Falice%3Fcode%3Dmoon-tiger-seven",
   "booking link search",
@@ -22,9 +26,19 @@ await checkText("/llms.txt", "llms", [
   "group organizer cancels",
 ]);
 await checkText("/robots.txt", "robots", ["Allow: /api/v1", "Disallow: /api/"]);
+await checkText("/sitemap.xml", "sitemap", [
+  "https://schedule.pizza/",
+  "https://schedule.pizza/docs",
+  "https://schedule.pizza/group",
+]);
 await checkText("/.well-known/security.txt", "security policy", [
   "Contact: mailto:security@schedule.pizza",
   "Expires:",
+]);
+await checkText("/og.svg", "open graph image", [
+  "#F1C34B",
+  "schedule.pizza",
+  "easiest way to find a",
 ]);
 await checkText("/favicon.svg", "favicon svg", ["#F1C34B", "#171512"]);
 await checkAsset("/favicon.ico", "favicon ico", "image/x-icon");
