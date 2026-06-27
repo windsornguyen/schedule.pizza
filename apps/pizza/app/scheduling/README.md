@@ -57,7 +57,8 @@ validation codes rather than pretending there is no availability.
 
 Exact slots require every requested profile to be free for the whole interval.
 Alternative slots are not bookable by default. They explain which fixed and
-movable events block a candidate so the product can propose rescheduling.
+adapter-marked movable events block a candidate so the product can propose
+rescheduling when that signal exists.
 
 Provider adapters must not fall back silently. If the primary busy source is
 unavailable, the engine raises a typed `ScheduleEngineError` with
