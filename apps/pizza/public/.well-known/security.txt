@@ -1,0 +1,4 @@
+Contact: mailto:security@schedule.pizza
+Policy: https://github.com/windsornguyen/schedule.pizza/security/policy
+Preferred-Languages: en
+Canonical: https://schedule.pizza/.well-known/security.txt
