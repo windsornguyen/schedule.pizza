@@ -1,3 +1,9 @@
+import { redirect } from "react-router";
+
+import { readAuthSession } from "@/auth.server";
+import { serverContext } from "@/server-context";
+import type { Route } from "./+types/login";
+
 export function meta() {
   return [
     { title: "login - schedule.pizza" },
@@ -6,6 +12,19 @@ export function meta() {
       content: "connect google calendar to host a schedule.pizza booking link.",
     },
   ];
+}
+
+export async function loader({ context, request }: Route.LoaderArgs) {
+  const session = await readAuthSession(
+    context.get(serverContext).env,
+    request.headers,
+  );
+
+  if (session !== null) {
+    throw redirect("/dashboard");
+  }
+
+  return null;
 }
 
 export default function Login() {
