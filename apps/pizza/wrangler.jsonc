@@ -3,6 +3,10 @@
   "main": "./workers/app.ts",
   "compatibility_date": "2025-06-01",
   "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
   "workers_dev": false,
   "routes": [{ "pattern": "schedule.pizza/*", "zone_name": "schedule.pizza" }],
   // Created by Terraform in apps/pizza/iac.

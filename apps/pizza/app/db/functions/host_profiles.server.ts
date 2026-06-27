@@ -66,3 +66,35 @@ export async function createHostProfile(
 
   return rows[0] ?? null;
 }
+
+export async function updateHostProfile(
+  db: Database,
+  input: {
+    authUserId: string;
+    calendarAccountEmail: string;
+    calendarId: string;
+    calendarProvider: "google";
+    displayName: string;
+    now: Date;
+    slotSizeMinutes: number;
+    timezone: string;
+    username: string;
+  },
+) {
+  const rows = await db
+    .update(hostProfile)
+    .set({
+      username: input.username,
+      displayName: input.displayName,
+      timezone: input.timezone,
+      slotSizeMinutes: input.slotSizeMinutes,
+      calendarProvider: input.calendarProvider,
+      calendarAccountEmail: input.calendarAccountEmail,
+      calendarId: input.calendarId,
+      updatedAt: input.now,
+    })
+    .where(eq(hostProfile.authUserId, input.authUserId))
+    .returning();
+
+  return rows[0] ?? null;
+}

@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import { timeInterval } from "@/scheduling/engine";
 
-import { parseBookBody, parseGroupBookBody, v1 } from "./v1";
+import {
+  parseAccountProfileBody,
+  parseBookBody,
+  parseGroupBookBody,
+  v1,
+} from "./v1";
 
 describe("v1 API CORS", () => {
   it("describes the API version without hardcoding release metadata", async () => {
@@ -87,6 +92,69 @@ describe("group book API body parser", () => {
       ...groupBookBody(),
       slot: "not a time",
     })).toEqual({ code: "invalid_field", field: "slot" });
+  });
+});
+
+describe("account profile API body parser", () => {
+  it("parses the agent profile bootstrap shape", () => {
+    expect(parseAccountProfileBody({
+      username: "Alice",
+      timezone: " America/Los_Angeles ",
+      displayName: " Ada ",
+      slotSizeMinutes: 30,
+      calendarId: "primary",
+    })).toEqual({
+      code: "parsed",
+      body: {
+        username: "alice",
+        timezone: "America/Los_Angeles",
+        displayName: "Ada",
+        slotSizeMinutes: 30,
+        calendarId: "primary",
+      },
+    });
+  });
+
+  it("defaults optional profile fields", () => {
+    expect(parseAccountProfileBody({
+      username: "alice",
+      timezone: "America/Los_Angeles",
+    })).toEqual({
+      code: "parsed",
+      body: {
+        username: "alice",
+        timezone: "America/Los_Angeles",
+        displayName: null,
+        slotSizeMinutes: 30,
+        calendarId: "primary",
+      },
+    });
+  });
+
+  it.each([
+    { body: { timezone: "America/Los_Angeles" }, code: "missing_field", field: "username" },
+    { body: { username: "alice" }, code: "missing_field", field: "timezone" },
+    {
+      body: { username: "!!!", timezone: "America/Los_Angeles" },
+      code: "invalid_field",
+      field: "username",
+    },
+    {
+      body: { username: "alice", timezone: "Mars/Olympus_Mons" },
+      code: "invalid_field",
+      field: "timezone",
+    },
+    {
+      body: {
+        username: "alice",
+        timezone: "America/Los_Angeles",
+        slotSizeMinutes: 10,
+      },
+      code: "invalid_field",
+      field: "slotSizeMinutes",
+    },
+  ] as const)("rejects invalid $field before account writes", ({ body, code, field }) => {
+    expect(parseAccountProfileBody(body)).toEqual({ code, field });
   });
 });
 

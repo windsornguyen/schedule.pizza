@@ -1,15 +1,31 @@
 import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
 
-import type { GoogleCalendarErrorCode } from "@/calendar/google.server";
+import { AuthConfigError, readAuthSession } from "@/auth.server";
+import {
+  readGoogleCalendarAccess,
+  type GoogleCalendarErrorCode,
+} from "@/calendar/google.server";
 import { bookGroupSlot } from "@/booking/book_group_slot.server";
 import { bookHostSlot } from "@/booking/book_slot.server";
 import { parseRequiredGuestEmail } from "@/booking/guest_email";
 import { parseOptionalGuestTimezone } from "@/booking/guest_timezone";
 import { createDb } from "@/db/client.server";
 import { authorizeBookingCode } from "@/db/functions/booking_code_authorizations.server";
-import { normalizeBookingCode } from "@/db/functions/booking_codes.server";
-import { normalizeUsername } from "@/db/functions/host_profiles.server";
+import {
+  createBookingCode,
+  findActiveBookingCodeForHost,
+  normalizeBookingCode,
+  rotateBookingCode,
+} from "@/db/functions/booking_codes.server";
+import {
+  createHostProfile,
+  findHostProfileByAuthUserId,
+  findHostProfileByUsername,
+  normalizeUsername,
+  updateHostProfile,
+} from "@/db/functions/host_profiles.server";
+import { hostProfile } from "@/db/schema";
 import { readCloudflareClientIpHash } from "@/http/client_ip.server";
 import { listHostAvailableSlots } from "@/scheduling/host_availability.server";
 import {
@@ -24,11 +40,16 @@ import {
   googleCalendarErrorBody,
   googleCalendarStatus,
 } from "./google_calendar_errors";
-import { parseScheduleBody, scheduleRoute } from "./v1_schedule";
+import {
+  executeScheduleRequest,
+  parseScheduleBody,
+  scheduleRoute,
+} from "./v1_schedule";
 import type { ParsedScheduleBody } from "./v1_schedule";
 
 type Bindings = ServerEnv;
 type V1Context = Context<{ Bindings: Bindings }>;
+type ApiSession = NonNullable<Awaited<ReturnType<typeof readAuthSession>>>;
 
 type ParsedBookBody = {
   readonly bookingCode: string;
@@ -57,6 +78,18 @@ type GroupBookBodyParseResult =
   | { readonly body: ParsedGroupBookBody; readonly code: "parsed" }
   | { readonly code: "invalid_field" | "missing_field"; readonly field: string };
 
+type ParsedAccountProfileBody = {
+  readonly calendarId: string;
+  readonly displayName: string | null;
+  readonly slotSizeMinutes: number;
+  readonly timezone: string;
+  readonly username: string;
+};
+
+type AccountProfileBodyParseResult =
+  | { readonly body: ParsedAccountProfileBody; readonly code: "parsed" }
+  | { readonly code: "invalid_field" | "missing_field"; readonly field: string };
+
 export const v1 = new Hono<{ Bindings: Bindings }>();
 
 v1.use("*", cors({
@@ -78,6 +111,11 @@ v1.get("/", (c) => {
         path: "/api/v1/availability",
         params: { user: "string (required)", code: "string (required, booking code)" },
         headers: { "CF-Connecting-IP": "string (injected by Cloudflare)" },
+      },
+      health: {
+        method: "GET",
+        path: "/api/v1/health",
+        checks: ["runtime secrets", "D1 binding", "D1 schema"],
       },
       book: {
         method: "POST",
@@ -113,6 +151,12 @@ v1.get("/", (c) => {
         },
         headers: { "CF-Connecting-IP": "string (injected by Cloudflare)" },
       },
+      recommend: {
+        method: "POST",
+        path: "/api/v1/recommend",
+        body: "same as /api/v1/schedule",
+        headers: { "CF-Connecting-IP": "string (injected by Cloudflare)" },
+      },
       schedule: {
         method: "POST",
         path: "/api/v1/schedule",
@@ -130,6 +174,45 @@ v1.get("/", (c) => {
         },
         headers: { "CF-Connecting-IP": "string (injected by Cloudflare)" },
       },
+      me: {
+        method: "GET",
+        path: "/api/v1/me",
+        auth: "Better Auth session cookie",
+      },
+      account: {
+        method: "GET",
+        path: "/api/v1/account",
+        auth: "Better Auth session cookie",
+      },
+      bootstrap: {
+        method: "POST",
+        path: "/api/v1/me/bootstrap",
+        auth: "Better Auth session cookie",
+        body: {
+          username: "string (required)",
+          timezone: "IANA time zone (required)",
+          displayName: "string (optional)",
+          slotSizeMinutes: "number (optional: 15, 30, 45, 60)",
+          calendarId: "string (optional, defaults to primary)",
+        },
+      },
+      saveProfile: {
+        method: "PUT",
+        path: "/api/v1/account/profile",
+        auth: "Better Auth session cookie",
+        body: {
+          username: "string (required)",
+          timezone: "IANA time zone (required)",
+          displayName: "string (optional)",
+          slotSizeMinutes: "number (optional: 15, 30, 45, 60)",
+          calendarId: "string (optional, defaults to primary)",
+        },
+      },
+      rotateBookingCode: {
+        method: "POST",
+        path: "/api/v1/me/booking-code",
+        auth: "Better Auth session cookie",
+      },
     },
     errors: {
       400: [
@@ -140,8 +223,14 @@ v1.get("/", (c) => {
         "invalid_slot",
         "invalid_schedule_request",
       ],
+      401: ["unauthenticated"],
       404: ["booking_code_invalid"],
-      409: ["slot_unavailable"],
+      409: [
+        "host_profile_exists",
+        "host_profile_missing",
+        "slot_unavailable",
+        "username_taken",
+      ],
       422: ["host_unavailable", "participant_email_missing"],
       424: [
         "google_account_missing",
@@ -153,8 +242,11 @@ v1.get("/", (c) => {
       500: [
         "booking_confirmation_failed",
         "booking_failure_record_failed",
+        "auth_user_email_missing",
         "client_ip_unavailable",
+        "database_schema_missing",
         "host_configuration_invalid",
+        "runtime_secret_missing",
       ],
       502: [
         "google_event_delete_failed",
@@ -165,8 +257,227 @@ v1.get("/", (c) => {
         "google_token_refresh_failed",
         "google_token_response_invalid",
       ],
+      503: ["database_unavailable", "runtime_secret_missing"],
     },
   });
+});
+
+v1.get("/health", async (c) => {
+  const runtime = readRuntimeHealth(c.env);
+
+  if (runtime.code !== "healthy") {
+    return c.json({
+      ok: false,
+      error: { code: runtime.code, message: runtime.message },
+    }, 503);
+  }
+
+  const database = await readDatabaseHealth(c.env);
+
+  if (database.code !== "healthy") {
+    return c.json({
+      ok: false,
+      error: { code: database.code, message: database.message },
+    }, 503);
+  }
+
+  return c.json({
+    ok: true,
+    auth: {
+      googleClientId: c.env.GOOGLE_CLIENT_ID,
+      googleRedirectUri: `${c.env.BETTER_AUTH_URL}/api/auth/callback/google`,
+    },
+    checks: {
+      database: "healthy",
+      runtime: "healthy",
+    },
+  });
+});
+
+v1.post("/recommend", async (c) => {
+  return handleScheduleLikeRequest(c);
+});
+
+v1.get("/me", async (c) => {
+  return handleAccountRead(c);
+});
+
+v1.get("/account", async (c) => {
+  return handleAccountRead(c);
+});
+
+v1.post("/me/bootstrap", async (c) => {
+  const session = await readApiSession(c);
+
+  if (session.code !== "authenticated") {
+    return apiSessionError(c, session.code);
+  }
+
+  const parsedJson = parseJsonText(await c.req.text());
+
+  if (parsedJson.code === "invalid_json") {
+    return c.json({ error: { code: "invalid_json", message: "Request body must be JSON" } }, 400);
+  }
+
+  const parsed = parseAccountProfileBody(parsedJson.body);
+
+  if (parsed.code !== "parsed") {
+    return invalidParsedField(c, parsed);
+  }
+
+  const db = createDb(c.env.DB);
+  const existingProfile = await findHostProfileByAuthUserId(db, session.session.user.id);
+
+  if (existingProfile !== null) {
+    return c.json({ error: { code: "host_profile_exists", message: "Host profile already exists" } }, 409);
+  }
+
+  const usernameOwner = await findHostProfileByUsername(db, parsed.body.username);
+
+  if (usernameOwner !== null) {
+    return c.json({ error: { code: "username_taken", message: "Username is taken" } }, 409);
+  }
+
+  const calendarStatus = await readConnectedCalendarStatus(db, c.env, session.session.user.id);
+
+  if (calendarStatus.code !== "connected") {
+    return calendarError(c, calendarStatus.code);
+  }
+
+  const email = readSessionEmail(session.session);
+
+  if (email === null) {
+    return c.json({ error: { code: "auth_user_email_missing", message: "Authenticated user email is missing" } }, 500);
+  }
+
+  const now = new Date();
+  const profile = await createHostProfile(db, {
+    id: crypto.randomUUID(),
+    authUserId: session.session.user.id,
+    calendarAccountEmail: email,
+    calendarId: parsed.body.calendarId,
+    calendarProvider: "google",
+    displayName: parsed.body.displayName ?? parsed.body.username,
+    username: parsed.body.username,
+    timezone: parsed.body.timezone,
+    slotSizeMinutes: parsed.body.slotSizeMinutes,
+    now,
+  });
+
+  if (profile === null) {
+    return c.json({ error: { code: "username_taken", message: "Username is taken" } }, 409);
+  }
+
+  const code = await createBookingCode(db, {
+    hostId: profile.id,
+    hostUsername: profile.username,
+    wordCount: 3,
+    label: null,
+    now,
+  });
+
+  return c.json(await buildAccountPayload(db, c.env, session.session, {
+    bookingCode: code.code,
+    now,
+  }));
+});
+
+v1.put("/account/profile", async (c) => {
+  const session = await readApiSession(c);
+
+  if (session.code !== "authenticated") {
+    return apiSessionError(c, session.code);
+  }
+
+  const parsedJson = parseJsonText(await c.req.text());
+
+  if (parsedJson.code === "invalid_json") {
+    return c.json({ error: { code: "invalid_json", message: "Request body must be JSON" } }, 400);
+  }
+
+  const parsed = parseAccountProfileBody(parsedJson.body);
+
+  if (parsed.code !== "parsed") {
+    return invalidParsedField(c, parsed);
+  }
+
+  const db = createDb(c.env.DB);
+  const existingProfile = await findHostProfileByAuthUserId(db, session.session.user.id);
+
+  if (existingProfile === null) {
+    return c.json({ error: { code: "host_profile_missing", message: "Host profile is missing" } }, 409);
+  }
+
+  const usernameOwner = await findHostProfileByUsername(db, parsed.body.username);
+
+  if (usernameOwner !== null && usernameOwner.authUserId !== session.session.user.id) {
+    return c.json({ error: { code: "username_taken", message: "Username is taken" } }, 409);
+  }
+
+  const calendarStatus = await readConnectedCalendarStatus(db, c.env, session.session.user.id);
+
+  if (calendarStatus.code !== "connected") {
+    return calendarError(c, calendarStatus.code);
+  }
+
+  const email = readSessionEmail(session.session);
+
+  if (email === null) {
+    return c.json({ error: { code: "auth_user_email_missing", message: "Authenticated user email is missing" } }, 500);
+  }
+
+  const updated = await updateHostProfile(db, {
+    authUserId: session.session.user.id,
+    calendarAccountEmail: email,
+    calendarId: parsed.body.calendarId,
+    calendarProvider: "google",
+    displayName: parsed.body.displayName ?? parsed.body.username,
+    username: parsed.body.username,
+    timezone: parsed.body.timezone,
+    slotSizeMinutes: parsed.body.slotSizeMinutes,
+    now: new Date(),
+  });
+
+  if (updated === null) {
+    return c.json({ error: { code: "host_profile_missing", message: "Host profile is missing" } }, 409);
+  }
+
+  return c.json(await buildAccountPayload(db, c.env, session.session, { now: new Date() }));
+});
+
+v1.post("/me/booking-code", async (c) => {
+  const session = await readApiSession(c);
+
+  if (session.code !== "authenticated") {
+    return apiSessionError(c, session.code);
+  }
+
+  const db = createDb(c.env.DB);
+  const profile = await findHostProfileByAuthUserId(db, session.session.user.id);
+
+  if (profile === null) {
+    return c.json({ error: { code: "host_profile_missing", message: "Host profile is missing" } }, 409);
+  }
+
+  const calendarStatus = await readConnectedCalendarStatus(db, c.env, session.session.user.id);
+
+  if (calendarStatus.code !== "connected") {
+    return calendarError(c, calendarStatus.code);
+  }
+
+  const now = new Date();
+  const code = await rotateBookingCode(db, {
+    hostId: profile.id,
+    hostUsername: profile.username,
+    wordCount: 3,
+    label: null,
+    now,
+  });
+
+  return c.json(await buildAccountPayload(db, c.env, session.session, {
+    bookingCode: code.code,
+    now,
+  }));
 });
 
 v1.get("/availability", async (c) => {
@@ -414,6 +725,40 @@ v1.post("/book-group", async (c) => {
   });
 });
 
+export function parseAccountProfileBody(
+  body: unknown,
+): AccountProfileBodyParseResult {
+  if (!isRecord(body)) {
+    return { code: "missing_field", field: "username" };
+  }
+
+  const username = readUsername(body["username"]);
+  if (username.code !== "parsed") return { code: username.code, field: "username" };
+
+  const timezone = readRequiredTimeZone(body["timezone"]);
+  if (timezone.code !== "parsed") return { code: timezone.code, field: "timezone" };
+
+  const displayName = readOptionalTrimmedString(body["displayName"]);
+  if (displayName.code !== "parsed") return { code: "invalid_field", field: "displayName" };
+
+  const slotSizeMinutes = readOptionalSlotSizeMinutes(body["slotSizeMinutes"]);
+  if (slotSizeMinutes.code !== "parsed") return { code: slotSizeMinutes.code, field: "slotSizeMinutes" };
+
+  const calendarId = readOptionalCalendarId(body["calendarId"]);
+  if (calendarId.code !== "parsed") return { code: calendarId.code, field: "calendarId" };
+
+  return {
+    code: "parsed",
+    body: {
+      calendarId: calendarId.value,
+      displayName: displayName.value,
+      slotSizeMinutes: slotSizeMinutes.value,
+      timezone: timezone.value,
+      username: username.value,
+    },
+  };
+}
+
 export function parseGroupBookBody(body: unknown): GroupBookBodyParseResult {
   const schedule = parseScheduleBody(body);
 
@@ -493,6 +838,252 @@ export function parseBookBody(body: unknown): BookBodyParseResult {
   };
 }
 
+async function handleScheduleLikeRequest(c: V1Context) {
+  const parsedJson = parseJsonText(await c.req.text());
+
+  if (parsedJson.code === "invalid_json") {
+    return c.json({ error: { code: "invalid_json", message: "Request body must be JSON" } }, 400);
+  }
+
+  const parsedBody = parseScheduleBody(parsedJson.body);
+
+  if (parsedBody.code !== "parsed") {
+    return invalidParsedField(c, parsedBody);
+  }
+
+  const clientIpHash = await readCloudflareClientIpHash(c.req.raw);
+
+  if (clientIpHash.code === "client_ip_unavailable") {
+    return c.json({ error: { code: "client_ip_unavailable", message: "Client IP header is unavailable" } }, 500);
+  }
+
+  const scheduled = await executeScheduleRequest(createDb(c.env.DB), {
+    body: parsedBody.body,
+    env: c.env,
+    ipHash: clientIpHash.ipHash,
+    now: new Date(),
+  });
+
+  if (scheduled.code === "booking_code_rate_limited") {
+    return c.json({ error: { code: "booking_code_rate_limited", message: "Too many failed booking code attempts" } }, 429);
+  }
+
+  if (scheduled.code === "booking_code_invalid") {
+    return c.json({ error: { code: "booking_code_invalid", message: "Invalid booking code" } }, 404);
+  }
+
+  if (scheduled.code === "invalid_schedule_request") {
+    return c.json({
+      error: {
+        code: "invalid_schedule_request",
+        message: scheduled.requestCode,
+      },
+    }, 400);
+  }
+
+  if (scheduled.code !== "scheduled") {
+    return calendarError(c, scheduled.code);
+  }
+
+  return c.json(scheduled.body);
+}
+
+async function handleAccountRead(c: V1Context) {
+  const session = await readApiSession(c);
+
+  if (session.code !== "authenticated") {
+    return apiSessionError(c, session.code);
+  }
+
+  return c.json(await buildAccountPayload(
+    createDb(c.env.DB),
+    c.env,
+    session.session,
+    { now: new Date() },
+  ));
+}
+
+async function readApiSession(c: V1Context):
+  Promise<
+    | { readonly code: "authenticated"; readonly session: ApiSession }
+    | { readonly code: "runtime_secret_missing" | "unauthenticated" }
+  > {
+  try {
+    const session = await readAuthSession(c.env, c.req.raw.headers);
+
+    return session === null
+      ? { code: "unauthenticated" }
+      : { code: "authenticated", session };
+  } catch (error: unknown) {
+    if (error instanceof AuthConfigError && error.code === "missing_auth_env") {
+      return { code: "runtime_secret_missing" };
+    }
+
+    throw error;
+  }
+}
+
+function apiSessionError(
+  c: V1Context,
+  code: "runtime_secret_missing" | "unauthenticated",
+) {
+  if (code === "runtime_secret_missing") {
+    return c.json({ error: { code, message: "Runtime auth secret is missing" } }, 503);
+  }
+
+  return c.json({ error: { code, message: "Authentication required" } }, 401);
+}
+
+async function buildAccountPayload(
+  db: ReturnType<typeof createDb>,
+  env: ServerEnv,
+  session: ApiSession,
+  input: { readonly bookingCode?: string; readonly now: Date },
+) {
+  const email = readSessionEmail(session);
+  const profile = await findHostProfileByAuthUserId(db, session.user.id);
+
+  if (profile === null) {
+    return {
+      ok: true,
+      account: {
+        email,
+        profile: null,
+        profilePath: null,
+        activeBookingCode: null,
+        bookingCode: input.bookingCode ?? null,
+        bookingPath: null,
+      },
+    };
+  }
+
+  const activeBookingCode = await findActiveBookingCodeForHost(db, {
+    hostId: profile.id,
+    now: input.now,
+  });
+  const calendarStatus = await readConnectedCalendarStatus(
+    db,
+    env,
+    session.user.id,
+  );
+
+  return {
+    ok: true,
+    account: {
+      email,
+      profile: {
+        username: profile.username,
+        displayName: profile.displayName,
+        timezone: profile.timezone,
+        slotSizeMinutes: profile.slotSizeMinutes,
+        calendarStatus: calendarStatus.code === "connected"
+          ? "connected"
+          : "reconnect_required",
+      },
+      profilePath: `/${profile.username}`,
+      activeBookingCode: activeBookingCode === null
+        ? null
+        : {
+            createdAt: activeBookingCode.createdAt.toISOString(),
+            expiresAt: activeBookingCode.expiresAt?.toISOString() ?? null,
+            lastUsedAt: activeBookingCode.lastUsedAt?.toISOString() ?? null,
+            wordCount: activeBookingCode.wordCount,
+          },
+      bookingCode: input.bookingCode ?? null,
+      bookingPath: input.bookingCode === undefined
+        ? null
+        : `/${profile.username}?code=${input.bookingCode}`,
+    },
+  };
+}
+
+async function readConnectedCalendarStatus(
+  db: ReturnType<typeof createDb>,
+  env: ServerEnv,
+  authUserId: string,
+): Promise<{ readonly code: "connected" } | { readonly code: GoogleCalendarErrorCode }> {
+  const availability = await readGoogleCalendarAccess(db, {
+    authUserId,
+    capability: "availability",
+    env,
+    now: new Date(),
+  });
+
+  if (availability.code !== "authorized") {
+    return { code: availability.code };
+  }
+
+  const eventWrite = await readGoogleCalendarAccess(db, {
+    authUserId,
+    capability: "event_write",
+    env,
+    now: new Date(),
+  });
+
+  return eventWrite.code === "authorized"
+    ? { code: "connected" }
+    : { code: eventWrite.code };
+}
+
+function readRuntimeHealth(env: ServerEnv):
+  | { readonly code: "healthy" }
+  | { readonly code: "runtime_secret_missing"; readonly message: string } {
+  if (isMissingRuntimeString(env.BETTER_AUTH_SECRET ?? null)) {
+    return { code: "runtime_secret_missing", message: "BETTER_AUTH_SECRET is missing" };
+  }
+
+  if (isMissingRuntimeString(env.BETTER_AUTH_URL ?? null)) {
+    return { code: "runtime_secret_missing", message: "BETTER_AUTH_URL is missing" };
+  }
+
+  if (env.GOOGLE_CLIENT_ID.trim() === "") {
+    return { code: "runtime_secret_missing", message: "GOOGLE_CLIENT_ID is missing" };
+  }
+
+  if (env.GOOGLE_CLIENT_SECRET.trim() === "") {
+    return { code: "runtime_secret_missing", message: "GOOGLE_CLIENT_SECRET is missing" };
+  }
+
+  return { code: "healthy" };
+}
+
+function isMissingRuntimeString(value: string | null) {
+  return value === null || value.trim() === "";
+}
+
+async function readDatabaseHealth(env: ServerEnv):
+  Promise<
+    | { readonly code: "healthy" }
+    | { readonly code: "database_unavailable"; readonly message: string }
+  > {
+  try {
+    await createDb(env.DB).select({ id: hostProfile.id }).from(hostProfile).limit(1);
+    return { code: "healthy" };
+  } catch {
+    return { code: "database_unavailable", message: "D1 schema query failed" };
+  }
+}
+
+function readSessionEmail(session: ApiSession) {
+  const email = session.user.email;
+
+  return typeof email === "string" && email.trim() !== ""
+    ? email.trim()
+    : null;
+}
+
+function invalidParsedField(
+  c: V1Context,
+  parsed: { readonly code: "invalid_field" | "missing_field"; readonly field: string },
+) {
+  return c.json({
+    error: {
+      code: parsed.code,
+      message: `${parsed.field} is ${parsed.code === "missing_field" ? "required" : "invalid"}`,
+    },
+  }, 400);
+}
+
 type RequiredParsedValue<T> =
   | { readonly code: "parsed"; readonly value: T }
   | { readonly code: "invalid_field" | "missing_field" };
@@ -543,6 +1134,80 @@ function readSlotStart(value: unknown): RequiredParsedValue<Date> {
   return slotStartAt === null
     ? { code: "invalid_field" }
     : { code: "parsed", value: slotStartAt };
+}
+
+function readRequiredTimeZone(value: unknown): RequiredParsedValue<string> {
+  if (value === undefined || value === null) {
+    return { code: "missing_field" };
+  }
+
+  if (typeof value !== "string") {
+    return { code: "invalid_field" };
+  }
+
+  const timeZone = value.trim();
+
+  if (timeZone === "") {
+    return { code: "missing_field" };
+  }
+
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone });
+    return { code: "parsed", value: timeZone };
+  } catch {
+    return { code: "invalid_field" };
+  }
+}
+
+function readOptionalTrimmedString(value: unknown):
+  | { readonly code: "parsed"; readonly value: string | null }
+  | { readonly code: "invalid_field" } {
+  if (value === undefined || value === null) {
+    return { code: "parsed", value: null };
+  }
+
+  if (typeof value !== "string") {
+    return { code: "invalid_field" };
+  }
+
+  const trimmedValue = value.trim();
+
+  return {
+    code: "parsed",
+    value: trimmedValue === "" ? null : trimmedValue,
+  };
+}
+
+function readOptionalSlotSizeMinutes(value: unknown):
+  | { readonly code: "parsed"; readonly value: number }
+  | { readonly code: "invalid_field" } {
+  if (value === undefined || value === null) {
+    return { code: "parsed", value: 30 };
+  }
+
+  return typeof value === "number" &&
+    Number.isInteger(value) &&
+    [15, 30, 45, 60].includes(value)
+    ? { code: "parsed", value }
+    : { code: "invalid_field" };
+}
+
+function readOptionalCalendarId(value: unknown):
+  | { readonly code: "parsed"; readonly value: string }
+  | { readonly code: "invalid_field" } {
+  if (value === undefined || value === null) {
+    return { code: "parsed", value: "primary" };
+  }
+
+  if (typeof value !== "string") {
+    return { code: "invalid_field" };
+  }
+
+  const calendarId = value.trim();
+
+  return calendarId === ""
+    ? { code: "parsed", value: "primary" }
+    : { code: "parsed", value: calendarId };
 }
 
 function readRequiredString(value: unknown) {

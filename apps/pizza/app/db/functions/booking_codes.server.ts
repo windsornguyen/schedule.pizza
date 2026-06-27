@@ -1,4 +1,4 @@
-import { and, eq, gt, isNull, or } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, or } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 
 import type * as databaseSchema from "@/db/schema";
@@ -117,6 +117,32 @@ export async function findActiveBookingCode<RunResult>(
         or(isNull(bookingCode.expiresAt), gt(bookingCode.expiresAt, lookup.now))
       )
     )
+    .limit(1);
+
+  return rows[0] ?? null;
+}
+
+export async function findActiveBookingCodeForHost<RunResult>(
+  db: BookingCodeReader<RunResult>,
+  input: { hostId: string; now: Date },
+) {
+  const rows = await db
+    .select({
+      createdAt: bookingCode.createdAt,
+      expiresAt: bookingCode.expiresAt,
+      id: bookingCode.id,
+      lastUsedAt: bookingCode.lastUsedAt,
+      wordCount: bookingCode.wordCount,
+    })
+    .from(bookingCode)
+    .where(
+      and(
+        eq(bookingCode.hostId, input.hostId),
+        isNull(bookingCode.revokedAt),
+        or(isNull(bookingCode.expiresAt), gt(bookingCode.expiresAt, input.now)),
+      ),
+    )
+    .orderBy(desc(bookingCode.createdAt))
     .limit(1);
 
   return rows[0] ?? null;
