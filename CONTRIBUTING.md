@@ -23,7 +23,7 @@ Run checks before opening a pull request:
 pnpm --filter @schedule.pizza/web lint
 pnpm --filter @schedule.pizza/web typecheck
 pnpm --filter @schedule.pizza/web test
-pnpm --filter @schedule.pizza/web db:check
+pnpm --filter @schedule.pizza/web db -- check
 pnpm --filter @schedule.pizza/web build
 ```
 
@@ -33,7 +33,7 @@ The database schema is defined in TypeScript under
 `apps/pizza/app/db/schema/`. Generate migrations from the schema:
 
 ```bash
-pnpm --filter @schedule.pizza/web db:generate
+pnpm --filter @schedule.pizza/web db -- generate
 ```
 
 Do not hand-write migration SQL for ordinary schema changes. The TypeScript
