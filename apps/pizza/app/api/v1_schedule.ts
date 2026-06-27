@@ -9,7 +9,11 @@ import {
 import { createDb } from "@/db/client.server";
 import { authorizeBookingCode } from "@/db/functions/booking_code_authorizations.server";
 import { normalizeBookingCode } from "@/db/functions/booking_codes.server";
-import { findBlockingBookingsForHost } from "@/db/functions/bookings.server";
+import {
+  expireStalePendingCalendarBookingsForHost,
+  findBlockingBookingsForHost,
+  getPendingCalendarBookingExpiresBefore,
+} from "@/db/functions/bookings.server";
 import { normalizeUsername } from "@/db/functions/host_profiles.server";
 import { readCloudflareClientIpHash } from "@/http/client_ip.server";
 import {
@@ -557,6 +561,12 @@ function createD1BusyIntervalSource(
           if (participant === undefined) {
             throw new Error(`authorized participant missing for ${profileId}`);
           }
+
+          await expireStalePendingCalendarBookingsForHost(db, {
+            expiredAt: input.now,
+            expiresBefore: getPendingCalendarBookingExpiresBefore(input.now),
+            hostId: participant.hostId,
+          });
 
           const bookings = await findBlockingBookingsForHost(db, {
             hostId: participant.hostId,

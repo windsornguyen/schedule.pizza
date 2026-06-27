@@ -27,6 +27,31 @@ export type PendingCalendarBookingInsert = {
 };
 type D1BatchDatabase = Pick<D1Database, "batch" | "prepare">;
 
+export const PENDING_CALENDAR_BOOKING_TTL_MS = 15 * 60 * 1_000;
+
+export function getPendingCalendarBookingExpiresBefore(now: Date) {
+  return new Date(now.getTime() - PENDING_CALENDAR_BOOKING_TTL_MS);
+}
+
+export async function expireStalePendingCalendarBookingsForHost(
+  db: Database,
+  input: { expiredAt: Date; expiresBefore: Date; hostId: string },
+) {
+  await db
+    .update(booking)
+    .set({
+      status: "calendar_failed",
+      updatedAt: input.expiredAt,
+    })
+    .where(
+      and(
+        eq(booking.hostId, input.hostId),
+        eq(booking.status, "pending_calendar"),
+        lt(booking.updatedAt, input.expiresBefore),
+      ),
+    );
+}
+
 export async function findBlockingBookingsForHost(
   db: Database,
   window: BlockingBookingWindow

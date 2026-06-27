@@ -5,7 +5,11 @@ import {
   type GoogleCalendarErrorCode,
 } from "@/calendar/google.server";
 import type { Database } from "@/db/client.server";
-import { findBlockingBookingsForHost } from "@/db/functions/bookings.server";
+import {
+  expireStalePendingCalendarBookingsForHost,
+  findBlockingBookingsForHost,
+  getPendingCalendarBookingExpiresBefore,
+} from "@/db/functions/bookings.server";
 import { timeInterval, type TimeInterval } from "@/scheduling/engine";
 import { removeBookedSlots, type SlotRange } from "@/scheduling/slots.server";
 import type { ServerEnv } from "@/server-context";
@@ -36,6 +40,12 @@ export async function listHostAvailableSlots(
     readonly window: HostAvailabilityWindow;
   },
 ): Promise<HostAvailabilityResult> {
+  await expireStalePendingCalendarBookingsForHost(db, {
+    expiredAt: input.now,
+    expiresBefore: getPendingCalendarBookingExpiresBefore(input.now),
+    hostId: input.host.id,
+  });
+
   const googleAccess = await readGoogleCalendarAccess(db, {
     authUserId: input.host.authUserId,
     capability: "availability",

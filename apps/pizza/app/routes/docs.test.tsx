@@ -30,4 +30,11 @@ describe("docs page examples", () => {
     expect(html).toContain("/api/v1/account");
     expect(html).toContain("bookingUrl");
   });
+
+  it("teaches agents to call availability with a booking link", () => {
+    const html = renderToStaticMarkup(<Docs />);
+
+    expect(html).toContain("/api/v1/availability?url=");
+    expect(html).not.toContain("/api/v1/availability?user=");
+  });
 });
