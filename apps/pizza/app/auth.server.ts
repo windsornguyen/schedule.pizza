@@ -13,6 +13,11 @@ import type { ServerEnv } from "@/server-context";
 
 type RequiredAuthEnvName = "BETTER_AUTH_SECRET" | "BETTER_AUTH_URL";
 
+export const GOOGLE_OAUTH_SCOPES = [
+  GOOGLE_CALENDAR_FREEBUSY_SCOPE,
+  GOOGLE_CALENDAR_EVENTS_SCOPE,
+] as const;
+
 export class AuthConfigError extends Error {
   constructor(
     readonly code: "invalid_admin_user_ids" | "missing_auth_env",
@@ -72,12 +77,7 @@ export function createAuth(env: ServerEnv) {
       google: {
         clientId: env.GOOGLE_CLIENT_ID,
         clientSecret: env.GOOGLE_CLIENT_SECRET,
-        scope: [
-          "email",
-          "profile",
-          GOOGLE_CALENDAR_FREEBUSY_SCOPE,
-          GOOGLE_CALENDAR_EVENTS_SCOPE,
-        ],
+        scope: [...GOOGLE_OAUTH_SCOPES],
         accessType: "offline",
         prompt: "select_account consent",
       },

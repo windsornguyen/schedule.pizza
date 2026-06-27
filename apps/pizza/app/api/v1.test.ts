@@ -4,6 +4,7 @@ import type * as AuthServerModule from "@/auth.server";
 import type * as CancelHostBookingModule from "@/booking/cancel_host_booking.server";
 import type * as BookGroupSlotModule from "@/booking/book_group_slot.server";
 import type * as BookSlotModule from "@/booking/book_slot.server";
+import type * as GoogleCalendarModule from "@/calendar/google.server";
 import type * as BookingCodeAuthorizationsModule from "@/db/functions/booking_code_authorizations.server";
 import type * as BookingCodesModule from "@/db/functions/booking_codes.server";
 import type * as BookingsModule from "@/db/functions/bookings.server";
@@ -50,9 +51,14 @@ vi.mock("@/auth.server", async (importOriginal) => {
   };
 });
 
-vi.mock("@/calendar/google.server", () => ({
-  readGoogleCalendarAccess: mocks.readGoogleCalendarAccess,
-}));
+vi.mock("@/calendar/google.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof GoogleCalendarModule>();
+
+  return {
+    ...actual,
+    readGoogleCalendarAccess: mocks.readGoogleCalendarAccess,
+  };
+});
 
 vi.mock("@/booking/cancel_host_booking.server", async (importOriginal) => {
   const actual = await importOriginal<typeof CancelHostBookingModule>();
