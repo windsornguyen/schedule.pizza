@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  createTemporaryGroupParticipantDraft,
   readBookedBookingId,
   readBookedBookingIds,
   readAvailabilitySlotStart,
@@ -108,6 +109,17 @@ describe("live smoke response parsing", () => {
 });
 
 describe("live smoke schedule body", () => {
+  it("creates a cleanup handle before temporary participant writes", () => {
+    const participant = createTemporaryGroupParticipantDraft();
+
+    assert.match(participant.username, /^smoke-[0-9a-f]{12}$/u);
+    assert.match(participant.code, /^smoke-[0-9a-f]{32}$/u);
+    assert.equal(typeof participant.accountId, "string");
+    assert.equal(typeof participant.codeId, "string");
+    assert.equal(typeof participant.hostId, "string");
+    assert.equal(typeof participant.userId, "string");
+  });
+
   it("keeps group smoke multi-party", () => {
     const body = readScheduleRequestBody({
       timeZone: "America/Los_Angeles",

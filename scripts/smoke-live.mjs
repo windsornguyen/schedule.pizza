@@ -21,7 +21,7 @@ export async function main(env) {
     codeId: randomUUID(),
     username: config.username,
   };
-  let temporaryParticipant = null;
+  const temporaryParticipant = createTemporaryGroupParticipantDraft();
 
   try {
     const host = await readHost(config);
@@ -30,7 +30,7 @@ export async function main(env) {
       codeId: primaryParticipant.codeId,
       host,
     });
-    temporaryParticipant = await createTemporaryGroupParticipant(config, host);
+    await createTemporaryGroupParticipant(config, host, temporaryParticipant);
 
     const availability = await getJson(
       config.baseUrl,
@@ -209,10 +209,10 @@ async function createTemporaryCode(config, input) {
   `, "create temporary booking code");
 }
 
-async function createTemporaryGroupParticipant(config, sourceHost) {
-  const now = new Date();
+export function createTemporaryGroupParticipantDraft() {
   const suffix = randomBytes(6).toString("hex");
-  const participant = {
+
+  return {
     accountId: randomUUID(),
     code: `smoke-${randomBytes(16).toString("hex")}`,
     codeId: randomUUID(),
@@ -220,6 +220,10 @@ async function createTemporaryGroupParticipant(config, sourceHost) {
     userId: randomUUID(),
     username: `smoke-${suffix}`,
   };
+}
+
+async function createTemporaryGroupParticipant(config, sourceHost, participant) {
+  const now = new Date();
   const email = `${participant.username}@schedule.pizza.invalid`;
   const attendeeEmail = readSyntheticAttendeeEmail(config.bookerEmail);
 
@@ -288,8 +292,6 @@ async function createTemporaryGroupParticipant(config, sourceHost) {
     codeId: participant.codeId,
     host: { id: participant.hostId, username: participant.username },
   });
-
-  return participant;
 }
 
 async function bookIndividual(config, code, slot, bookingIds) {
