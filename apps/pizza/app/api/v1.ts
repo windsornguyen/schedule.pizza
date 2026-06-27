@@ -1481,11 +1481,11 @@ function readRuntimeHealth(env: ServerEnv):
     return { code: "runtime_secret_missing", message: "BETTER_AUTH_URL is missing" };
   }
 
-  if (env.GOOGLE_CLIENT_ID.trim() === "") {
+  if (isMissingRuntimeString(env.GOOGLE_CLIENT_ID ?? null)) {
     return { code: "runtime_secret_missing", message: "GOOGLE_CLIENT_ID is missing" };
   }
 
-  if (env.GOOGLE_CLIENT_SECRET.trim() === "") {
+  if (isMissingRuntimeString(env.GOOGLE_CLIENT_SECRET ?? null)) {
     return { code: "runtime_secret_missing", message: "GOOGLE_CLIENT_SECRET is missing" };
   }
 

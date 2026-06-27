@@ -697,6 +697,26 @@ describe("v1 health API", () => {
     expect(response.status).toBe(503);
     expect(mocks.createDb).not.toHaveBeenCalled();
   });
+
+  it.each([
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+  ] as const)("reports missing %s without throwing", async (envName) => {
+    const response = await v1.request("https://schedule.pizza/health", {}, {
+      ...env,
+      [envName]: undefined as unknown as string,
+    });
+
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      error: {
+        code: "runtime_secret_missing",
+        message: `${envName} is missing`,
+      },
+    });
+    expect(response.status).toBe(503);
+    expect(mocks.createDb).not.toHaveBeenCalled();
+  });
 });
 
 describe("account profile API", () => {
