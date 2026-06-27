@@ -1,25 +1,33 @@
-const baseUrl = readRequiredUrl(process.env["SCHEDULE_PIZZA_URL"]);
-const user = readRequiredEnv("SCHEDULE_PIZZA_SMOKE_USER");
-const code = readRequiredEnv("SCHEDULE_PIZZA_SMOKE_CODE");
-const requestBody = readScheduleRequestBody({ code, user });
+import { pathToFileURL } from "node:url";
 
-const availability = await checkJson(
-  `/api/v1/availability?user=${encodeURIComponent(user)}&code=${encodeURIComponent(code)}`,
-  "availability",
-);
-assertRecord(availability, "availability");
-assertEqual(availability["user"], user, "availability user");
-assertNonEmptyArray(availability["slots"], "availability slots");
+if (isCliEntrypoint()) {
+  await main(process.env);
+}
 
-const schedule = await checkScheduleLike("/api/v1/schedule", "schedule", requestBody);
-const recommend = await checkScheduleLike("/api/v1/recommend", "recommend", requestBody);
+export async function main(env) {
+  const baseUrl = readRequiredUrl(env["SCHEDULE_PIZZA_URL"]);
+  const target = readSmokeTarget(env);
+  const requestBody = readScheduleRequestBody(target.participant);
 
-console.log([
-  `authorized smoke ok: ${baseUrl.origin}`,
-  `availabilitySlots=${availability["slots"].length}`,
-  `schedule=${schedule.kind}:${schedule.slotCount}`,
-  `recommend=${recommend.kind}:${recommend.slotCount}`,
-].join(" "));
+  const availability = await checkJson(
+    baseUrl,
+    target.availabilityPath,
+    "availability",
+  );
+  assertRecord(availability, "availability");
+  assertEqual(availability["user"], target.expectedUser, "availability user");
+  assertNonEmptyArray(availability["slots"], "availability slots");
+
+  const schedule = await checkScheduleLike(baseUrl, "/api/v1/schedule", "schedule", requestBody);
+  const recommend = await checkScheduleLike(baseUrl, "/api/v1/recommend", "recommend", requestBody);
+
+  console.log([
+    `authorized smoke ok: ${baseUrl.origin}`,
+    `availabilitySlots=${availability["slots"].length}`,
+    `schedule=${schedule.kind}:${schedule.slotCount}`,
+    `recommend=${recommend.kind}:${recommend.slotCount}`,
+  ].join(" "));
+}
 
 function readRequiredUrl(value) {
   const rawValue = readRequiredEnvValue(value, "SCHEDULE_PIZZA_URL");
@@ -31,8 +39,49 @@ function readRequiredUrl(value) {
   }
 }
 
-function readRequiredEnv(name) {
-  return readRequiredEnvValue(process.env[name], name);
+export function readSmokeTarget(env) {
+  const url = readOptionalEnvValue(env["SCHEDULE_PIZZA_SMOKE_URL"]);
+
+  if (url !== null) {
+    if (
+      readOptionalEnvValue(env["SCHEDULE_PIZZA_SMOKE_USER"]) !== null ||
+      readOptionalEnvValue(env["SCHEDULE_PIZZA_SMOKE_CODE"]) !== null
+    ) {
+      throw new Error(
+        "Use SCHEDULE_PIZZA_SMOKE_URL or SCHEDULE_PIZZA_SMOKE_USER/SCHEDULE_PIZZA_SMOKE_CODE, not both",
+      );
+    }
+
+    const scheduleUrl = readScheduleUrl(url);
+
+    if (scheduleUrl === null) {
+      throw new Error("SCHEDULE_PIZZA_SMOKE_URL must be a schedule.pizza booking link");
+    }
+
+    return {
+      availabilityPath: `/api/v1/availability?url=${encodeURIComponent(scheduleUrl.toString())}`,
+      expectedUser: readUsernameFromScheduleUrl(scheduleUrl),
+      participant: { url: scheduleUrl.toString() },
+    };
+  }
+
+  const user = readUsername(
+    readRequiredEnvValue(env["SCHEDULE_PIZZA_SMOKE_USER"], "SCHEDULE_PIZZA_SMOKE_USER"),
+    "SCHEDULE_PIZZA_SMOKE_USER",
+  );
+  const code = readRequiredEnvValue(env["SCHEDULE_PIZZA_SMOKE_CODE"], "SCHEDULE_PIZZA_SMOKE_CODE");
+
+  return {
+    availabilityPath: `/api/v1/availability?user=${encodeURIComponent(user)}&code=${encodeURIComponent(code)}`,
+    expectedUser: user,
+    participant: { code, user },
+  };
+}
+
+function readOptionalEnvValue(value) {
+  return value === undefined || value.trim() === ""
+    ? null
+    : value.trim();
 }
 
 function readRequiredEnvValue(value, name) {
@@ -41,6 +90,49 @@ function readRequiredEnvValue(value, name) {
   }
 
   return value.trim();
+}
+
+function readScheduleUrl(value) {
+  const trimmedValue = value.trim();
+
+  try {
+    const url = new URL(
+      /^[a-z][a-z0-9+.-]*:/iu.test(trimmedValue)
+        ? trimmedValue
+        : `https://${trimmedValue}`,
+    );
+    const pathParts = url.pathname.split("/").filter((part) => part !== "");
+    const bookingCode = url.searchParams.get("code");
+
+    return (
+      (url.protocol === "http:" || url.protocol === "https:") &&
+      (url.hostname === "schedule.pizza" || url.hostname === "www.schedule.pizza") &&
+      pathParts.length === 1 &&
+      bookingCode !== null &&
+      bookingCode.trim() !== "" &&
+      readUsernameFromScheduleUrl(url) !== null
+    )
+      ? url
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function readUsernameFromScheduleUrl(url) {
+  const username = decodeURIComponent(url.pathname.split("/").filter((part) => part !== "")[0] ?? "");
+
+  return readUsername(username, "SCHEDULE_PIZZA_SMOKE_URL");
+}
+
+function readUsername(value, name) {
+  const username = value.trim().toLowerCase();
+
+  if (!/^[a-z0-9][a-z0-9_-]{0,39}$/u.test(username)) {
+    throw new Error(`${name} contains an invalid username`);
+  }
+
+  return username;
 }
 
 function readScheduleRequestBody(participant) {
@@ -61,8 +153,8 @@ function readScheduleRequestBody(participant) {
   };
 }
 
-async function checkScheduleLike(path, label, body) {
-  const responseBody = await postJson(path, label, body);
+async function checkScheduleLike(baseUrl, path, label, body) {
+  const responseBody = await postJson(baseUrl, path, label, body);
 
   assertRecord(responseBody, label);
 
@@ -75,8 +167,8 @@ async function checkScheduleLike(path, label, body) {
   return { kind: responseBody["kind"], slotCount: responseBody["slots"].length };
 }
 
-async function checkJson(path, label) {
-  const response = await fetchResponse(path, label, { method: "GET" });
+async function checkJson(baseUrl, path, label) {
+  const response = await fetchResponse(baseUrl, path, label, { method: "GET" });
   const contentType = response.headers.get("content-type") ?? "";
 
   if (!contentType.includes("application/json")) {
@@ -86,8 +178,8 @@ async function checkJson(path, label) {
   return response.json();
 }
 
-async function postJson(path, label, body) {
-  const response = await fetchResponse(path, label, {
+async function postJson(baseUrl, path, label, body) {
+  const response = await fetchResponse(baseUrl, path, label, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
@@ -101,7 +193,7 @@ async function postJson(path, label, body) {
   return response.json();
 }
 
-async function fetchResponse(path, label, init) {
+async function fetchResponse(baseUrl, path, label, init) {
   const response = await fetch(new URL(path, baseUrl), init);
 
   if (!response.ok) {
@@ -135,4 +227,11 @@ function assertEqual(actual, expected, label) {
   if (actual !== expected) {
     throw new Error(`${label} expected ${String(expected)}, got ${String(actual)}`);
   }
+}
+
+function isCliEntrypoint() {
+  const scriptPath = process.argv[1];
+
+  return scriptPath !== undefined &&
+    import.meta.url === pathToFileURL(scriptPath).href;
 }
