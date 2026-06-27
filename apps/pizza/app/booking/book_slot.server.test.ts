@@ -1,0 +1,206 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { bookHostSlot } from "./book_slot.server";
+
+type AsyncMock = (...args: unknown[]) => Promise<unknown>;
+type ReadCalendarIdMock = (calendarId: string | null) => string;
+
+const mocks = vi.hoisted(() => ({
+  confirmCalendarBooking: vi.fn<AsyncMock>(),
+  countRecentBookingsForCode: vi.fn<AsyncMock>(),
+  createGoogleCalendarEvent: vi.fn<AsyncMock>(),
+  createPendingCalendarBooking: vi.fn<AsyncMock>(),
+  deleteGoogleCalendarEvent: vi.fn<AsyncMock>(),
+  listHostAvailableSlots: vi.fn<AsyncMock>(),
+  markCalendarBookingFailed: vi.fn<AsyncMock>(),
+  readGoogleCalendarAccess: vi.fn<AsyncMock>(),
+  readGoogleCalendarId: vi.fn<ReadCalendarIdMock>((calendarId) =>
+    calendarId === null ? "primary" : calendarId,
+  ),
+}));
+
+vi.mock("@/calendar/google.server", () => ({
+  createGoogleCalendarEvent: mocks.createGoogleCalendarEvent,
+  deleteGoogleCalendarEvent: mocks.deleteGoogleCalendarEvent,
+  readGoogleCalendarAccess: mocks.readGoogleCalendarAccess,
+  readGoogleCalendarId: mocks.readGoogleCalendarId,
+}));
+
+vi.mock("@/db/functions/bookings.server", () => ({
+  confirmCalendarBooking: mocks.confirmCalendarBooking,
+  countRecentBookingsForCode: mocks.countRecentBookingsForCode,
+  createPendingCalendarBooking: mocks.createPendingCalendarBooking,
+  markCalendarBookingFailed: mocks.markCalendarBookingFailed,
+}));
+
+vi.mock("@/scheduling/host_availability.server", () => ({
+  listHostAvailableSlots: mocks.listHostAvailableSlots,
+}));
+
+type BookHostSlotInput = Parameters<typeof bookHostSlot>[1];
+
+const now = new Date("2026-06-26T15:00:00.000Z");
+const slot = {
+  startAt: new Date("2026-06-26T16:00:00.000Z"),
+  endAt: new Date("2026-06-26T16:30:00.000Z"),
+};
+const db = {} as Parameters<typeof bookHostSlot>[0];
+
+describe("bookHostSlot", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.confirmCalendarBooking.mockResolvedValue({ id: "booking_1" });
+    mocks.countRecentBookingsForCode.mockResolvedValue(0);
+    mocks.createGoogleCalendarEvent.mockResolvedValue({
+      code: "created",
+      eventId: "google_event_1",
+    });
+    mocks.deleteGoogleCalendarEvent.mockResolvedValue({ code: "deleted" });
+    mocks.createPendingCalendarBooking.mockResolvedValue({ id: "booking_1" });
+    mocks.listHostAvailableSlots.mockResolvedValue({
+      code: "listed",
+      slots: [slot],
+    });
+    mocks.markCalendarBookingFailed.mockResolvedValue({ id: "booking_1" });
+    mocks.readGoogleCalendarAccess.mockResolvedValue({
+      code: "authorized",
+      accessToken: "google_access_token",
+    });
+  });
+
+  it("confirms the booking only after Google Calendar creates an event", async () => {
+    const result = await bookHostSlot(db, createInput());
+
+    expect(result).toEqual({
+      code: "booked",
+      bookingId: "booking_1",
+      calendarEventId: "google_event_1",
+      slot,
+    });
+    expect(mocks.createGoogleCalendarEvent).toHaveBeenCalledWith({
+      accessToken: "google_access_token",
+      calendarId: "primary",
+      endAt: slot.endAt,
+      guestEmail: "ada@example.com",
+      guestName: "Ada",
+      startAt: slot.startAt,
+      timeZone: "America/Los_Angeles",
+    });
+    expect(mocks.confirmCalendarBooking).toHaveBeenCalledWith(db, {
+      bookingId: "booking_1",
+      calendarEventId: "google_event_1",
+      confirmedAt: now,
+      provider: "google",
+    });
+    expect(mocks.markCalendarBookingFailed).not.toHaveBeenCalled();
+    expect(mocks.deleteGoogleCalendarEvent).not.toHaveBeenCalled();
+  });
+
+  it("marks the pending booking failed when Google event creation fails", async () => {
+    mocks.createGoogleCalendarEvent.mockResolvedValueOnce({
+      code: "google_event_insert_failed",
+    });
+
+    await expect(bookHostSlot(db, createInput())).resolves.toEqual({
+      code: "google_event_insert_failed",
+    });
+    expect(mocks.markCalendarBookingFailed).toHaveBeenCalledWith(db, {
+      bookingId: "booking_1",
+      failedAt: now,
+    });
+    expect(mocks.confirmCalendarBooking).not.toHaveBeenCalled();
+  });
+
+  it("deletes the Google event when local confirmation fails", async () => {
+    mocks.confirmCalendarBooking.mockResolvedValueOnce(null);
+
+    await expect(bookHostSlot(db, createInput())).resolves.toEqual({
+      code: "booking_confirmation_failed",
+    });
+    expect(mocks.deleteGoogleCalendarEvent).toHaveBeenCalledWith({
+      accessToken: "google_access_token",
+      calendarId: "primary",
+      eventId: "google_event_1",
+      notifyGuests: true,
+    });
+    expect(mocks.markCalendarBookingFailed).toHaveBeenCalledWith(db, {
+      bookingId: "booking_1",
+      failedAt: now,
+    });
+  });
+
+  it("surfaces a typed error when confirmation rollback fails", async () => {
+    mocks.confirmCalendarBooking.mockResolvedValueOnce(null);
+    mocks.deleteGoogleCalendarEvent.mockResolvedValueOnce({
+      code: "google_event_delete_failed",
+    });
+
+    await expect(bookHostSlot(db, createInput())).resolves.toEqual({
+      code: "google_event_delete_failed",
+    });
+    expect(mocks.markCalendarBookingFailed).toHaveBeenCalledWith(db, {
+      bookingId: "booking_1",
+      failedAt: now,
+    });
+  });
+
+  it("surfaces a typed error when failed confirmation cannot be recorded", async () => {
+    mocks.confirmCalendarBooking.mockResolvedValueOnce(null);
+    mocks.markCalendarBookingFailed.mockResolvedValueOnce(null);
+
+    await expect(bookHostSlot(db, createInput())).resolves.toEqual({
+      code: "booking_failure_record_failed",
+    });
+  });
+
+  it("rate limits bookings per booking code before creating pending state", async () => {
+    mocks.countRecentBookingsForCode.mockResolvedValueOnce(12);
+
+    await expect(bookHostSlot(db, createInput())).resolves.toEqual({
+      code: "booking_rate_limited",
+    });
+    expect(mocks.createPendingCalendarBooking).not.toHaveBeenCalled();
+    expect(mocks.createGoogleCalendarEvent).not.toHaveBeenCalled();
+  });
+
+  it("requires the availability recheck to return the selected slot", async () => {
+    mocks.listHostAvailableSlots.mockResolvedValueOnce({
+      code: "listed",
+      slots: [{
+        startAt: new Date("2026-06-26T16:30:00.000Z"),
+        endAt: new Date("2026-06-26T17:00:00.000Z"),
+      }],
+    });
+
+    await expect(bookHostSlot(db, createInput())).resolves.toEqual({
+      code: "slot_unavailable",
+    });
+    expect(mocks.createPendingCalendarBooking).not.toHaveBeenCalled();
+    expect(mocks.createGoogleCalendarEvent).not.toHaveBeenCalled();
+  });
+});
+
+function createInput(): BookHostSlotInput {
+  return {
+    bookingCodeId: "booking_code_1",
+    env: {
+      GOOGLE_CLIENT_ID: "google_client_id",
+      GOOGLE_CLIENT_SECRET: "google_client_secret",
+    } as BookHostSlotInput["env"],
+    guestEmail: "ada@example.com",
+    guestEmailNormalized: "ada@example.com",
+    guestName: "Ada",
+    guestTimezone: "America/Los_Angeles",
+    host: {
+      authUserId: "auth_user_1",
+      calendarId: "primary",
+      id: "host_1",
+      slotSizeMinutes: 30,
+      timezone: "America/Los_Angeles",
+      username: "alice",
+    },
+    now,
+    slotStartAt: slot.startAt,
+    source: "api",
+  };
+}

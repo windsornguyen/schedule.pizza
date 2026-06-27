@@ -6,6 +6,6 @@ resource "cloudflare_workers_script" "pizza" {
   content = "export default { fetch() { return new Response('deployed via terraform') } }"
 
   lifecycle {
-    ignore_changes = [content, compatibility_date, compatibility_flags]
+    ignore_changes = all
   }
 }

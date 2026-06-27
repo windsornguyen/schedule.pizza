@@ -19,11 +19,16 @@ making things "pop."
 
 ## Logo
 
-Rounded-square calendar icon. White **67** on tomato red.
-67 is not a date. It means nothing. That's the point.
+Rounded-square yellow mark. Black lowercase **p**. Black border.
 
-- Favicon: ghost pizza slice behind the 67 (only place pizza touches the logo)
-- Everywhere else: 67 stands alone
+- Favicon: the same **p** mark, no alternate mascot
+- Product surfaces: **p** mark next to `schedule.pizza`
+- Static logo assets: `/logo.svg` for the wordmark, `/logo-mark.svg` for the
+  mark alone
+- Browser install surfaces: same mark via `favicon.svg`, `favicon.ico`,
+  `favicon-32x32.png`, `apple-touch-icon.png`, `icon-192.png`,
+  `icon-512.png`, and `site.webmanifest`
+- No pizza slice in the logo. Pizza is in the name.
 
 ## Colors
 
@@ -35,14 +40,15 @@ accent elements. Never as page backgrounds.
 | Name     | Hex       | Use                          |
 | -------- | --------- | ---------------------------- |
 | Crust    | `#F5E6D0` | OG backgrounds, warm fills   |
-| Tomato   | `#D32F2F` | Logo, primary accent, CTAs   |
+| Tomato   | `#D32F2F` | Primary accent, CTAs         |
 | Cheese   | `#F5A623` | Highlights, hover states     |
 | Basil    | `#4A7C59` | Success, confirmations       |
+| Mark     | `#F1C34B` | Logo fill                    |
 
 ### Site
 
 Neutral. The product wears a white shirt and dark jeans.
-Brand colors don't appear on the site itself.
+Brand colors appear only in the logo mark and rare state accents.
 
 | Token                | Value              | Role            |
 | -------------------- | ------------------ | --------------- |
@@ -79,9 +85,9 @@ Base: `0.625rem`. Everything rounds the same amount.
 
 ## OG Image
 
-1200x630. Crust background. Ghost pizza right side, low opacity.
-67 logo top-left (no pizza behind it). Left-aligned headline in
-dark text. Byline in muted warm brown. That's it.
+1200x630. Warm off-white background. **p** logo top-left with
+`schedule.pizza` next to it. Left-aligned headline in dark text.
+One supporting line. One dark red rule. That's it.
 
 ## Rules
 

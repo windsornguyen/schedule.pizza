@@ -1,12 +1,33 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  listDefaultAvailabilityWindows,
   listDefaultCandidateSlots,
+  parseSlotStart,
   removeBookedSlots,
   serializeSlot,
 } from "./slots.server";
 
 describe("default slots", () => {
+  it("returns weekday availability windows clipped to the request window", () => {
+    const windows = listDefaultAvailabilityWindows({
+      startsAt: new Date("2026-06-26T16:15:00.000Z"),
+      endsAt: new Date("2026-06-29T18:00:00.000Z"),
+      timeZone: "America/Los_Angeles",
+    });
+
+    expect(windows.map(serializeSlot)).toEqual([
+      {
+        start: "2026-06-26T16:15:00.000Z",
+        end: "2026-06-27T00:00:00.000Z",
+      },
+      {
+        start: "2026-06-29T16:00:00.000Z",
+        end: "2026-06-29T18:00:00.000Z",
+      },
+    ]);
+  });
+
   it("returns future weekday slots at the host slot size", () => {
     const slots = listDefaultCandidateSlots({
       now: new Date("2026-06-26T15:15:00.000Z"),
@@ -50,26 +71,23 @@ describe("default slots", () => {
 
     const available = removeBookedSlots(slots, [
       {
-        id: "booking_1",
-        hostId: "host_1",
-        hostUsername: "alice",
-        bookingCodeId: "code_1",
-        guestName: "Guest",
-        guestEmail: null,
-        guestEmailNormalized: null,
-        guestTimezone: null,
         slotStartAt: new Date("2026-06-26T16:15:00.000Z"),
         slotEndAt: new Date("2026-06-26T16:45:00.000Z"),
-        status: "confirmed",
-        source: "api",
-        calendarProvider: null,
-        calendarEventId: null,
-        cancelledAt: null,
-        createdAt: new Date("2026-06-26T15:00:00.000Z"),
-        updatedAt: new Date("2026-06-26T15:00:00.000Z"),
       },
     ]);
 
     expect(available).toEqual([]);
+  });
+
+  it("parses serialized UTC slot starts", () => {
+    expect(parseSlotStart("2026-06-26T16:00:00.000Z")).toEqual(
+      new Date("2026-06-26T16:00:00.000Z"),
+    );
+  });
+
+  it("rejects ambiguous slot starts", () => {
+    expect(parseSlotStart("2026-06-26")).toBeNull();
+    expect(parseSlotStart("2026-06-26T16:00:00")).toBeNull();
+    expect(parseSlotStart("not a time")).toBeNull();
   });
 });

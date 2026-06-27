@@ -4,10 +4,19 @@ import { admin } from "better-auth/plugins/admin";
 import { organization } from "better-auth/plugins/organization";
 import { drizzle } from "drizzle-orm/d1";
 
+import {
+  GOOGLE_CALENDAR_EVENTS_SCOPE,
+  GOOGLE_CALENDAR_FREEBUSY_SCOPE,
+} from "@/calendar/google.server";
 import * as schema from "@/db/schema";
 import type { ServerEnv } from "@/server-context";
 
 type RequiredAuthEnvName = "BETTER_AUTH_SECRET" | "BETTER_AUTH_URL";
+
+export const GOOGLE_OAUTH_SCOPES = [
+  GOOGLE_CALENDAR_FREEBUSY_SCOPE,
+  GOOGLE_CALENDAR_EVENTS_SCOPE,
+] as const;
 
 export class AuthConfigError extends Error {
   constructor(
@@ -68,11 +77,7 @@ export function createAuth(env: ServerEnv) {
       google: {
         clientId: env.GOOGLE_CLIENT_ID,
         clientSecret: env.GOOGLE_CLIENT_SECRET,
-        scope: [
-          "email",
-          "profile",
-          "https://www.googleapis.com/auth/calendar.readonly",
-        ],
+        scope: [...GOOGLE_OAUTH_SCOPES],
         accessType: "offline",
         prompt: "select_account consent",
       },
@@ -81,3 +86,11 @@ export function createAuth(env: ServerEnv) {
 }
 
 export type Auth = ReturnType<typeof createAuth>;
+export type AuthSession = Awaited<ReturnType<Auth["api"]["getSession"]>>;
+
+export function readAuthSession(env: ServerEnv, headers: Headers) {
+  return createAuth(env).api.getSession({
+    headers,
+    query: { disableCookieCache: true },
+  });
+}

@@ -8,3 +8,17 @@ build/
 .google-oauth-client.json
 *.log
 .DS_Store
+.agents/worktrees/
+.playwright-cli/
+.playwright-mcp/
+output/
+google-auth-audience.png
+launch-docs-mobile.png
+schedule-pizza-*.png
+schedule-pizza-docs-mobile-snapshot.md
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+tfplan

@@ -15,6 +15,13 @@
       "when": 1782463433419,
       "tag": "0001_flowery_edwin_jarvis",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1782510890602,
+      "tag": "0002_green_eternity",
+      "breakpoints": true
     }
   ]
 }

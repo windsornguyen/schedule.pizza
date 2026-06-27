@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { AuthConfigError, parseAdminUserIds, readRequiredAuthEnv } from "./auth.server";
+import {
+  AuthConfigError,
+  GOOGLE_OAUTH_SCOPES,
+  parseAdminUserIds,
+  readRequiredAuthEnv,
+} from "./auth.server";
+import {
+  GOOGLE_CALENDAR_EVENTS_SCOPE,
+  GOOGLE_CALENDAR_FREEBUSY_SCOPE,
+} from "./calendar/google.server";
 
 describe("parseAdminUserIds", () => {
   it("accepts missing and blank admin bootstrap config", () => {
@@ -27,5 +36,17 @@ describe("readRequiredAuthEnv", () => {
   it("rejects missing auth env values", () => {
     expect(() => readRequiredAuthEnv(null, "BETTER_AUTH_SECRET")).toThrow(AuthConfigError);
     expect(() => readRequiredAuthEnv(" ", "BETTER_AUTH_SECRET")).toThrow(AuthConfigError);
+  });
+});
+
+describe("GOOGLE_OAUTH_SCOPES", () => {
+  it("requests only calendar scopes beyond Better Auth defaults", () => {
+    expect(GOOGLE_OAUTH_SCOPES).toEqual([
+      GOOGLE_CALENDAR_FREEBUSY_SCOPE,
+      GOOGLE_CALENDAR_EVENTS_SCOPE,
+    ]);
+    expect(GOOGLE_OAUTH_SCOPES).not.toContain("email");
+    expect(GOOGLE_OAUTH_SCOPES).not.toContain("profile");
+    expect(GOOGLE_OAUTH_SCOPES).not.toContain("openid");
   });
 });

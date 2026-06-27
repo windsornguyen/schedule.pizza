@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1270" height="760" viewBox="0 0 1270 760">
+  <rect width="1270" height="760" fill="#F8F5EF"/>
+  <text x="88" y="118" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="800" fill="#171512">authorized availability</text>
+  <text x="88" y="226" font-family="Inter, Arial, sans-serif" font-size="68" font-weight="820" fill="#171512">share a link, not your calendar</text>
+  <text x="92" y="292" font-family="Inter, Arial, sans-serif" font-size="28" fill="#403B33">The code grants access. Username guesses show nothing.</text>
+  <g transform="translate(92 378)">
+    <rect x="0" y="0" width="440" height="62" rx="8" fill="#FFFFFF" stroke="#171512" stroke-opacity="0.2" stroke-width="2"/>
+    <text x="24" y="40" font-family="Geist Mono, Menlo, monospace" font-size="20" fill="#171512">schedule.pizza/alice?code=...</text>
+    <text x="0" y="112" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700" fill="#171512">available times</text>
+    <g font-family="Inter, Arial, sans-serif" font-size="22" fill="#403B33">
+      <text x="0" y="164">Mon, Jun 29, 10:30 AM - 11:00 AM</text>
+      <text x="0" y="212">Mon, Jun 29, 11:00 AM - 11:30 AM</text>
+      <text x="0" y="260">Mon, Jun 29, 11:30 AM - 12:00 PM</text>
+    </g>
+  </g>
+  <g transform="translate(780 360)">
+    <rect x="0" y="0" width="310" height="180" rx="8" fill="#F1C34B" stroke="#171512" stroke-width="4"/>
+    <text x="34" y="72" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="800" fill="#171512">no code</text>
+    <text x="34" y="118" font-family="Inter, Arial, sans-serif" font-size="24" fill="#171512">no availability</text>
+  </g>
+</svg>

@@ -10,8 +10,5 @@ export const pnpmAction =
 export const gitleaksAction =
 	"gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7"; // v2.3.9
 
-export const wranglerAction =
-	"cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd"; // v3.15.0
-
 export const releasePleaseAction =
 	"googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7"; // v5.0.0

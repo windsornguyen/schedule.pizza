@@ -7,11 +7,28 @@ import {
   ScrollRestoration,
 } from "react-router";
 
+import { readAuthSession } from "./auth.server";
+import { LogoMark } from "./components/logo_mark";
 import type { Route } from "./+types/root";
+import { serverContext } from "./server-context";
 import "./app.css";
 
 export const links: Route.LinksFunction = () => [
   { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+  {
+    rel: "icon",
+    type: "image/png",
+    sizes: "32x32",
+    href: "/favicon-32x32.png",
+  },
+  {
+    rel: "icon",
+    type: "image/x-icon",
+    sizes: "16x16 32x32 48x48",
+    href: "/favicon.ico",
+  },
+  { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
+  { rel: "manifest", href: "/site.webmanifest" },
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   {
     rel: "preconnect",
@@ -24,29 +41,29 @@ export const links: Route.LinksFunction = () => [
   },
 ];
 
-function hasSession(request?: Request): boolean {
-  const cookie = request?.headers.get("Cookie") ?? "";
-  return /session=/.test(cookie);
-}
+export async function loader({ context, request }: Route.LoaderArgs) {
+  const session = await readAuthSession(
+    context.get(serverContext).env,
+    request.headers,
+  );
 
-export function loader({ request }: Route.LoaderArgs) {
-  return { loggedIn: hasSession(request) };
+  return {
+    currentPath: new URL(request.url).pathname,
+    loggedIn: session !== null,
+  };
 }
 
 export function Layout({
   children,
-  loaderData,
 }: {
   children: React.ReactNode;
-  loaderData?: { loggedIn: boolean };
 }) {
-  const loggedIn = loaderData?.loggedIn ?? false;
-
   return (
     <html lang="en">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <DocumentSecurityMeta />
         <meta name="theme-color" content="#F5E6D0" />
         <meta property="og:site_name" content="schedule.pizza" />
         <meta property="og:type" content="website" />
@@ -58,23 +75,6 @@ export function Layout({
         <Links />
       </head>
       <body className="font-sans">
-        <header className="mx-auto flex w-full max-w-[550px] justify-end px-4 pt-8">
-          {loggedIn ? (
-            <a
-              href="/auth/logout"
-              className="text-sm text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
-            >
-              logout
-            </a>
-          ) : (
-            <a
-              href="/login"
-              className="text-sm text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
-            >
-              login
-            </a>
-          )}
-        </header>
         {children}
         <ScrollRestoration />
         <Scripts />
@@ -83,8 +83,67 @@ export function Layout({
   );
 }
 
-export default function App() {
-  return <Outlet />;
+export function DocumentSecurityMeta() {
+  return <meta name="referrer" content="no-referrer" />;
+}
+
+export default function App({ loaderData }: Route.ComponentProps) {
+  return (
+    <>
+      <AccountHeader
+        currentPath={loaderData.currentPath}
+        loggedIn={loaderData.loggedIn}
+      />
+      <Outlet />
+    </>
+  );
+}
+
+export function AccountHeader({
+  currentPath,
+  loggedIn,
+}: {
+  readonly currentPath: string;
+  readonly loggedIn: boolean;
+}) {
+  const showLoginLink = !loggedIn && currentPath !== "/login";
+
+  return (
+    <header className="mx-auto flex w-full max-w-[550px] items-center justify-between gap-3 px-4 pt-8">
+      <a
+        href="/"
+        aria-label="schedule.pizza home"
+        className="flex items-center gap-2 text-sm font-semibold text-foreground"
+      >
+        <LogoMark className="size-6 shrink-0 text-foreground" />
+        <span>schedule.pizza</span>
+      </a>
+      {loggedIn ? (
+        <nav className="flex items-center gap-3">
+          <a
+            href="/dashboard"
+            className="text-sm text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
+          >
+            dashboard
+          </a>
+          <a
+            href="/auth/logout"
+            className="text-sm text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
+          >
+            logout
+          </a>
+        </nav>
+      ) : null}
+      {showLoginLink ? (
+        <a
+          href="/login"
+          className="text-sm text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
+        >
+          login
+        </a>
+      ) : null}
+    </header>
+  );
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {

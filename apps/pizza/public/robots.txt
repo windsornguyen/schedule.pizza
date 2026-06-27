@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Allow: /api/v1
+Disallow: /api/
+Disallow: /auth/
+
+Sitemap: https://schedule.pizza/sitemap.xml

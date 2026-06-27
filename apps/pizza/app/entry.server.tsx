@@ -1,6 +1,7 @@
 import type { EntryContext } from "react-router";
 import { ServerRouter } from "react-router";
 import { renderToReadableStream } from "react-dom/server.edge";
+import { setSecurityHeaders } from "./http/security_headers.server";
 
 const STREAM_TIMEOUT = 5_000;
 
@@ -10,6 +11,8 @@ export default async function handleRequest(
   responseHeaders: Headers,
   routerContext: EntryContext
 ) {
+  setSecurityHeaders(responseHeaders);
+
   if (request.method.toUpperCase() === "HEAD") {
     return new Response(null, {
       status: responseStatusCode,

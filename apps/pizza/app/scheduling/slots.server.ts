@@ -1,4 +1,5 @@
-import type { ConfirmedBooking } from "@/db/functions/bookings.server";
+import type { BlockingBooking } from "@/db/functions/bookings.server";
+import { parseUtcDateTime } from "./utc_datetime";
 
 const DEFAULT_WINDOW_DAYS = 14;
 const WORKDAY_END_MINUTE = 17 * 60;
@@ -14,6 +15,8 @@ export type SlotRange = {
   endAt: Date;
   startAt: Date;
 };
+
+type BusyRange = Pick<BlockingBooking, "slotEndAt" | "slotStartAt">;
 
 export function listDefaultCandidateSlots(
   input: { now: Date; slotSizeMinutes: number; timeZone: string },
@@ -43,9 +46,51 @@ export function listDefaultCandidateSlots(
   return slots;
 }
 
+export function listDefaultAvailabilityWindows(input: {
+  endsAt: Date;
+  startsAt: Date;
+  timeZone: string;
+}): SlotRange[] {
+  if (!isValidTimeZone(input.timeZone)) {
+    throw new Error("invalid time zone");
+  }
+
+  if (input.startsAt >= input.endsAt) {
+    throw new Error("invalid availability window");
+  }
+
+  const windows: SlotRange[] = [];
+  const firstDay = getTimeZoneDate(input.startsAt, input.timeZone);
+  const dayCount = Math.ceil(
+    (input.endsAt.getTime() - input.startsAt.getTime()) / (24 * 60 * 60 * 1_000),
+  ) + 2;
+
+  for (let dayOffset = 0; dayOffset < dayCount; dayOffset += 1) {
+    const day = addLocalDays(firstDay, dayOffset);
+
+    if (!isWeekday(day)) {
+      continue;
+    }
+
+    const windowStartAt = localMinuteToUtcDate(day, WORKDAY_START_MINUTE, input.timeZone);
+    const windowEndAt = localMinuteToUtcDate(day, WORKDAY_END_MINUTE, input.timeZone);
+
+    if (windowEndAt <= input.startsAt || windowStartAt >= input.endsAt) {
+      continue;
+    }
+
+    windows.push({
+      startAt: new Date(Math.max(windowStartAt.getTime(), input.startsAt.getTime())),
+      endAt: new Date(Math.min(windowEndAt.getTime(), input.endsAt.getTime())),
+    });
+  }
+
+  return windows;
+}
+
 export function removeBookedSlots(
   slots: SlotRange[],
-  bookings: ConfirmedBooking[],
+  bookings: BusyRange[],
 ) {
   return slots.filter(
     (slot) =>
@@ -64,13 +109,7 @@ export function serializeSlot(slot: SlotRange) {
 }
 
 export function parseSlotStart(value: string) {
-  const parsed = new Date(value);
-
-  if (Number.isNaN(parsed.getTime())) {
-    return null;
-  }
-
-  return parsed;
+  return parseUtcDateTime(value);
 }
 
 export function isDefaultCandidateSlot(input: {

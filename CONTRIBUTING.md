@@ -17,13 +17,17 @@ pnpm install
 pnpm --filter @schedule.pizza/web dev
 ```
 
+The local dev server must run on port `5173`, matching
+`apps/pizza/.dev.vars.example`'s `BETTER_AUTH_URL`. If the port is occupied,
+stop that process instead of letting the app move to another port.
+
 Run checks before opening a pull request:
 
 ```bash
 pnpm --filter @schedule.pizza/web lint
 pnpm --filter @schedule.pizza/web typecheck
 pnpm --filter @schedule.pizza/web test
-pnpm --filter @schedule.pizza/web db:check
+pnpm --filter @schedule.pizza/web db -- check
 pnpm --filter @schedule.pizza/web build
 ```
 
@@ -33,7 +37,7 @@ The database schema is defined in TypeScript under
 `apps/pizza/app/db/schema/`. Generate migrations from the schema:
 
 ```bash
-pnpm --filter @schedule.pizza/web db:generate
+pnpm --filter @schedule.pizza/web db -- generate
 ```
 
 Do not hand-write migration SQL for ordinary schema changes. The TypeScript

@@ -3,7 +3,6 @@ import {
 	checkoutAction,
 	pnpmAction,
 	setupNodeAction,
-	wranglerAction,
 } from "./actions";
 
 const setup = [
@@ -35,12 +34,20 @@ export const deploy = workflow({
 				...setup,
 				{ name: "Build", run: "pnpm build" },
 				{
-					uses: wranglerAction,
-					with: {
-						apiToken: "${{ env.CLOUDFLARE_API_TOKEN }}",
-						accountId: "${{ env.CLOUDFLARE_ACCOUNT_ID }}",
-						workingDirectory: "apps/pizza",
-					},
+					name: "Apply D1 migrations",
+					run: "pnpm exec wrangler d1 migrations apply DB --remote",
+				},
+				{
+					name: "Upload Worker version",
+					run: 'pnpm exec wrangler versions upload --tag "${GITHUB_SHA}" --message "${GITHUB_SHA}"',
+				},
+				{
+					name: "Deploy Worker version",
+					run: 'pnpm exec wrangler versions deploy --version-tag "${GITHUB_SHA}" --message "${GITHUB_SHA}" --yes',
+				},
+				{
+					name: "Smoke live deployment",
+					run: "SCHEDULE_PIZZA_URL=https://schedule.pizza pnpm --workspace-root smoke",
 				},
 			],
 		}),

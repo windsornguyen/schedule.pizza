@@ -30,7 +30,7 @@ Schema files stay declarative.
 Generate SQL migrations from the TypeScript schema:
 
 ```
-pnpm --filter @schedule.pizza/web db generate
+pnpm --filter @schedule.pizza/web db -- generate
 ```
 
 Do not hand-write migration SQL for ordinary schema changes. The generated SQL

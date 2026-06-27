@@ -1,17 +1,23 @@
 {
   "name": "schedule-pizza",
   "main": "./workers/app.ts",
-  "compatibility_date": "2025-06-01",
+  "compatibility_date": "2026-06-24",
   "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
   "workers_dev": false,
-  "routes": [{ "pattern": "schedule.pizza/*", "zone_name": "schedule.pizza" }],
+  // The production route is owned by Terraform in apps/pizza/iac/route.tf.
+  // Wrangler owns script deployment only, so CI does not need zone route access.
   // Created by Terraform in apps/pizza/iac.
   // Copy the prod value from: terraform output -json d1_database_ids
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "schedule-pizza-prod-db",
-      "database_id": "09e70875-d9bd-4b44-868b-86971fcd0486"
+      "database_id": "09e70875-d9bd-4b44-868b-86971fcd0486",
+      "migrations_dir": "drizzle"
     }
   ],
   "env": {
@@ -22,7 +28,8 @@
         {
           "binding": "DB",
           "database_name": "schedule-pizza-dev-db",
-          "database_id": "b8c00258-4534-4c1e-922e-c18a87760190"
+          "database_id": "b8c00258-4534-4c1e-922e-c18a87760190",
+          "migrations_dir": "drizzle"
         }
       ]
     }

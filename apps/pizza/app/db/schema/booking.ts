@@ -11,7 +11,12 @@ import {
 import { bookingCode } from "./booking_code";
 import { hostProfile } from "./host_profile";
 
-export const bookingStatuses = ["confirmed", "cancelled"] as const;
+export const bookingStatuses = [
+  "pending_calendar",
+  "confirmed",
+  "calendar_failed",
+  "cancelled",
+] as const;
 export const bookingSources = ["web", "api"] as const;
 
 export const booking = sqliteTable(
@@ -46,7 +51,7 @@ export const booking = sqliteTable(
     ),
     check(
       "booking_status_check",
-      sql`${table.status} in ('confirmed', 'cancelled')`
+      sql`${table.status} in ('pending_calendar', 'confirmed', 'calendar_failed', 'cancelled')`
     ),
     check("booking_source_check", sql`${table.source} in ('web', 'api')`),
     index("booking_hostId_idx").on(table.hostId),
@@ -54,6 +59,6 @@ export const booking = sqliteTable(
     index("booking_bookingCodeId_idx").on(table.bookingCodeId),
     uniqueIndex("booking_confirmed_slot_unique")
       .on(table.hostId, table.slotStartAt, table.slotEndAt)
-      .where(sql`${table.status} = 'confirmed'`),
+      .where(sql`${table.status} in ('pending_calendar', 'confirmed')`),
   ]
 );

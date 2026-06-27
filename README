@@ -1,15 +1,18 @@
 schedule.pizza
 ==============
 
-The easiest way to find some time. Designed for agents, built for humans.
+easiest way to find a time. Designed for agents, built for humans.
 
 API
 ---
 
 ::
 
-    GET  /api/v1/availability?user={username}
+    GET  /api/v1/availability?user={username}&code={booking_code}
+    POST /api/v1/schedule
+    POST /api/v1/recommend
     POST /api/v1/book
+    POST /api/v1/book-group
     GET  /api/v1
 
 Development
@@ -19,8 +22,42 @@ Development
 
     pnpm install
     pnpm dev
+    pnpm smoke
+    SCHEDULE_PIZZA_URL=https://schedule.pizza \
+      SCHEDULE_PIZZA_SMOKE_USER={username} \
+      SCHEDULE_PIZZA_SMOKE_CODE={booking_code} \
+      pnpm smoke-authorized
+    SCHEDULE_PIZZA_URL=https://schedule.pizza \
+      SCHEDULE_PIZZA_SMOKE_URL={booking_url} \
+      pnpm smoke-authorized
+    SCHEDULE_PIZZA_URL=https://schedule.pizza \
+      SCHEDULE_PIZZA_SMOKE_URL={booking_url} \
+      SCHEDULE_PIZZA_SMOKE_SESSION_COOKIE={better_auth_cookie} \
+      pnpm smoke-authorized
+    SCHEDULE_PIZZA_URL=https://schedule.pizza \
+      SCHEDULE_PIZZA_SMOKE_URL={booking_url} \
+      SCHEDULE_PIZZA_SMOKE_WRITE=1 \
+      SCHEDULE_PIZZA_SMOKE_BOOKER_EMAIL={booker_email} \
+      SCHEDULE_PIZZA_SMOKE_SESSION_COOKIE={better_auth_cookie} \
+      pnpm smoke-authorized
+    SCHEDULE_PIZZA_LIVE_SMOKE=1 \
+      SCHEDULE_PIZZA_URL=https://schedule.pizza \
+      SCHEDULE_PIZZA_LIVE_SMOKE_USER={username} \
+      SCHEDULE_PIZZA_LIVE_SMOKE_BOOKER_EMAIL={booker_email} \
+      pnpm smoke-live
     pnpm build
     pnpm deploy
+
+Use a real booking code for authorized smoke checks. Failed code checks are
+rate-limited. A session cookie checks signed-in host APIs. Use the full signed
+browser cookie, usually `__Secure-better-auth.session_token=...` on production;
+the raw `session.token` database value is not a valid cookie. Write smoke
+creates one booking and cancels it through the host account session.
+
+Live smoke is an operator check for production. It creates a temporary booking
+code in D1, books one individual slot and one group slot through the public API,
+deletes the Google Calendar events, marks the rows cancelled, and revokes the
+temporary code. It refuses to run unless `SCHEDULE_PIZZA_LIVE_SMOKE=1`.
 
 Contributing
 ------------
