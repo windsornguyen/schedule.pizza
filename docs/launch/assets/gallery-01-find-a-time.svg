@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1270" height="760" viewBox="0 0 1270 760">
+  <rect width="1270" height="760" fill="#F8F5EF"/>
+  <g transform="translate(88 70)">
+    <rect x="0" y="0" width="42" height="42" rx="5" fill="#F1C34B" stroke="#171512" stroke-width="3"/>
+    <path transform="scale(1.3125)" fill="#171512" d="M10.8 25V8.2h4.1v1.5c.9-1.2 2.2-1.8 3.9-1.8 4 0 6.7 3 6.7 7.1s-2.8 7.1-6.8 7.1c-1.6 0-2.9-.5-3.8-1.6V25h-4.1Zm7.3-6.4c1.9 0 3.1-1.4 3.1-3.6s-1.2-3.6-3.1-3.6c-1.9 0-3.2 1.4-3.2 3.6s1.3 3.6 3.2 3.6Z"/>
+  </g>
+  <text x="150" y="101" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="800" fill="#171512">schedule.pizza</text>
+  <path d="M88 146 H1182" stroke="#171512" stroke-opacity="0.16" stroke-width="2"/>
+  <text x="88" y="310" font-family="Inter, Arial, sans-serif" font-size="78" font-weight="820" fill="#171512">easiest way to find a time</text>
+  <text x="92" y="380" font-family="Inter, Arial, sans-serif" font-size="30" fill="#403B33">One booking link for people and agents.</text>
+  <g transform="translate(92 470)">
+    <rect x="0" y="0" width="700" height="72" rx="8" fill="#FFFFFF" stroke="#171512" stroke-opacity="0.22" stroke-width="2"/>
+    <text x="28" y="46" font-family="Inter, Arial, sans-serif" font-size="28" fill="#6B6257">username or link</text>
+    <rect x="610" y="12" width="72" height="48" rx="7" fill="#171512"/>
+    <text x="632" y="45" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="700" fill="#F8F5EF">go</text>
+  </g>
+</svg>
