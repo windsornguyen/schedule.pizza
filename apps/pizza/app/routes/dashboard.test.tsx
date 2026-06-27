@@ -213,6 +213,8 @@ describe("dashboard profile form parser", () => {
       <Stub initialEntries={["/dashboard"]} />,
     );
 
-    expect(html).toContain("group booking. cancel from google calendar.");
+    expect(html).toContain(
+      "group booking. ask the organizer to cancel from google calendar.",
+    );
   });
 });

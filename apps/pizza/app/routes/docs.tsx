@@ -176,6 +176,8 @@ export default function Docs() {
           <code className="font-mono">
             POST /api/v1/account/bookings/:bookingId/cancel
           </code>. Group bookings stay visible in each host's dashboard.
+          Ask the group organizer to cancel the shared event from Google
+          Calendar.
         </p>
         <pre className="whitespace-pre-wrap break-words rounded-md border bg-muted p-3 font-mono text-sm">
           <code>{`POST /api/v1/me/bootstrap

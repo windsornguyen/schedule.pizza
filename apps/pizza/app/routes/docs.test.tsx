@@ -32,6 +32,7 @@ describe("docs page examples", () => {
     expect(html).toContain("/api/v1/me/booking-code");
     expect(html).toContain("/api/v1/account/bookings/booking_123/cancel");
     expect(html).toContain("bookingUrl");
+    expect(html).toContain("Ask the group organizer to cancel");
   });
 
   it("describes recommendation response priority", () => {

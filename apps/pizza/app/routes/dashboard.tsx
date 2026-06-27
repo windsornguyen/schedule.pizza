@@ -440,7 +440,7 @@ function readBookingCancellationNotice(
   booking: NonNullable<Route.ComponentProps["loaderData"]["profile"]>["bookings"][number],
 ) {
   if (booking.cancelDisabledReason === "group_booking") {
-    return "group booking. cancel from google calendar.";
+    return "group booking. ask the organizer to cancel from google calendar.";
   }
 
   return "calendar event missing. reconnect google calendar.";
@@ -556,7 +556,7 @@ function readCancellationErrorMessage(code: DashboardActionCode) {
   }
 
   if (code === "group_booking_cancel_unsupported") {
-    return "group bookings stay on each host's calendar.";
+    return "ask the group organizer to cancel from google calendar.";
   }
 
   if (

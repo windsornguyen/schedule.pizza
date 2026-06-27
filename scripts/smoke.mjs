@@ -19,6 +19,7 @@ await checkText("/llms.txt", "llms", [
   "GET /api/v1/account/bookings",
   "kind",
   "structured `cancel` object",
+  "group organizer cancels",
 ]);
 await checkText("/robots.txt", "robots", ["Allow: /api/v1", "Disallow: /api/"]);
 await checkText("/.well-known/security.txt", "security policy", [
