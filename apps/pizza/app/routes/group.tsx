@@ -141,6 +141,14 @@ export async function action({
 export default function Group({
   actionData,
 }: Route.ComponentProps) {
+  return <GroupContent actionData={actionData ?? null} />;
+}
+
+export function GroupContent({
+  actionData,
+}: {
+  readonly actionData: GroupActionData | null;
+}) {
   const values = actionData?.values ?? defaultGroupScheduleFormValues();
 
   return (
@@ -268,11 +276,6 @@ function ScheduleResultView({
     return (
       <section className="mt-10 space-y-3">
         <h2 className="text-sm font-semibold">exact times</h2>
-        {result.slots.map((slot) => (
-          <p key={slot.start} className="text-sm text-muted-foreground">
-            {formatSlotLabel(slot, timeZone)}
-          </p>
-        ))}
         <BookExactSlotForm
           slots={result.slots}
           timeZone={timeZone}
@@ -322,6 +325,14 @@ function BookExactSlotForm({
       <input type="hidden" name="granularityMinutes" value={values.granularityMinutes} />
       <input type="hidden" name="timeZone" value={values.timeZone} />
       <input type="hidden" name="timezone" value={timeZone} />
+      <div className="space-y-2">
+        {slots.map((slot) => (
+          <label key={slot.start} className="flex items-center gap-2 text-sm">
+            <input type="radio" name="slot" value={slot.start} required />
+            <span>{formatSlotLabel(slot, timeZone)}</span>
+          </label>
+        ))}
+      </div>
       <label className="block space-y-2">
         <span className="text-sm font-semibold">name</span>
         <input
@@ -341,15 +352,6 @@ function BookExactSlotForm({
           className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none focus:border-ring focus:ring-[3px] focus:ring-ring/50"
         />
       </label>
-      <div className="space-y-2">
-        <p className="text-sm font-semibold">book</p>
-        {slots.map((slot) => (
-          <label key={slot.start} className="flex items-center gap-2 text-sm">
-            <input type="radio" name="slot" value={slot.start} required />
-            <span>{formatSlotLabel(slot, timeZone)}</span>
-          </label>
-        ))}
-      </div>
       <button
         type="submit"
         className="rounded-md border px-3 py-2 text-sm transition-colors hover:bg-muted"
