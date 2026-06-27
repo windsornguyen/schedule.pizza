@@ -22,6 +22,7 @@ Development
 
     pnpm install
     pnpm dev
+    pnpm smoke
     pnpm build
     pnpm deploy
 

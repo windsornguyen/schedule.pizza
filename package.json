@@ -8,6 +8,7 @@
     "build": "pnpm --filter @schedule.pizza/web build",
     "deploy": "pnpm --filter @schedule.pizza/web deploy",
     "lint": "pnpm --filter @schedule.pizza/web lint",
+    "smoke": "node scripts/smoke.mjs",
     "typecheck": "pnpm --filter @schedule.pizza/web typecheck",
     "test": "pnpm --filter @schedule.pizza/web test"
   },
