@@ -9,6 +9,7 @@ build/
 *.log
 .DS_Store
 .agents/worktrees/
+.playwright-cli/
 .playwright-mcp/
 output/
 google-auth-audience.png
