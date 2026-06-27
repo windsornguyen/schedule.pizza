@@ -52,11 +52,11 @@ Each candidate reports:
 - soft conflicts
 - affected profiles
 - movable events, when known
-- nearest exact slot, when one exists outside the requested window
 
-Soft conflicts are events a profile has marked as loose or movable. They do not
-make a slot bookable by default. They explain which calendar moves would make
-the slot work.
+Soft conflicts are events an adapter has marked as loose or movable. They do
+not make a slot bookable by default. They explain which calendar moves would
+make the slot work. The current HTTP adapter emits hard conflicts from
+schedule.pizza bookings and Google free/busy.
 
 ## Cache
 
