@@ -28,6 +28,7 @@ import type { Route } from "./+types/dashboard";
 
 type DashboardActionData = NonNullable<Route.ComponentProps["actionData"]> | null;
 type DashboardActionCode = NonNullable<DashboardActionData>["code"];
+type DashboardCalendarStatus = "connected" | "reconnect_required";
 
 export function meta() {
   return [{ title: "dashboard - schedule.pizza" }];
@@ -227,18 +228,12 @@ function ProfilePanel({
       <p className="text-sm text-muted-foreground">
         {profile.slotSizeMinutes} minute slots, {profile.timezone}
       </p>
-      <ActiveBookingCodeNotice hasActiveBookingCode={profile.hasActiveBookingCode} />
+      <ActiveBookingCodeNotice
+        calendarStatus={profile.calendarStatus}
+        hasActiveBookingCode={profile.hasActiveBookingCode}
+      />
       {profile.calendarStatus === "reconnect_required" ? (
-        <p className="text-sm text-destructive">
-          google calendar needs{" "}
-          <a
-            href="/auth/google"
-            className="underline decoration-border underline-offset-4"
-          >
-            reconnect
-          </a>
-          .
-        </p>
+        <CalendarReconnectNotice />
       ) : null}
       <Form method="post" className="space-y-4">
         <input type="hidden" name="intent" value="update_profile" />
@@ -280,15 +275,9 @@ function ProfilePanel({
           save profile
         </button>
       </Form>
-      <Form method="post">
-        <input type="hidden" name="intent" value="create_code" />
-        <button
-          type="submit"
-          className="rounded-md border px-3 py-2 text-sm transition-colors hover:bg-muted"
-        >
-          {profile.hasActiveBookingCode ? "rotate booking code" : "create booking code"}
-        </button>
-      </Form>
+      {profile.calendarStatus === "connected" ? (
+        <BookingCodeForm hasActiveBookingCode={profile.hasActiveBookingCode} />
+      ) : null}
       <UpcomingBookings bookings={profile.bookings} timezone={profile.timezone} />
       <ActionMessage actionData={actionData} />
     </section>
@@ -296,14 +285,49 @@ function ProfilePanel({
 }
 
 function ActiveBookingCodeNotice({
+  calendarStatus,
+  hasActiveBookingCode,
+}: {
+  readonly calendarStatus: DashboardCalendarStatus;
+  readonly hasActiveBookingCode: boolean;
+}) {
+  return (
+    <p className="text-sm text-muted-foreground">
+      {readActiveBookingCodeNotice({ calendarStatus, hasActiveBookingCode })}
+    </p>
+  );
+}
+
+function CalendarReconnectNotice() {
+  return (
+    <p className="text-sm text-destructive">
+      google calendar needs{" "}
+      <a
+        href="/auth/google"
+        className="underline decoration-border underline-offset-4"
+      >
+        reconnect
+      </a>{" "}
+      before availability and bookings work.
+    </p>
+  );
+}
+
+function BookingCodeForm({
   hasActiveBookingCode,
 }: {
   readonly hasActiveBookingCode: boolean;
 }) {
   return (
-    <p className="text-sm text-muted-foreground">
-      {readActiveBookingCodeNotice(hasActiveBookingCode)}
-    </p>
+    <Form method="post">
+      <input type="hidden" name="intent" value="create_code" />
+      <button
+        type="submit"
+        className="rounded-md border px-3 py-2 text-sm transition-colors hover:bg-muted"
+      >
+        {hasActiveBookingCode ? "rotate booking code" : "create booking code"}
+      </button>
+    </Form>
   );
 }
 
@@ -435,7 +459,7 @@ function ActionMessage({
         >
           reconnect google calendar
         </a>{" "}
-        before creating a profile.
+        before creating or rotating booking codes.
       </p>
     );
   }
@@ -581,8 +605,17 @@ export function formatDashboardBookingUrl(input: {
   return `https://schedule.pizza/${input.username}?code=${input.bookingCode}`;
 }
 
-export function readActiveBookingCodeNotice(hasActiveBookingCode: boolean) {
-  return hasActiveBookingCode
+export function readActiveBookingCodeNotice(input: {
+  readonly calendarStatus: DashboardCalendarStatus;
+  readonly hasActiveBookingCode: boolean;
+}) {
+  if (input.calendarStatus === "reconnect_required") {
+    return input.hasActiveBookingCode
+      ? "active booking code exists. reconnect google calendar before people or agents can see times."
+      : "reconnect google calendar before creating a share link.";
+  }
+
+  return input.hasActiveBookingCode
     ? "active booking code exists. rotate to reveal a new link and revoke the hidden one."
     : "no active booking code. create one to reveal a share link.";
 }

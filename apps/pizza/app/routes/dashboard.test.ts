@@ -80,14 +80,29 @@ describe("dashboard profile form parser", () => {
   });
 
   it("tells hosts when there is no active booking code", () => {
-    expect(readActiveBookingCodeNotice(false)).toBe(
+    expect(readActiveBookingCodeNotice({
+      calendarStatus: "connected",
+      hasActiveBookingCode: false,
+    })).toBe(
       "no active booking code. create one to reveal a share link.",
     );
   });
 
   it("tells hosts when an active booking code is hidden", () => {
-    expect(readActiveBookingCodeNotice(true)).toBe(
+    expect(readActiveBookingCodeNotice({
+      calendarStatus: "connected",
+      hasActiveBookingCode: true,
+    })).toBe(
       "active booking code exists. rotate to reveal a new link and revoke the hidden one.",
+    );
+  });
+
+  it("tells hosts when calendar reconnect pauses an active code", () => {
+    expect(readActiveBookingCodeNotice({
+      calendarStatus: "reconnect_required",
+      hasActiveBookingCode: true,
+    })).toBe(
+      "active booking code exists. reconnect google calendar before people or agents can see times.",
     );
   });
 });
