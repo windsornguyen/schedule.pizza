@@ -93,12 +93,12 @@ describe("dashboard profile form parser", () => {
     );
   });
 
-  it("tells hosts when an active booking code is hidden", () => {
+  it("tells hosts why an active booking code cannot be revealed", () => {
     expect(readActiveBookingCodeNotice({
       calendarStatus: "connected",
       hasActiveBookingCode: true,
     })).toBe(
-      "a share link exists. create a new one to reveal it and revoke the old one.",
+      "a share link exists. schedule.pizza only shows the code when it is created. create a new link if you lost it.",
     );
   });
 
@@ -156,6 +156,7 @@ describe("dashboard profile form parser", () => {
     expect(html.indexOf("moon-tiger-seven")).toBeLessThan(
       html.indexOf("upcoming"),
     );
+    expect(html).toContain("save this link. previous codes are revoked.");
   });
 
   it("renders host-facing messages instead of raw action codes", () => {

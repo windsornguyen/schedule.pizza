@@ -472,7 +472,13 @@ function ActionMessage({
         {actionData.code === "created_code" ? (
           <>
             <br />
-            previous codes are revoked.
+            save this link. previous codes are revoked.
+          </>
+        ) : null}
+        {actionData.code === "created_profile" ? (
+          <>
+            <br />
+            save this link. schedule.pizza only stores a hash of the code.
           </>
         ) : null}
       </p>
@@ -496,6 +502,8 @@ function ActionMessage({
           >
             {bookingUrl}
           </a>
+          <br />
+          save this link. schedule.pizza only stores a hash of the code.
         </p>
       );
     }
@@ -741,7 +749,7 @@ export function readActiveBookingCodeNotice(input: {
   }
 
   return input.hasActiveBookingCode
-    ? "a share link exists. create a new one to reveal it and revoke the old one."
+    ? "a share link exists. schedule.pizza only shows the code when it is created. create a new link if you lost it."
     : "no share link yet. create one to reveal the code.";
 }
 

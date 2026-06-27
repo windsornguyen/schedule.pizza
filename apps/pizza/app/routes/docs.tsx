@@ -28,6 +28,8 @@ export default function Docs() {
           The code in the link is the capability: without it, schedule.pizza
           should not expose availability. Confirmed bookings appear in the
           dashboard, where hosts can cancel upcoming individual bookings.
+          New links are shown once. If a host loses the code, they create a
+          new link and the old code stops working.
         </p>
       </section>
 
@@ -171,7 +173,8 @@ export default function Docs() {
           agents can tell individual bookings from shared group bookings.
           When a host creates or rotates a booking code, account responses
           include the absolute <code className="font-mono">bookingUrl</code>{" "}
-          that can be handed to people or agents.
+          that can be handed to people or agents. Later account reads do not
+          return the plaintext code.
           To cancel an upcoming individual booking, call{" "}
           <code className="font-mono">
             POST /api/v1/account/bookings/:bookingId/cancel
