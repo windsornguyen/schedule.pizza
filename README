@@ -44,8 +44,10 @@ Development
     pnpm deploy
 
 Use a real booking code for authorized smoke checks. Failed code checks are
-rate-limited. A session cookie checks signed-in host APIs. Write smoke creates
-one booking and cancels it through the host account session.
+rate-limited. A session cookie checks signed-in host APIs. Use the full signed
+browser cookie, usually `__Secure-better-auth.session_token=...` on production;
+the raw `session.token` database value is not a valid cookie. Write smoke
+creates one booking and cancels it through the host account session.
 
 Contributing
 ------------

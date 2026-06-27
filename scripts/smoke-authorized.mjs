@@ -116,7 +116,7 @@ export function readWriteSmokeConfig(env) {
     ),
     bookerName: readOptionalEnvValue(env["SCHEDULE_PIZZA_SMOKE_BOOKER_NAME"]) ?? "schedule.pizza smoke",
     enabled: true,
-    sessionCookie: readHeaderValue(
+    sessionCookie: readSessionCookieHeader(
       readRequiredEnvValue(env["SCHEDULE_PIZZA_SMOKE_SESSION_COOKIE"], "SCHEDULE_PIZZA_SMOKE_SESSION_COOKIE"),
       "SCHEDULE_PIZZA_SMOKE_SESSION_COOKIE",
     ),
@@ -134,7 +134,7 @@ export function readAccountSmokeConfig(env) {
     ? { enabled: false }
     : {
         enabled: true,
-        sessionCookie: readHeaderValue(
+        sessionCookie: readSessionCookieHeader(
           sessionCookie,
           "SCHEDULE_PIZZA_SMOKE_SESSION_COOKIE",
         ),
@@ -222,6 +222,33 @@ function readHeaderValue(value, name) {
   }
 
   return value;
+}
+
+export function readSessionCookieHeader(value, name) {
+  const cookieHeader = readHeaderValue(value, name);
+  const match = cookieHeader.match(
+    /(?:^|;\s*)(?:__Secure-)?better-auth\.session_token=([^;]+)/u,
+  );
+
+  if (match === null) {
+    throw new Error(`${name} must include the Better Auth session_token cookie`);
+  }
+
+  const cookieValue = decodeCookieValue(match[1] ?? "");
+
+  if (cookieValue.lastIndexOf(".") <= 0) {
+    throw new Error(`${name} must be the signed browser cookie, not the raw database token`);
+  }
+
+  return cookieHeader;
+}
+
+function decodeCookieValue(value) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
 }
 
 function readTimeZone(value, name) {
