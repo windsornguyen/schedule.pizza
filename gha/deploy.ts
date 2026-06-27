@@ -46,6 +46,10 @@ export const deploy = workflow({
 						workingDirectory: "apps/pizza",
 					},
 				},
+				{
+					name: "Smoke live deployment",
+					run: "SCHEDULE_PIZZA_URL=https://schedule.pizza pnpm --workspace-root smoke",
+				},
 			],
 		}),
 	},

@@ -41,3 +41,5 @@ jobs:
           apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/pizza
+      - name: Smoke live deployment
+        run: SCHEDULE_PIZZA_URL=https://schedule.pizza pnpm --workspace-root smoke
