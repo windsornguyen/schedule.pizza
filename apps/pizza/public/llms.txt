@@ -39,9 +39,10 @@ first, then ranked alternatives only when no exact slot exists.
 ## Host agents
 
 Signed-in host agents use the Better Auth session cookie. `GET /api/v1/account`
-returns profile state and the newest generated `bookingUrl` when a code is
-created or rotated. `GET /api/v1/account/bookings` returns upcoming confirmed
-bookings with `kind` and a structured `cancel` object. Individual bookings can
-be cancelled through the account cancellation endpoint. Group bookings are
-visible to each host, but the group organizer cancels the shared event from
-Google Calendar.
+returns profile state. Bootstrap, profile rename, and code rotation responses
+include the newly generated `bookingUrl`; later account reads return active code
+metadata but not the plaintext booking code. `GET /api/v1/account/bookings`
+returns upcoming confirmed bookings with `kind` and a structured `cancel`
+object. Individual bookings can be cancelled through the account cancellation
+endpoint. Group bookings are visible to each host, but the group organizer
+cancels the shared event from Google Calendar.
