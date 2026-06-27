@@ -152,6 +152,44 @@ describe("v1 API CORS", () => {
   });
 });
 
+describe("v1 health API", () => {
+  it("reports healthy runtime configuration and D1 schema access", async () => {
+    mocks.createDb.mockReturnValueOnce(healthyDb());
+
+    const response = await v1.request("https://schedule.pizza/health", {}, env);
+
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      auth: {
+        googleClientId: "google_client_id",
+        googleRedirectUri: "https://schedule.pizza/api/auth/callback/google",
+      },
+      checks: {
+        database: "healthy",
+        runtime: "healthy",
+      },
+    });
+    expect(response.status).toBe(200);
+  });
+
+  it("fails closed before touching D1 when runtime secrets are missing", async () => {
+    const response = await v1.request("https://schedule.pizza/health", {}, {
+      ...env,
+      BETTER_AUTH_SECRET: "",
+    });
+
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      error: {
+        code: "runtime_secret_missing",
+        message: "BETTER_AUTH_SECRET is missing",
+      },
+    });
+    expect(response.status).toBe(503);
+    expect(mocks.createDb).not.toHaveBeenCalled();
+  });
+});
+
 describe("account profile API", () => {
   it("rotates and returns a fresh booking code when the username changes", async () => {
     mocks.findHostProfileByAuthUserId
@@ -319,6 +357,16 @@ describe("account profile API body parser", () => {
     expect(parseAccountProfileBody(body)).toEqual({ code, field });
   });
 });
+
+function healthyDb() {
+  return {
+    select: () => ({
+      from: () => ({
+        limit: async () => [{ id: "host_1" }],
+      }),
+    }),
+  };
+}
 
 function groupBookBody(): Record<string, unknown> {
   return {
