@@ -15,6 +15,7 @@ import {
 } from "@/db/functions/bookings.server";
 import {
   createBookingCode,
+  findActiveBookingCodeForHost,
   rotateBookingCode,
 } from "@/db/functions/booking_codes.server";
 import {
@@ -47,12 +48,17 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     return { email: session.user.email, profile: null };
   }
 
-  const [calendarStatus, bookings] = await Promise.all([
-    readCalendarStatus(db, env, session.user.id),
+  const now = new Date();
+  const [activeBookingCode, calendarStatus, bookings] = await Promise.all([
+    findActiveBookingCodeForHost(db, {
+      hostId: profile.id,
+      now,
+    }),
+    readCalendarStatus(db, env, session.user.id, now),
     listUpcomingConfirmedBookingsForHost(db, {
       hostId: profile.id,
       limit: 5,
-      now: new Date(),
+      now,
     }),
   ]);
 
@@ -74,6 +80,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     profile: {
       bookings: serializedBookings,
       calendarStatus,
+      hasActiveBookingCode: activeBookingCode !== null,
       slotSizeMinutes: profile.slotSizeMinutes,
       timezone: profile.timezone,
       username: profile.username,
@@ -220,10 +227,7 @@ function ProfilePanel({
       <p className="text-sm text-muted-foreground">
         {profile.slotSizeMinutes} minute slots, {profile.timezone}
       </p>
-      <p className="text-sm text-muted-foreground">
-        booking codes are shown only when created. rotate to make a new share
-        link and revoke the old one.
-      </p>
+      <ActiveBookingCodeNotice hasActiveBookingCode={profile.hasActiveBookingCode} />
       {profile.calendarStatus === "reconnect_required" ? (
         <p className="text-sm text-destructive">
           google calendar needs{" "}
@@ -282,12 +286,24 @@ function ProfilePanel({
           type="submit"
           className="rounded-md border px-3 py-2 text-sm transition-colors hover:bg-muted"
         >
-          rotate booking code
+          {profile.hasActiveBookingCode ? "rotate booking code" : "create booking code"}
         </button>
       </Form>
       <UpcomingBookings bookings={profile.bookings} timezone={profile.timezone} />
       <ActionMessage actionData={actionData} />
     </section>
+  );
+}
+
+function ActiveBookingCodeNotice({
+  hasActiveBookingCode,
+}: {
+  readonly hasActiveBookingCode: boolean;
+}) {
+  return (
+    <p className="text-sm text-muted-foreground">
+      {readActiveBookingCodeNotice(hasActiveBookingCode)}
+    </p>
   );
 }
 
@@ -563,6 +579,12 @@ export function formatDashboardBookingUrl(input: {
   readonly username: string;
 }) {
   return `https://schedule.pizza/${input.username}?code=${input.bookingCode}`;
+}
+
+export function readActiveBookingCodeNotice(hasActiveBookingCode: boolean) {
+  return hasActiveBookingCode
+    ? "active booking code exists. rotate to reveal a new link and revoke the hidden one."
+    : "no active booking code. create one to reveal a share link.";
 }
 
 function hasDashboardBookingUrl(

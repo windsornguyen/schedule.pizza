@@ -4,7 +4,10 @@ import {
   parseProfileForm,
   readDefaultUsernameFromEmail,
 } from "@/dashboard/profile_form";
-import { formatDashboardBookingUrl } from "./dashboard";
+import {
+  formatDashboardBookingUrl,
+  readActiveBookingCodeNotice,
+} from "./dashboard";
 
 describe("dashboard profile form parser", () => {
   it("normalizes valid profile setup input", () => {
@@ -74,5 +77,17 @@ describe("dashboard profile form parser", () => {
       bookingCode: "moon-tiger-seven",
       username: "alice",
     })).toBe("https://schedule.pizza/alice?code=moon-tiger-seven");
+  });
+
+  it("tells hosts when there is no active booking code", () => {
+    expect(readActiveBookingCodeNotice(false)).toBe(
+      "no active booking code. create one to reveal a share link.",
+    );
+  });
+
+  it("tells hosts when an active booking code is hidden", () => {
+    expect(readActiveBookingCodeNotice(true)).toBe(
+      "active booking code exists. rotate to reveal a new link and revoke the hidden one.",
+    );
   });
 });
