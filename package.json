@@ -10,6 +10,7 @@
     "lint": "pnpm --filter @schedule.pizza/web lint",
     "smoke": "node scripts/smoke.mjs",
     "smoke-authorized": "node scripts/smoke-authorized.mjs",
+    "smoke-live": "node scripts/smoke-live.mjs",
     "typecheck": "pnpm --filter @schedule.pizza/web typecheck",
     "test": "node --test scripts/*.test.mjs && pnpm --filter @schedule.pizza/web test"
   },

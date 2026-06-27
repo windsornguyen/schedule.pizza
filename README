@@ -40,6 +40,11 @@ Development
       SCHEDULE_PIZZA_SMOKE_BOOKER_EMAIL={booker_email} \
       SCHEDULE_PIZZA_SMOKE_SESSION_COOKIE={better_auth_cookie} \
       pnpm smoke-authorized
+    SCHEDULE_PIZZA_LIVE_SMOKE=1 \
+      SCHEDULE_PIZZA_URL=https://schedule.pizza \
+      SCHEDULE_PIZZA_LIVE_SMOKE_USER={username} \
+      SCHEDULE_PIZZA_LIVE_SMOKE_BOOKER_EMAIL={booker_email} \
+      pnpm smoke-live
     pnpm build
     pnpm deploy
 
@@ -48,6 +53,11 @@ rate-limited. A session cookie checks signed-in host APIs. Use the full signed
 browser cookie, usually `__Secure-better-auth.session_token=...` on production;
 the raw `session.token` database value is not a valid cookie. Write smoke
 creates one booking and cancels it through the host account session.
+
+Live smoke is an operator check for production. It creates a temporary booking
+code in D1, books one individual slot and one group slot through the public API,
+deletes the Google Calendar events, marks the rows cancelled, and revokes the
+temporary code. It refuses to run unless `SCHEDULE_PIZZA_LIVE_SMOKE=1`.
 
 Contributing
 ------------
