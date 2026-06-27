@@ -20,7 +20,7 @@ time across several people.
 
 ## Core API
 
-- `GET /api/v1/availability?user=alice&code=moon-tiger-seven`
+- `GET /api/v1/availability?url=https%3A%2F%2Fschedule.pizza%2Falice%3Fcode%3Dmoon-tiger-seven`
 - `POST /api/v1/book`
 - `POST /api/v1/schedule`
 - `POST /api/v1/recommend`

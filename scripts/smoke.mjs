@@ -7,6 +7,10 @@ await checkHtml("/privacy", "privacy", [
   "Google API Services User Data Policy",
   "Limited Use requirements",
 ]);
+await checkText("/llms.txt", "llms", [
+  "GET /api/v1/availability?url=",
+  "POST /api/v1/recommend",
+]);
 await checkText("/robots.txt", "robots", ["Allow: /api/v1", "Disallow: /api/"]);
 await checkJson("/api/v1", "api descriptor", (body) => {
   assertRecord(body, "api descriptor");
