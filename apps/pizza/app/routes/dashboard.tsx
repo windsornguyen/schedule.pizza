@@ -177,7 +177,11 @@ function readTrustedDashboardOrigin(env: ServerEnv) {
   }
 
   try {
-    return { code: "read" as const, origin: new URL(authUrl).origin };
+    const url = new URL(authUrl);
+
+    return url.protocol === "http:" || url.protocol === "https:"
+      ? { code: "read" as const, origin: url.origin }
+      : { code: "runtime_secret_missing" as const };
   } catch {
     return { code: "runtime_secret_missing" as const };
   }

@@ -897,6 +897,26 @@ describe("account profile API", () => {
     expect(mocks.rotateBookingCode).not.toHaveBeenCalled();
   });
 
+  it("rejects account mutations when the trusted origin is not http", async () => {
+    const response = await v1.request("https://schedule.pizza/me/booking-code", {
+      method: "POST",
+      headers: { Origin: "https://schedule.pizza" },
+    }, {
+      ...env,
+      BETTER_AUTH_URL: "ftp://schedule.pizza",
+    });
+
+    await expect(response.json()).resolves.toEqual({
+      error: {
+        code: "runtime_secret_missing",
+        message: "Runtime auth URL is missing or invalid",
+      },
+    });
+    expect(response.status).toBe(503);
+    expect(mocks.readAuthSession).not.toHaveBeenCalled();
+    expect(mocks.rotateBookingCode).not.toHaveBeenCalled();
+  });
+
   it("allows same-site account mutations", async () => {
     mocks.findHostProfileByAuthUserId
       .mockResolvedValueOnce({

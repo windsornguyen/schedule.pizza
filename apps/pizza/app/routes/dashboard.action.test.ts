@@ -108,6 +108,36 @@ describe("dashboard action origin checks", () => {
     expect(mocks.readAuthSession).not.toHaveBeenCalled();
   });
 
+  it("rejects dashboard mutations when the trusted origin is not http", async () => {
+    const formData = new FormData();
+    formData.set("intent", "create_code");
+
+    let thrown: unknown;
+
+    try {
+      await action(createActionArgs(
+        new Request("https://schedule.pizza/dashboard", {
+          method: "POST",
+          headers: { Origin: "https://schedule.pizza" },
+          body: formData,
+        }),
+        { ...env, BETTER_AUTH_URL: "ftp://schedule.pizza" },
+      ));
+    } catch (error: unknown) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(Response);
+
+    if (!(thrown instanceof Response)) {
+      throw new Error("expected invalid trusted origin to throw");
+    }
+
+    expect(thrown.status).toBe(503);
+    await expect(thrown.text()).resolves.toBe("runtime_secret_missing");
+    expect(mocks.readAuthSession).not.toHaveBeenCalled();
+  });
+
   it("fails closed before profile creation when the account email is missing", async () => {
     mocks.readAuthSession.mockResolvedValueOnce({
       session: { id: "session_1", userId: "auth_user_1" },
@@ -129,7 +159,10 @@ describe("dashboard action origin checks", () => {
   });
 });
 
-function createActionArgs(request: Request): Parameters<typeof action>[0] {
+function createActionArgs(
+  request: Request,
+  actionEnv = env,
+): Parameters<typeof action>[0] {
   return {
     context: {
       get(key: typeof serverContext) {
@@ -137,7 +170,7 @@ function createActionArgs(request: Request): Parameters<typeof action>[0] {
           throw new Error("unexpected context key");
         }
 
-        return { env, ctx: {} as ExecutionContext };
+        return { env: actionEnv, ctx: {} as ExecutionContext };
       },
     },
     params: {},
