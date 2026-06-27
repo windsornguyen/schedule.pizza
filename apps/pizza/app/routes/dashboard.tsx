@@ -280,6 +280,21 @@ function ActionMessage({
   }
 
   if (actionData.code === "updated_profile") {
+    if ("bookingCode" in actionData) {
+      return (
+        <p className="text-sm text-muted-foreground">
+          saved. username changed, so previous codes are revoked.
+          <br />
+          code: <span className="font-mono">{actionData.bookingCode}</span>
+          <br />
+          link:{" "}
+          <span className="font-mono">
+            schedule.pizza/{actionData.username}?code={actionData.bookingCode}
+          </span>
+        </p>
+      );
+    }
+
     return <p className="text-sm text-muted-foreground">saved.</p>;
   }
 

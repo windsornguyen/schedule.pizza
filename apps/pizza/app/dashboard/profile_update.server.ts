@@ -7,6 +7,7 @@
  */
 
 import type { createDb } from "@/db/client.server";
+import { rotateBookingCode } from "@/db/functions/booking_codes.server";
 import {
   findHostProfileByAuthUserId,
   findHostProfileByUsername,
@@ -71,9 +72,27 @@ export async function updateExistingProfile(
     now,
   });
 
-  return updated === null
-    ? { code: "profile_missing" as const }
-    : { code: "updated_profile" as const };
+  if (updated === null) {
+    return { code: "profile_missing" as const };
+  }
+
+  if (existingProfile.username === parsed.username) {
+    return { code: "updated_profile" as const };
+  }
+
+  const bookingCode = await rotateBookingCode(input.env.DB, {
+    hostId: existingProfile.id,
+    hostUsername: parsed.username,
+    wordCount: 3,
+    label: null,
+    now,
+  });
+
+  return {
+    code: "updated_profile" as const,
+    bookingCode: bookingCode.code,
+    username: parsed.username,
+  };
 }
 
 function readAccountEmail(email: unknown) {

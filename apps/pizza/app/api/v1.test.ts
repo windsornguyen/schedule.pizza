@@ -1,5 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type * as AuthServerModule from "@/auth.server";
+import type * as BookingCodesModule from "@/db/functions/booking_codes.server";
+import type * as HostProfilesModule from "@/db/functions/host_profiles.server";
 import { timeInterval } from "@/scheduling/engine";
 
 import {
@@ -8,6 +11,85 @@ import {
   parseGroupBookBody,
   v1,
 } from "./v1";
+
+type AsyncMock = (...args: unknown[]) => Promise<unknown>;
+type SyncMock = (...args: unknown[]) => unknown;
+
+const mocks = vi.hoisted(() => ({
+  createDb: vi.fn<SyncMock>(),
+  findActiveBookingCodeForHost: vi.fn<AsyncMock>(),
+  findHostProfileByAuthUserId: vi.fn<AsyncMock>(),
+  findHostProfileByUsername: vi.fn<AsyncMock>(),
+  readAuthSession: vi.fn<AsyncMock>(),
+  readGoogleCalendarAccess: vi.fn<AsyncMock>(),
+  rotateBookingCode: vi.fn<AsyncMock>(),
+  updateHostProfile: vi.fn<AsyncMock>(),
+}));
+
+vi.mock("@/auth.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof AuthServerModule>();
+
+  return {
+    ...actual,
+    readAuthSession: mocks.readAuthSession,
+  };
+});
+
+vi.mock("@/calendar/google.server", () => ({
+  readGoogleCalendarAccess: mocks.readGoogleCalendarAccess,
+}));
+
+vi.mock("@/db/client.server", () => ({
+  createDb: mocks.createDb,
+}));
+
+vi.mock("@/db/functions/booking_codes.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof BookingCodesModule>();
+
+  return {
+    ...actual,
+    findActiveBookingCodeForHost: mocks.findActiveBookingCodeForHost,
+    rotateBookingCode: mocks.rotateBookingCode,
+  };
+});
+
+vi.mock("@/db/functions/host_profiles.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof HostProfilesModule>();
+
+  return {
+    ...actual,
+    findHostProfileByAuthUserId: mocks.findHostProfileByAuthUserId,
+    findHostProfileByUsername: mocks.findHostProfileByUsername,
+    updateHostProfile: mocks.updateHostProfile,
+  };
+});
+
+const db = {};
+const env = {
+  BETTER_AUTH_SECRET: "better_auth_secret",
+  BETTER_AUTH_URL: "https://schedule.pizza",
+  DB: {} as D1Database,
+  GOOGLE_CLIENT_ID: "google_client_id",
+  GOOGLE_CLIENT_SECRET: "google_client_secret",
+};
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.createDb.mockReturnValue(db);
+  mocks.findActiveBookingCodeForHost.mockResolvedValue(null);
+  mocks.readAuthSession.mockResolvedValue({
+    session: { id: "session_1", userId: "auth_user_1" },
+    user: { id: "auth_user_1", email: "alice@example.com" },
+  });
+  mocks.readGoogleCalendarAccess.mockResolvedValue({
+    code: "authorized",
+    accessToken: "google_access_token",
+  });
+  mocks.rotateBookingCode.mockResolvedValue({
+    code: "sun-river-ten",
+    codeHash: "booking_code_hash",
+  });
+});
 
 describe("v1 API CORS", () => {
   it("describes the API version without hardcoding release metadata", async () => {
@@ -45,6 +127,58 @@ describe("v1 API CORS", () => {
     expect(response.headers.get("Access-Control-Allow-Headers")).toBe(
       "Content-Type",
     );
+  });
+});
+
+describe("account profile API", () => {
+  it("rotates and returns a fresh booking code when the username changes", async () => {
+    mocks.findHostProfileByAuthUserId
+      .mockResolvedValueOnce({
+        authUserId: "auth_user_1",
+        id: "host_1",
+        username: "alice",
+      })
+      .mockResolvedValueOnce({
+        authUserId: "auth_user_1",
+        displayName: "Alice",
+        id: "host_1",
+        slotSizeMinutes: 30,
+        timezone: "America/Los_Angeles",
+        username: "alice-new",
+      });
+    mocks.findHostProfileByUsername.mockResolvedValue(null);
+    mocks.updateHostProfile.mockResolvedValue({
+      authUserId: "auth_user_1",
+      id: "host_1",
+      username: "alice-new",
+    });
+
+    const response = await v1.request("https://schedule.pizza/account/profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: "Alice-New",
+        timezone: "America/Los_Angeles",
+      }),
+    }, env);
+    const body = await response.json() as Record<string, unknown>;
+
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      ok: true,
+      account: {
+        profilePath: "/alice-new",
+        bookingCode: "sun-river-ten",
+        bookingPath: "/alice-new?code=sun-river-ten",
+      },
+    });
+    expect(mocks.rotateBookingCode).toHaveBeenCalledWith(env.DB, {
+      hostId: "host_1",
+      hostUsername: "alice-new",
+      wordCount: 3,
+      label: null,
+      now: expect.any(Date) as Date,
+    });
   });
 });
 

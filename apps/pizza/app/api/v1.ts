@@ -426,6 +426,7 @@ v1.put("/account/profile", async (c) => {
     return c.json({ error: { code: "auth_user_email_missing", message: "Authenticated user email is missing" } }, 500);
   }
 
+  const now = new Date();
   const updated = await updateHostProfile(db, {
     authUserId: session.session.user.id,
     calendarAccountEmail: email,
@@ -435,14 +436,29 @@ v1.put("/account/profile", async (c) => {
     username: parsed.body.username,
     timezone: parsed.body.timezone,
     slotSizeMinutes: parsed.body.slotSizeMinutes,
-    now: new Date(),
+    now,
   });
 
   if (updated === null) {
     return c.json({ error: { code: "host_profile_missing", message: "Host profile is missing" } }, 409);
   }
 
-  return c.json(await buildAccountPayload(db, c.env, session.session, { now: new Date() }));
+  const bookingCode = existingProfile.username === parsed.body.username
+    ? null
+    : await rotateBookingCode(c.env.DB, {
+        hostId: existingProfile.id,
+        hostUsername: parsed.body.username,
+        wordCount: 3,
+        label: null,
+        now,
+      });
+
+  return c.json(await buildAccountPayload(
+    db,
+    c.env,
+    session.session,
+    bookingCode === null ? { now } : { bookingCode: bookingCode.code, now },
+  ));
 });
 
 v1.post("/me/booking-code", async (c) => {

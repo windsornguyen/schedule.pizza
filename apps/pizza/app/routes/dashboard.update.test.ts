@@ -8,11 +8,16 @@ const mocks = vi.hoisted(() => ({
   findHostProfileByAuthUserId: vi.fn<AsyncMock>(),
   findHostProfileByUsername: vi.fn<AsyncMock>(),
   readGoogleCalendarAccess: vi.fn<AsyncMock>(),
+  rotateBookingCode: vi.fn<AsyncMock>(),
   updateHostProfile: vi.fn<AsyncMock>(),
 }));
 
 vi.mock("@/calendar/google.server", () => ({
   readGoogleCalendarAccess: mocks.readGoogleCalendarAccess,
+}));
+
+vi.mock("@/db/functions/booking_codes.server", () => ({
+  rotateBookingCode: mocks.rotateBookingCode,
 }));
 
 vi.mock("@/db/functions/host_profiles.server", () => ({
@@ -23,6 +28,7 @@ vi.mock("@/db/functions/host_profiles.server", () => ({
 
 const db = {} as Parameters<typeof updateExistingProfile>[0];
 const env = {
+  DB: {} as D1Database,
   GOOGLE_CLIENT_ID: "google_client_id",
   GOOGLE_CLIENT_SECRET: "google_client_secret",
 } as Parameters<typeof updateExistingProfile>[1]["env"];
@@ -48,6 +54,10 @@ describe("updateExistingProfile", () => {
       authUserId: "auth_user_1",
       username: "alice",
     });
+    mocks.rotateBookingCode.mockResolvedValue({
+      code: "sun-river-ten",
+      codeHash: "booking_code_hash",
+    });
   });
 
   it("updates the existing profile after validating ownership and calendar access", async () => {
@@ -71,6 +81,30 @@ describe("updateExistingProfile", () => {
       slotSizeMinutes: 30,
       now: expect.any(Date) as Date,
     });
+    expect(mocks.rotateBookingCode).not.toHaveBeenCalled();
+  });
+
+  it("rotates and returns a fresh booking code when the username changes", async () => {
+    mocks.findHostProfileByUsername.mockResolvedValueOnce(null);
+
+    await expect(updateExistingProfile(db, {
+      authUserId: "auth_user_1",
+      email: "alice@example.com",
+      env,
+      formData: profileFormData("Alice-New"),
+    })).resolves.toEqual({
+      code: "updated_profile",
+      bookingCode: "sun-river-ten",
+      username: "alice-new",
+    });
+
+    expect(mocks.rotateBookingCode).toHaveBeenCalledWith(env.DB, {
+      hostId: "host_1",
+      hostUsername: "alice-new",
+      wordCount: 3,
+      label: null,
+      now: expect.any(Date) as Date,
+    });
   });
 
   it("rejects usernames owned by another profile", async () => {
@@ -87,6 +121,7 @@ describe("updateExistingProfile", () => {
     })).resolves.toEqual({ code: "username_taken" });
 
     expect(mocks.updateHostProfile).not.toHaveBeenCalled();
+    expect(mocks.rotateBookingCode).not.toHaveBeenCalled();
   });
 
   it("requires an authenticated account email before writing the profile", async () => {
@@ -98,12 +133,13 @@ describe("updateExistingProfile", () => {
     })).resolves.toEqual({ code: "auth_user_email_missing" });
 
     expect(mocks.updateHostProfile).not.toHaveBeenCalled();
+    expect(mocks.rotateBookingCode).not.toHaveBeenCalled();
   });
 });
 
-function profileFormData() {
+function profileFormData(username = "Alice") {
   const formData = new FormData();
-  formData.set("username", "Alice");
+  formData.set("username", username);
   formData.set("timezone", "America/Los_Angeles");
   formData.set("slotSizeMinutes", "30");
 
