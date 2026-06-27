@@ -12,7 +12,6 @@ const mocks = vi.hoisted(() => ({
   createPendingCalendarBooking: vi.fn<AsyncMock>(),
   deleteGoogleCalendarEvent: vi.fn<AsyncMock>(),
   listHostAvailableSlots: vi.fn<AsyncMock>(),
-  markBookingCodeUsed: vi.fn<AsyncMock>(),
   markCalendarBookingFailed: vi.fn<AsyncMock>(),
   readGoogleCalendarAccess: vi.fn<AsyncMock>(),
   readGoogleCalendarId: vi.fn<ReadCalendarIdMock>((calendarId) =>
@@ -25,10 +24,6 @@ vi.mock("@/calendar/google.server", () => ({
   deleteGoogleCalendarEvent: mocks.deleteGoogleCalendarEvent,
   readGoogleCalendarAccess: mocks.readGoogleCalendarAccess,
   readGoogleCalendarId: mocks.readGoogleCalendarId,
-}));
-
-vi.mock("@/db/functions/booking_codes.server", () => ({
-  markBookingCodeUsed: mocks.markBookingCodeUsed,
 }));
 
 vi.mock("@/db/functions/bookings.server", () => ({
@@ -66,7 +61,6 @@ describe("bookHostSlot", () => {
       code: "listed",
       slots: [slot],
     });
-    mocks.markBookingCodeUsed.mockResolvedValue(null);
     mocks.markCalendarBookingFailed.mockResolvedValue({ id: "booking_1" });
     mocks.readGoogleCalendarAccess.mockResolvedValue({
       code: "authorized",
@@ -98,10 +92,6 @@ describe("bookHostSlot", () => {
       confirmedAt: now,
       provider: "google",
     });
-    expect(mocks.markBookingCodeUsed).toHaveBeenCalledWith(db, {
-      bookingCodeId: "booking_code_1",
-      usedAt: now,
-    });
     expect(mocks.markCalendarBookingFailed).not.toHaveBeenCalled();
     expect(mocks.deleteGoogleCalendarEvent).not.toHaveBeenCalled();
   });
@@ -119,7 +109,6 @@ describe("bookHostSlot", () => {
       failedAt: now,
     });
     expect(mocks.confirmCalendarBooking).not.toHaveBeenCalled();
-    expect(mocks.markBookingCodeUsed).not.toHaveBeenCalled();
   });
 
   it("deletes the Google event when local confirmation fails", async () => {
@@ -138,7 +127,6 @@ describe("bookHostSlot", () => {
       bookingId: "booking_1",
       failedAt: now,
     });
-    expect(mocks.markBookingCodeUsed).not.toHaveBeenCalled();
   });
 
   it("surfaces a typed error when confirmation rollback fails", async () => {
@@ -154,7 +142,6 @@ describe("bookHostSlot", () => {
       bookingId: "booking_1",
       failedAt: now,
     });
-    expect(mocks.markBookingCodeUsed).not.toHaveBeenCalled();
   });
 
   it("surfaces a typed error when failed confirmation cannot be recorded", async () => {
@@ -164,7 +151,6 @@ describe("bookHostSlot", () => {
     await expect(bookHostSlot(db, createInput())).resolves.toEqual({
       code: "booking_failure_record_failed",
     });
-    expect(mocks.markBookingCodeUsed).not.toHaveBeenCalled();
   });
 
   it("rate limits bookings per booking code before creating pending state", async () => {
@@ -175,7 +161,6 @@ describe("bookHostSlot", () => {
     });
     expect(mocks.createPendingCalendarBooking).not.toHaveBeenCalled();
     expect(mocks.createGoogleCalendarEvent).not.toHaveBeenCalled();
-    expect(mocks.markBookingCodeUsed).not.toHaveBeenCalled();
   });
 
   it("requires the availability recheck to return the selected slot", async () => {
@@ -192,7 +177,6 @@ describe("bookHostSlot", () => {
     });
     expect(mocks.createPendingCalendarBooking).not.toHaveBeenCalled();
     expect(mocks.createGoogleCalendarEvent).not.toHaveBeenCalled();
-    expect(mocks.markBookingCodeUsed).not.toHaveBeenCalled();
   });
 });
 

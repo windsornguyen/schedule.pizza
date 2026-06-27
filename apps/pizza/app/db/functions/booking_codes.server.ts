@@ -13,7 +13,7 @@ type SchedulePizzaSqlite<RunResult> = BaseSQLiteDatabase<
   typeof databaseSchema
 >;
 type BookingCodeReader<RunResult> = Pick<SchedulePizzaSqlite<RunResult>, "select">;
-type BookingCodeWriter<RunResult> = Pick<SchedulePizzaSqlite<RunResult>, "insert" | "update">;
+type BookingCodeWriter<RunResult> = Pick<SchedulePizzaSqlite<RunResult>, "insert">;
 type D1BatchDatabase = Pick<D1Database, "batch" | "prepare">;
 
 export function generateBookingCode(wordCount: number): string {
@@ -162,7 +162,6 @@ export async function findActiveBookingCodeForHost<RunResult>(
       createdAt: bookingCode.createdAt,
       expiresAt: bookingCode.expiresAt,
       id: bookingCode.id,
-      lastUsedAt: bookingCode.lastUsedAt,
       wordCount: bookingCode.wordCount,
     })
     .from(bookingCode)
@@ -177,16 +176,6 @@ export async function findActiveBookingCodeForHost<RunResult>(
     .limit(1);
 
   return rows[0] ?? null;
-}
-
-export async function markBookingCodeUsed<RunResult>(
-  db: BookingCodeWriter<RunResult>,
-  input: { bookingCodeId: string; usedAt: Date }
-) {
-  await db
-    .update(bookingCode)
-    .set({ lastUsedAt: input.usedAt, updatedAt: input.usedAt })
-    .where(eq(bookingCode.id, input.bookingCodeId));
 }
 
 function toUnixSeconds(date: Date) {

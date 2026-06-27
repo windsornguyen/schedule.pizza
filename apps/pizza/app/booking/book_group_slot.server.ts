@@ -20,7 +20,6 @@ import type {
   SerializedScheduleResult,
 } from "@/api/v1_schedule";
 import type { Database } from "@/db/client.server";
-import { markBookingCodeUsed } from "@/db/functions/booking_codes.server";
 import {
   confirmCalendarBookings,
   countRecentBookingsForCode,
@@ -200,15 +199,6 @@ export async function bookGroupSlot(
 
     return rolledBack;
   }
-
-  await Promise.all(
-    exactAvailability.authorizedParticipants.map((participant) =>
-      markBookingCodeUsed(db, {
-        bookingCodeId: participant.bookingCodeId,
-        usedAt: input.now,
-      }),
-    ),
-  );
 
   return {
     code: "booked",

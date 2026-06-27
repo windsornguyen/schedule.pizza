@@ -6,7 +6,6 @@ import {
   type GoogleCalendarErrorCode,
 } from "@/calendar/google.server";
 import type { Database } from "@/db/client.server";
-import { markBookingCodeUsed } from "@/db/functions/booking_codes.server";
 import {
   confirmCalendarBooking,
   countRecentBookingsForCode,
@@ -175,11 +174,6 @@ export async function bookHostSlot(
 
     return rolledBack;
   }
-
-  await markBookingCodeUsed(db, {
-    bookingCodeId: input.bookingCodeId,
-    usedAt: input.now,
-  });
 
   return {
     code: "booked",

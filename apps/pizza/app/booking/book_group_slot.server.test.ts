@@ -15,7 +15,6 @@ const mocks = vi.hoisted(() => ({
   createPendingCalendarBookings: vi.fn<AsyncMock>(),
   deleteGoogleCalendarEvent: vi.fn<AsyncMock>(),
   executeScheduleRequest: vi.fn<AsyncMock>(),
-  markBookingCodeUsed: vi.fn<AsyncMock>(),
   markCalendarBookingsFailed: vi.fn<AsyncMock>(),
   readGoogleCalendarAccess: vi.fn<AsyncMock>(),
   readGoogleCalendarId: vi.fn<ReadCalendarIdMock>((calendarId) =>
@@ -37,10 +36,6 @@ vi.mock("@/calendar/google.server", () => ({
   deleteGoogleCalendarEvent: mocks.deleteGoogleCalendarEvent,
   readGoogleCalendarAccess: mocks.readGoogleCalendarAccess,
   readGoogleCalendarId: mocks.readGoogleCalendarId,
-}));
-
-vi.mock("@/db/functions/booking_codes.server", () => ({
-  markBookingCodeUsed: mocks.markBookingCodeUsed,
 }));
 
 vi.mock("@/db/functions/bookings.server", () => ({
@@ -73,7 +68,6 @@ describe("bookGroupSlot", () => {
     ]);
     mocks.deleteGoogleCalendarEvent.mockResolvedValue({ code: "deleted" });
     mocks.executeScheduleRequest.mockResolvedValue(exactSchedule());
-    mocks.markBookingCodeUsed.mockResolvedValue(null);
     mocks.markCalendarBookingsFailed.mockResolvedValue([
       "booking_1",
       "booking_2",

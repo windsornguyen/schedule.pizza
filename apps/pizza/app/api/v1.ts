@@ -1373,7 +1373,6 @@ async function buildAccountPayload(
         : {
             createdAt: activeBookingCode.createdAt.toISOString(),
             expiresAt: activeBookingCode.expiresAt?.toISOString() ?? null,
-            lastUsedAt: activeBookingCode.lastUsedAt?.toISOString() ?? null,
             wordCount: activeBookingCode.wordCount,
           },
       bookingCode: input.bookingCode ?? null,
