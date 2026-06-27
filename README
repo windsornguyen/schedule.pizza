@@ -30,11 +30,18 @@ Development
     SCHEDULE_PIZZA_URL=https://schedule.pizza \
       SCHEDULE_PIZZA_SMOKE_URL={booking_url} \
       pnpm smoke-authorized
+    SCHEDULE_PIZZA_URL=https://schedule.pizza \
+      SCHEDULE_PIZZA_SMOKE_URL={booking_url} \
+      SCHEDULE_PIZZA_SMOKE_WRITE=1 \
+      SCHEDULE_PIZZA_SMOKE_BOOKER_EMAIL={booker_email} \
+      SCHEDULE_PIZZA_SMOKE_SESSION_COOKIE={better_auth_cookie} \
+      pnpm smoke-authorized
     pnpm build
     pnpm deploy
 
 Use a real booking code for authorized smoke checks. Failed code checks are
-rate-limited.
+rate-limited. Write smoke creates one booking and cancels it through the
+host account session.
 
 Contributing
 ------------

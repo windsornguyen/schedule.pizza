@@ -7,6 +7,7 @@ if (isCliEntrypoint()) {
 export async function main(env) {
   const baseUrl = readRequiredUrl(env["SCHEDULE_PIZZA_URL"]);
   const target = readSmokeTarget(env);
+  const writeConfig = readWriteSmokeConfig(env);
   const requestBody = readScheduleRequestBody(target.participant);
 
   const availability = await checkJson(
@@ -20,13 +21,20 @@ export async function main(env) {
 
   const schedule = await checkScheduleLike(baseUrl, "/api/v1/schedule", "schedule", requestBody);
   const recommend = await checkScheduleLike(baseUrl, "/api/v1/recommend", "recommend", requestBody);
-
-  console.log([
+  const output = [
     `authorized smoke ok: ${baseUrl.origin}`,
     `availabilitySlots=${availability["slots"].length}`,
     `schedule=${schedule.kind}:${schedule.slotCount}`,
     `recommend=${recommend.kind}:${recommend.slotCount}`,
-  ].join(" "));
+  ];
+
+  if (writeConfig.enabled) {
+    const writeResult = await bookAndCancelSmoke(baseUrl, target.book, availability, writeConfig);
+
+    output.push(`write=${writeResult.status}`);
+  }
+
+  console.log(output.join(" "));
 }
 
 function readRequiredUrl(value) {
@@ -60,6 +68,10 @@ export function readSmokeTarget(env) {
 
     return {
       availabilityPath: `/api/v1/availability?url=${encodeURIComponent(scheduleUrl.toString())}`,
+      book: {
+        bookingCode: readBookingCodeFromScheduleUrl(scheduleUrl),
+        username: readUsernameFromScheduleUrl(scheduleUrl),
+      },
       expectedUser: readUsernameFromScheduleUrl(scheduleUrl),
       participant: { url: scheduleUrl.toString() },
     };
@@ -73,8 +85,38 @@ export function readSmokeTarget(env) {
 
   return {
     availabilityPath: `/api/v1/availability?user=${encodeURIComponent(user)}&code=${encodeURIComponent(code)}`,
+    book: { bookingCode: code, username: user },
     expectedUser: user,
     participant: { code, user },
+  };
+}
+
+export function readWriteSmokeConfig(env) {
+  const enabled = readOptionalEnvValue(env["SCHEDULE_PIZZA_SMOKE_WRITE"]);
+
+  if (enabled === null) {
+    return { enabled: false };
+  }
+
+  if (enabled !== "1") {
+    throw new Error("SCHEDULE_PIZZA_SMOKE_WRITE must be 1 when write smoke is enabled");
+  }
+
+  return {
+    bookerEmail: readEmail(
+      readRequiredEnvValue(env["SCHEDULE_PIZZA_SMOKE_BOOKER_EMAIL"], "SCHEDULE_PIZZA_SMOKE_BOOKER_EMAIL"),
+      "SCHEDULE_PIZZA_SMOKE_BOOKER_EMAIL",
+    ),
+    bookerName: readOptionalEnvValue(env["SCHEDULE_PIZZA_SMOKE_BOOKER_NAME"]) ?? "schedule.pizza smoke",
+    enabled: true,
+    sessionCookie: readHeaderValue(
+      readRequiredEnvValue(env["SCHEDULE_PIZZA_SMOKE_SESSION_COOKIE"], "SCHEDULE_PIZZA_SMOKE_SESSION_COOKIE"),
+      "SCHEDULE_PIZZA_SMOKE_SESSION_COOKIE",
+    ),
+    timeZone: readTimeZone(
+      readOptionalEnvValue(env["SCHEDULE_PIZZA_SMOKE_TIMEZONE"]) ?? "America/Los_Angeles",
+      "SCHEDULE_PIZZA_SMOKE_TIMEZONE",
+    ),
   };
 }
 
@@ -125,6 +167,16 @@ function readUsernameFromScheduleUrl(url) {
   return readUsername(username, "SCHEDULE_PIZZA_SMOKE_URL");
 }
 
+function readBookingCodeFromScheduleUrl(url) {
+  const bookingCode = url.searchParams.get("code");
+
+  if (bookingCode === null || bookingCode.trim() === "") {
+    throw new Error("SCHEDULE_PIZZA_SMOKE_URL must include a booking code");
+  }
+
+  return bookingCode.trim();
+}
+
 function readUsername(value, name) {
   const username = value.trim().toLowerCase();
 
@@ -133,6 +185,32 @@ function readUsername(value, name) {
   }
 
   return username;
+}
+
+function readEmail(value, name) {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(value)) {
+    throw new Error(`${name} is invalid`);
+  }
+
+  return value;
+}
+
+function readHeaderValue(value, name) {
+  if (/[\r\n]/u.test(value)) {
+    throw new Error(`${name} contains invalid header characters`);
+  }
+
+  return value;
+}
+
+function readTimeZone(value, name) {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: value }).format(new Date());
+  } catch {
+    throw new Error(`${name} is invalid`);
+  }
+
+  return value;
 }
 
 function readScheduleRequestBody(participant) {
@@ -171,8 +249,95 @@ export function readScheduleLikeSummary(responseBody, label) {
   return { kind: responseBody["kind"], slotCount: responseBody["slots"].length };
 }
 
-async function checkJson(baseUrl, path, label) {
-  const response = await fetchResponse(baseUrl, path, label, { method: "GET" });
+async function bookAndCancelSmoke(baseUrl, target, availability, config) {
+  await checkWriteSmokeSession(baseUrl, target, config);
+
+  const slotStart = readFirstAvailabilitySlotStart(availability, "availability");
+  const booked = await postJson(baseUrl, "/api/v1/book", "book smoke slot", {
+    code: target.bookingCode,
+    email: config.bookerEmail,
+    name: config.bookerName,
+    slot: slotStart,
+    timezone: config.timeZone,
+    user: target.username,
+  });
+  const bookingId = readBookedBookingId(booked, "book smoke slot");
+
+  try {
+    await postJson(
+      baseUrl,
+      `/api/v1/account/bookings/${encodeURIComponent(bookingId)}/cancel`,
+      "cancel smoke booking",
+      {},
+      { Cookie: config.sessionCookie },
+    );
+  } catch (error) {
+    throw new Error(`smoke booking ${bookingId} cancellation failed: ${readErrorMessage(error)}`);
+  }
+
+  return { status: "booked_cancelled" };
+}
+
+async function checkWriteSmokeSession(baseUrl, target, config) {
+  const account = await checkJson(baseUrl, "/api/v1/account", "write smoke account", {
+    Cookie: config.sessionCookie,
+  });
+  const username = readAccountHostUsername(account, "write smoke account");
+
+  if (username !== target.username) {
+    throw new Error(`write smoke account expected ${target.username}, got ${username}`);
+  }
+}
+
+export function readAccountHostUsername(responseBody, label) {
+  assertRecord(responseBody, label);
+  assertEqual(responseBody["ok"], true, `${label} ok`);
+  assertRecord(responseBody["account"], `${label} account`);
+  assertRecord(responseBody["account"]["profile"], `${label} account profile`);
+
+  const username = responseBody["account"]["profile"]["username"];
+  if (typeof username !== "string" || username.trim() === "") {
+    throw new Error(`${label} account profile username must be a string`);
+  }
+
+  return username;
+}
+
+export function readFirstAvailabilitySlotStart(responseBody, label) {
+  assertRecord(responseBody, label);
+  assertNonEmptyArray(responseBody["slots"], `${label} slots`);
+  assertRecord(responseBody["slots"][0], `${label} first slot`);
+
+  const start = responseBody["slots"][0]["start"];
+  if (typeof start !== "string" || start.trim() === "") {
+    throw new Error(`${label} first slot start must be a string`);
+  }
+
+  return start;
+}
+
+export function readBookedBookingId(responseBody, label) {
+  assertRecord(responseBody, label);
+  assertEqual(responseBody["ok"], true, `${label} ok`);
+  assertRecord(responseBody["booking"], `${label} booking`);
+
+  if (Object.hasOwn(responseBody["booking"], "calendarEventId")) {
+    throw new Error(`${label} must not expose calendarEventId`);
+  }
+
+  const bookingId = responseBody["booking"]["id"];
+  if (typeof bookingId !== "string" || bookingId.trim() === "") {
+    throw new Error(`${label} booking id must be a string`);
+  }
+
+  return bookingId;
+}
+
+async function checkJson(baseUrl, path, label, headers = {}) {
+  const response = await fetchResponse(baseUrl, path, label, {
+    method: "GET",
+    headers: smokeHeaders(headers),
+  });
   const contentType = response.headers.get("content-type") ?? "";
 
   if (!contentType.includes("application/json")) {
@@ -182,10 +347,10 @@ async function checkJson(baseUrl, path, label) {
   return response.json();
 }
 
-async function postJson(baseUrl, path, label, body) {
+async function postJson(baseUrl, path, label, body, headers = {}) {
   const response = await fetchResponse(baseUrl, path, label, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: smokeHeaders({ "content-type": "application/json", ...headers }),
     body: JSON.stringify(body),
   });
   const contentType = response.headers.get("content-type") ?? "";
@@ -205,6 +370,14 @@ async function fetchResponse(baseUrl, path, label, init) {
   }
 
   return response;
+}
+
+function smokeHeaders(headers = {}) {
+  return { "CF-Connecting-IP": "203.0.113.250", ...headers };
+}
+
+function readErrorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function assertRecord(value, label) {
