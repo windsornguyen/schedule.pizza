@@ -1,13 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as AuthServerModule from "@/auth.server";
+import type * as DbClientModule from "@/db/client.server";
+import type * as HostProfilesModule from "@/db/functions/host_profiles.server";
+import type * as CalendarStatusModule from "@/dashboard/calendar_status.server";
 import { serverContext } from "@/server-context";
 import { action } from "./dashboard";
 
 type AsyncMock = (...args: unknown[]) => Promise<unknown>;
+type SyncMock = (...args: unknown[]) => unknown;
 
 const mocks = vi.hoisted(() => ({
+  createDb: vi.fn<SyncMock>(),
+  createHostProfileWithBookingCode: vi.fn<AsyncMock>(),
+  findHostProfileByAuthUserId: vi.fn<AsyncMock>(),
   readAuthSession: vi.fn<AsyncMock>(),
+  readCalendarStatus: vi.fn<AsyncMock>(),
 }));
 
 vi.mock("@/auth.server", async (importOriginal) => {
@@ -19,6 +27,35 @@ vi.mock("@/auth.server", async (importOriginal) => {
   };
 });
 
+vi.mock("@/dashboard/calendar_status.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof CalendarStatusModule>();
+
+  return {
+    ...actual,
+    readCalendarStatus: mocks.readCalendarStatus,
+  };
+});
+
+vi.mock("@/db/client.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof DbClientModule>();
+
+  return {
+    ...actual,
+    createDb: mocks.createDb,
+  };
+});
+
+vi.mock("@/db/functions/host_profiles.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof HostProfilesModule>();
+
+  return {
+    ...actual,
+    createHostProfileWithBookingCode: mocks.createHostProfileWithBookingCode,
+    findHostProfileByAuthUserId: mocks.findHostProfileByAuthUserId,
+  };
+});
+
+const db = {};
 const env = {
   BETTER_AUTH_SECRET: "better_auth_secret",
   BETTER_AUTH_URL: "https://schedule.pizza",
@@ -30,10 +67,18 @@ const env = {
 describe("dashboard action origin checks", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.createDb.mockReturnValue(db);
+    mocks.createHostProfileWithBookingCode.mockResolvedValue({
+      code: "created_profile",
+      bookingCode: "moon-tiger-seven",
+      profile: { id: "host_1", username: "alice" },
+    });
+    mocks.findHostProfileByAuthUserId.mockResolvedValue(null);
     mocks.readAuthSession.mockResolvedValue({
       session: { id: "session_1", userId: "auth_user_1" },
       user: { id: "auth_user_1", email: "alice@example.com" },
     });
+    mocks.readCalendarStatus.mockResolvedValue("connected");
   });
 
   it("rejects cross-site dashboard mutations before reading the session", async () => {
@@ -61,6 +106,26 @@ describe("dashboard action origin checks", () => {
     expect(thrown.status).toBe(403);
     await expect(thrown.text()).resolves.toBe("forbidden_origin");
     expect(mocks.readAuthSession).not.toHaveBeenCalled();
+  });
+
+  it("fails closed before profile creation when the account email is missing", async () => {
+    mocks.readAuthSession.mockResolvedValueOnce({
+      session: { id: "session_1", userId: "auth_user_1" },
+      user: { id: "auth_user_1", email: "" },
+    });
+    const formData = new FormData();
+    formData.set("intent", "create_profile");
+    formData.set("username", "alice");
+    formData.set("timezone", "America/Los_Angeles");
+    formData.set("slotSizeMinutes", "30");
+
+    await expect(action(createActionArgs(new Request("https://schedule.pizza/dashboard", {
+      method: "POST",
+      body: formData,
+    })))).resolves.toEqual({ code: "auth_user_email_missing" });
+    expect(mocks.findHostProfileByAuthUserId).not.toHaveBeenCalled();
+    expect(mocks.readCalendarStatus).not.toHaveBeenCalled();
+    expect(mocks.createHostProfileWithBookingCode).not.toHaveBeenCalled();
   });
 });
 

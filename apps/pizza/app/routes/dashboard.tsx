@@ -663,7 +663,7 @@ async function createProfileAndCode(
   db: ReturnType<typeof createDb>,
   input: {
     readonly authUserId: string;
-    readonly email: string;
+    readonly email: unknown;
     readonly env: ServerEnv;
     readonly formData: FormData;
   },
@@ -672,6 +672,12 @@ async function createProfileAndCode(
 
   if (parsed.code !== "parsed") {
     return parsed;
+  }
+
+  const email = readDashboardAccountEmail(input.email);
+
+  if (email === null) {
+    return { code: "auth_user_email_missing" as const };
   }
 
   const existingProfile = await findHostProfileByAuthUserId(db, input.authUserId);
@@ -690,7 +696,7 @@ async function createProfileAndCode(
   const created = await createHostProfileWithBookingCode(input.env.DB, {
     id: crypto.randomUUID(),
     authUserId: input.authUserId,
-    calendarAccountEmail: input.email,
+    calendarAccountEmail: email,
     calendarId: "primary",
     calendarProvider: "google",
     displayName: parsed.username,
@@ -709,6 +715,12 @@ async function createProfileAndCode(
     bookingCode: created.bookingCode,
     username: created.profile.username,
   };
+}
+
+function readDashboardAccountEmail(email: unknown) {
+  return typeof email === "string" && email.trim() !== ""
+    ? email.trim()
+    : null;
 }
 
 export function formatDashboardBookingUrl(input: {
