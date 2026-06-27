@@ -95,6 +95,32 @@ export default function Docs() {
   }
 }`}</code>
         </pre>
+        <p className="text-sm leading-6 text-muted-foreground">
+          To book an exact group slot returned by the scheduler, send the same
+          scheduling body with the selected slot and booker identity.
+        </p>
+        <pre className="whitespace-pre-wrap break-words rounded-md border bg-muted p-3 font-mono text-sm">
+          <code>{`POST /api/v1/book-group
+{
+  "participants": [
+    { "user": "alice", "code": "moon-tiger-seven" },
+    { "user": "bob", "code": "river-lime-harbor" }
+  ],
+  "durationMinutes": 30,
+  "granularityMinutes": 15,
+  "maxExactSlotCount": 10,
+  "maxAlternativeSlotCount": 5,
+  "timeZone": "America/Los_Angeles",
+  "window": {
+    "start": "2026-06-26T16:00:00.000Z",
+    "end": "2026-06-27T01:00:00.000Z"
+  },
+  "slot": "2026-06-26T17:00:00.000Z",
+  "name": "Ada",
+  "email": "ada@example.com",
+  "timezone": "America/Los_Angeles"
+}`}</code>
+        </pre>
       </section>
 
       <section className="mt-10 space-y-3">

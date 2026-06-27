@@ -225,6 +225,8 @@ describe("schedule API serializer", () => {
     expect(serializeScheduleResult(result, [
       {
         authUserId: "user_alice",
+        bookingCodeId: "code_alice",
+        calendarAccountEmail: "alice@example.com",
         calendarId: "primary",
         hostId: "host_alice",
         username: "alice",

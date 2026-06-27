@@ -119,6 +119,34 @@ describe("createGoogleCalendarEvent", () => {
 
     expect(result).toEqual({ code: "created", eventId: "google_event_1" });
   });
+
+  it("dedupes additional attendees by normalized email", async () => {
+    const result = await createGoogleCalendarEvent({
+      accessToken: "access_token",
+      additionalAttendees: [
+        { displayName: "Bob", email: "BOB@example.com" },
+        { displayName: "Duplicate Bob", email: "bob@example.com" },
+      ],
+      calendarId: "primary",
+      startAt: new Date("2026-06-26T16:00:00.000Z"),
+      endAt: new Date("2026-06-26T16:30:00.000Z"),
+      guestEmail: "ada@example.com",
+      guestName: "Ada",
+      timeZone: "America/Los_Angeles",
+      fetcher: async (_input: string, init: RequestInit) => {
+        expect(JSON.parse(String(init.body))).toMatchObject({
+          attendees: [
+            { displayName: "Ada", email: "ada@example.com" },
+            { displayName: "Bob", email: "bob@example.com" },
+          ],
+        });
+
+        return Response.json({ id: "google_event_1" });
+      },
+    });
+
+    expect(result).toEqual({ code: "created", eventId: "google_event_1" });
+  });
 });
 
 describe("deleteGoogleCalendarEvent", () => {

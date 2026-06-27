@@ -2,6 +2,7 @@ import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
 
 import type { GoogleCalendarErrorCode } from "@/calendar/google.server";
+import { bookGroupSlot } from "@/booking/book_group_slot.server";
 import { bookHostSlot } from "@/booking/book_slot.server";
 import { parseRequiredGuestEmail } from "@/booking/guest_email";
 import { parseOptionalGuestTimezone } from "@/booking/guest_timezone";
@@ -23,7 +24,8 @@ import {
   googleCalendarErrorBody,
   googleCalendarStatus,
 } from "./google_calendar_errors";
-import { scheduleRoute } from "./v1_schedule";
+import { parseScheduleBody, scheduleRoute } from "./v1_schedule";
+import type { ParsedScheduleBody } from "./v1_schedule";
 
 type Bindings = ServerEnv;
 type V1Context = Context<{ Bindings: Bindings }>;
@@ -38,8 +40,21 @@ type ParsedBookBody = {
   readonly username: string;
 };
 
+type ParsedGroupBookBody = {
+  readonly email: string;
+  readonly emailNormalized: string;
+  readonly guestName: string;
+  readonly guestTimezone: string | null;
+  readonly schedule: ParsedScheduleBody;
+  readonly slotStartAt: Date;
+};
+
 type BookBodyParseResult =
   | { readonly body: ParsedBookBody; readonly code: "parsed" }
+  | { readonly code: "invalid_field" | "missing_field"; readonly field: string };
+
+type GroupBookBodyParseResult =
+  | { readonly body: ParsedGroupBookBody; readonly code: "parsed" }
   | { readonly code: "invalid_field" | "missing_field"; readonly field: string };
 
 export const v1 = new Hono<{ Bindings: Bindings }>();
@@ -77,6 +92,27 @@ v1.get("/", (c) => {
         },
         headers: { "CF-Connecting-IP": "string (injected by Cloudflare)" },
       },
+      bookGroup: {
+        method: "POST",
+        path: "/api/v1/book-group",
+        body: {
+          participants: [{ user: "string", code: "string" }],
+          durationMinutes: "number (1-480)",
+          granularityMinutes: "number (1-240)",
+          maxExactSlotCount: "number (1-100)",
+          maxAlternativeSlotCount: "number (1-50)",
+          timeZone: "IANA time zone",
+          window: {
+            start: "UTC ISO 8601",
+            end: "UTC ISO 8601, max 31 days",
+          },
+          slot: "string (required, UTC ISO 8601 exact slot start)",
+          name: "string (required, booker name)",
+          email: "string (required, valid booker email)",
+          timezone: "string (optional, valid booker timezone)",
+        },
+        headers: { "CF-Connecting-IP": "string (injected by Cloudflare)" },
+      },
       schedule: {
         method: "POST",
         path: "/api/v1/schedule",
@@ -106,7 +142,7 @@ v1.get("/", (c) => {
       ],
       404: ["booking_code_invalid"],
       409: ["slot_unavailable"],
-      422: ["host_unavailable"],
+      422: ["host_unavailable", "participant_email_missing"],
       424: [
         "google_account_missing",
         "google_access_token_missing",
@@ -202,19 +238,13 @@ v1.get("/availability", async (c) => {
 });
 
 v1.post("/book", async (c) => {
-  const text = await c.req.text();
-  if (text.trim().length === 0) {
+  const parsedJson = parseJsonText(await c.req.text());
+
+  if (parsedJson.code === "invalid_json") {
     return c.json({ error: { code: "invalid_json", message: "Request body must be JSON" } }, 400);
   }
 
-  let body: unknown;
-  try {
-    body = JSON.parse(text) as unknown;
-  } catch {
-    return c.json({ error: { code: "invalid_json", message: "Request body must be JSON" } }, 400);
-  }
-
-  const parsed = parseBookBody(body);
+  const parsed = parseBookBody(parsedJson.body);
   if (parsed.code !== "parsed") {
     return c.json({
       error: {
@@ -299,6 +329,129 @@ v1.post("/book", async (c) => {
     },
   });
 });
+
+v1.post("/book-group", async (c) => {
+  const parsedJson = parseJsonText(await c.req.text());
+
+  if (parsedJson.code === "invalid_json") {
+    return c.json({ error: { code: "invalid_json", message: "Request body must be JSON" } }, 400);
+  }
+
+  const parsed = parseGroupBookBody(parsedJson.body);
+
+  if (parsed.code !== "parsed") {
+    return c.json({
+      error: {
+        code: parsed.code,
+        message: `${parsed.field} is ${parsed.code === "missing_field" ? "required" : "invalid"}`,
+      },
+    }, 400);
+  }
+
+  const clientIpHash = await readCloudflareClientIpHash(c.req.raw);
+
+  if (clientIpHash.code === "client_ip_unavailable") {
+    return c.json({ error: { code: "client_ip_unavailable", message: "Client IP header is unavailable" } }, 500);
+  }
+
+  const booked = await bookGroupSlot(createDb(c.env.DB), {
+    body: parsed.body.schedule,
+    env: c.env,
+    guestName: parsed.body.guestName,
+    guestEmail: parsed.body.email,
+    guestEmailNormalized: parsed.body.emailNormalized,
+    guestTimezone: parsed.body.guestTimezone,
+    ipHash: clientIpHash.ipHash,
+    source: "api",
+    now: new Date(),
+    slotStartAt: parsed.body.slotStartAt,
+  });
+
+  if (booked.code === "booking_code_rate_limited") {
+    return c.json({ error: { code: "booking_code_rate_limited", message: "Too many failed booking code attempts" } }, 429);
+  }
+
+  if (booked.code === "booking_code_invalid") {
+    return c.json({ error: { code: "booking_code_invalid", message: "Invalid booking code" } }, 404);
+  }
+
+  if (booked.code === "invalid_slot") {
+    return c.json({ error: { code: "invalid_slot", message: "Slot is not bookable" } }, 400);
+  }
+
+  if (booked.code === "slot_unavailable") {
+    return c.json({ error: { code: "slot_unavailable", message: "Slot is unavailable" } }, 409);
+  }
+
+  if (booked.code === "booking_rate_limited") {
+    return c.json({ error: { code: "booking_rate_limited", message: "Too many bookings for this code" } }, 429);
+  }
+
+  if (booked.code === "participant_email_missing") {
+    return c.json({ error: { code: "participant_email_missing", message: "Participant calendar email is missing" } }, 422);
+  }
+
+  if (booked.code === "booking_confirmation_failed" || booked.code === "booking_failure_record_failed") {
+    return c.json({ error: { code: booked.code, message: "Booking state transition failed" } }, 500);
+  }
+
+  if (booked.code !== "booked") {
+    return calendarError(c, booked.code);
+  }
+
+  return c.json({
+    ok: true,
+    booking: {
+      ids: booked.bookingIds,
+      slot: {
+        start: booked.slot.startAt.toISOString(),
+        end: booked.slot.endAt.toISOString(),
+      },
+      booker: { name: parsed.body.guestName, email: parsed.body.email },
+      calendar: { provider: "google", eventId: booked.calendarEventId },
+      status: "confirmed",
+    },
+  });
+});
+
+export function parseGroupBookBody(body: unknown): GroupBookBodyParseResult {
+  const schedule = parseScheduleBody(body);
+
+  if (schedule.code !== "parsed") {
+    return schedule;
+  }
+
+  if (!isRecord(body)) {
+    return { code: "missing_field", field: "participants" };
+  }
+
+  const slotStartAt = readSlotStart(body["slot"]);
+  if (slotStartAt.code !== "parsed") return { code: slotStartAt.code, field: "slot" };
+
+  const guestName = readRequiredString(body["name"]);
+  if (guestName === null) return { code: "missing_field", field: "name" };
+
+  const email = parseRequiredGuestEmail(body["email"]);
+  if (email.code === "missing") return { code: "missing_field", field: "email" };
+  if (email.code === "invalid") return { code: "invalid_field", field: "email" };
+
+  const guestTimezone = parseOptionalGuestTimezone(body["timezone"]);
+  if (guestTimezone.code !== "parsed") {
+    return { code: "invalid_field", field: "timezone" };
+  }
+
+  return {
+    code: "parsed",
+    body: {
+      email: email.value,
+      emailNormalized: email.normalized,
+      guestName,
+      guestTimezone: guestTimezone.value,
+      schedule: schedule.body,
+      slotStartAt: slotStartAt.value,
+    },
+  };
+}
 
 export function parseBookBody(body: unknown): BookBodyParseResult {
   if (!isRecord(body)) {
@@ -403,6 +556,20 @@ function calendarError(c: V1Context, code: GoogleCalendarErrorCode) {
     googleCalendarErrorBody(code),
     googleCalendarStatus(code),
   );
+}
+
+function parseJsonText(text: string):
+  | { readonly body: unknown; readonly code: "parsed" }
+  | { readonly code: "invalid_json" } {
+  if (text.trim().length === 0) {
+    return { code: "invalid_json" };
+  }
+
+  try {
+    return { code: "parsed", body: JSON.parse(text) as unknown };
+  } catch {
+    return { code: "invalid_json" };
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

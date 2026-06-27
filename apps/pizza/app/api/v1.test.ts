@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { parseBookBody, v1 } from "./v1";
+import { timeInterval } from "@/scheduling/engine";
+
+import { parseBookBody, parseGroupBookBody, v1 } from "./v1";
 
 describe("v1 API CORS", () => {
   it("describes the API version without hardcoding release metadata", async () => {
@@ -40,6 +42,75 @@ describe("v1 API CORS", () => {
     );
   });
 });
+
+describe("group book API body parser", () => {
+  it("parses the agent group booking request shape", () => {
+    expect(parseGroupBookBody(groupBookBody())).toEqual({
+      code: "parsed",
+      body: {
+        schedule: {
+          participants: [
+            { username: "alice", bookingCode: "moon-tiger-seven" },
+            { username: "bob", bookingCode: "river-lime-harbor" },
+          ],
+          durationMinutes: 30,
+          granularityMinutes: 15,
+          maxExactSlotCount: 10,
+          maxAlternativeSlotCount: 5,
+          timeZone: "America/Los_Angeles",
+          window: timeInterval({
+            startAtMs: Date.parse("2026-06-26T16:00:00.000Z"),
+            endAtMs: Date.parse("2026-06-27T01:00:00.000Z"),
+          }),
+        },
+        slotStartAt: new Date("2026-06-26T17:00:00.000Z"),
+        guestName: "Ada",
+        email: "ada@example.com",
+        emailNormalized: "ada@example.com",
+        guestTimezone: "America/Los_Angeles",
+      },
+    });
+  });
+
+  it("requires guest email before group booking writes can run", () => {
+    const body = groupBookBody();
+    delete body["email"];
+
+    expect(parseGroupBookBody(body)).toEqual({
+      code: "missing_field",
+      field: "email",
+    });
+  });
+
+  it("rejects malformed exact slots before group booking writes can run", () => {
+    expect(parseGroupBookBody({
+      ...groupBookBody(),
+      slot: "not a time",
+    })).toEqual({ code: "invalid_field", field: "slot" });
+  });
+});
+
+function groupBookBody(): Record<string, unknown> {
+  return {
+    participants: [
+      { user: "Alice", code: "moon tiger seven" },
+      { user: "Bob", code: "river lime harbor" },
+    ],
+    durationMinutes: 30,
+    granularityMinutes: 15,
+    maxExactSlotCount: 10,
+    maxAlternativeSlotCount: 5,
+    timeZone: "America/Los_Angeles",
+    window: {
+      start: "2026-06-26T16:00:00.000Z",
+      end: "2026-06-27T01:00:00.000Z",
+    },
+    slot: "2026-06-26T17:00:00.000Z",
+    name: "Ada",
+    email: "ada@example.com",
+    timezone: "America/Los_Angeles",
+  };
+}
 
 describe("book API body parser", () => {
   it("parses the agent booking request shape", () => {

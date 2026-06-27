@@ -11,7 +11,7 @@ type BlockingBookingWindow = {
   startsAt: Date;
 };
 
-type PendingCalendarBookingInsert = {
+export type PendingCalendarBookingInsert = {
   bookingCodeId: string;
   createdAt: Date;
   guestEmail: string | null;
@@ -25,6 +25,18 @@ type PendingCalendarBookingInsert = {
   slotStartAt: Date;
   source: "api" | "web";
 };
+
+class BookingTransactionAbort extends Error {
+  constructor(
+    readonly code:
+      | "booking_confirmation_missing"
+      | "booking_failure_missing"
+      | "booking_reservation_conflict",
+  ) {
+    super(code);
+    this.name = "BookingTransactionAbort";
+  }
+}
 
 export async function findBlockingBookingsForHost(
   db: Database,
@@ -69,6 +81,36 @@ export async function createPendingCalendarBooking(
     .returning({ id: booking.id });
 
   return rows[0] ?? null;
+}
+
+export async function createPendingCalendarBookings(
+  db: Database,
+  inputs: readonly PendingCalendarBookingInsert[],
+) {
+  try {
+    return await db.transaction(async (tx) => {
+      const bookingIds: string[] = [];
+
+      for (const input of inputs) {
+        const rows = await insertPendingCalendarBooking(tx, input);
+        const row = rows[0];
+
+        if (row === undefined) {
+          throw new BookingTransactionAbort("booking_reservation_conflict");
+        }
+
+        bookingIds.push(row.id);
+      }
+
+      return bookingIds;
+    });
+  } catch (error: unknown) {
+    if (error instanceof BookingTransactionAbort) {
+      return null;
+    }
+
+    throw error;
+  }
 }
 
 export async function countRecentBookingsForCode(
@@ -127,6 +169,55 @@ export async function confirmCalendarBooking(
   return rows[0] ?? null;
 }
 
+export async function confirmCalendarBookings(
+  db: Database,
+  input: {
+    bookingIds: readonly string[];
+    calendarEventId: string;
+    confirmedAt: Date;
+    provider: "google";
+  },
+) {
+  try {
+    return await db.transaction(async (tx) => {
+      const confirmedBookingIds: string[] = [];
+
+      for (const bookingId of input.bookingIds) {
+        const rows = await tx
+          .update(booking)
+          .set({
+            calendarProvider: input.provider,
+            calendarEventId: input.calendarEventId,
+            status: "confirmed",
+            updatedAt: input.confirmedAt,
+          })
+          .where(
+            and(
+              eq(booking.id, bookingId),
+              eq(booking.status, "pending_calendar"),
+            ),
+          )
+          .returning({ id: booking.id });
+        const row = rows[0];
+
+        if (row === undefined) {
+          throw new BookingTransactionAbort("booking_confirmation_missing");
+        }
+
+        confirmedBookingIds.push(row.id);
+      }
+
+      return confirmedBookingIds;
+    });
+  } catch (error: unknown) {
+    if (error instanceof BookingTransactionAbort) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
 export async function markCalendarBookingFailed(
   db: Database,
   input: { bookingId: string; failedAt: Date }
@@ -146,4 +237,72 @@ export async function markCalendarBookingFailed(
     .returning({ id: booking.id });
 
   return rows[0] ?? null;
+}
+
+export async function markCalendarBookingsFailed(
+  db: Database,
+  input: { bookingIds: readonly string[]; failedAt: Date },
+) {
+  try {
+    return await db.transaction(async (tx) => {
+      const failedBookingIds: string[] = [];
+
+      for (const bookingId of input.bookingIds) {
+        const rows = await tx
+          .update(booking)
+          .set({
+            status: "calendar_failed",
+            updatedAt: input.failedAt,
+          })
+          .where(
+            and(
+              eq(booking.id, bookingId),
+              eq(booking.status, "pending_calendar"),
+            ),
+          )
+          .returning({ id: booking.id });
+        const row = rows[0];
+
+        if (row === undefined) {
+          throw new BookingTransactionAbort("booking_failure_missing");
+        }
+
+        failedBookingIds.push(row.id);
+      }
+
+      return failedBookingIds;
+    });
+  } catch (error: unknown) {
+    if (error instanceof BookingTransactionAbort) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
+function insertPendingCalendarBooking(
+  db: Pick<Database, "insert">,
+  input: PendingCalendarBookingInsert,
+) {
+  return db
+    .insert(booking)
+    .values({
+      id: input.id,
+      hostId: input.hostId,
+      hostUsername: input.hostUsername,
+      bookingCodeId: input.bookingCodeId,
+      guestName: input.guestName,
+      guestEmail: input.guestEmail,
+      guestEmailNormalized: input.guestEmailNormalized,
+      guestTimezone: input.guestTimezone,
+      slotStartAt: input.slotStartAt,
+      slotEndAt: input.slotEndAt,
+      status: "pending_calendar",
+      source: input.source,
+      createdAt: input.createdAt,
+      updatedAt: input.createdAt,
+    })
+    .onConflictDoNothing()
+    .returning({ id: booking.id });
 }

@@ -56,6 +56,8 @@ type ScheduleBodyParseResult =
 
 export type AuthorizedParticipant = {
   readonly authUserId: string;
+  readonly bookingCodeId: string;
+  readonly calendarAccountEmail: string | null;
   readonly calendarId: string | null;
   readonly hostId: string;
   readonly username: string;
@@ -91,7 +93,11 @@ export type SerializedScheduleResult =
   | { readonly kind: "none"; readonly reason: NoScheduleReason };
 
 export type ScheduleExecutionResult =
-  | { readonly body: SerializedScheduleResult; readonly code: "scheduled" }
+  | {
+      readonly authorizedParticipants: readonly AuthorizedParticipant[];
+      readonly body: SerializedScheduleResult;
+      readonly code: "scheduled";
+    }
   | { readonly code: "booking_code_invalid" }
   | { readonly code: "booking_code_rate_limited" }
   | {
@@ -199,6 +205,8 @@ export async function executeScheduleRequest(
 
     authorizedParticipants.push({
       authUserId: authorization.access.host.authUserId,
+      bookingCodeId: authorization.access.code.id,
+      calendarAccountEmail: authorization.access.host.calendarAccountEmail,
       calendarId: authorization.access.host.calendarId,
       hostId: authorization.access.host.id,
       username: authorization.access.host.username,
@@ -243,6 +251,7 @@ export async function executeScheduleRequest(
 
   return {
     code: "scheduled",
+    authorizedParticipants,
     body: serializeScheduleResult(result, authorizedParticipants),
   };
 }

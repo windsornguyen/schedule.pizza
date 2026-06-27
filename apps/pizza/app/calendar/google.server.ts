@@ -53,6 +53,11 @@ type JsonParseResult =
   | { readonly body: unknown; readonly code: "parsed" }
   | { readonly code: "invalid_json" };
 
+export type GoogleCalendarEventAttendee = {
+  readonly displayName: string;
+  readonly email: string;
+};
+
 export async function readGoogleCalendarAccess(
   db: Database,
   input: {
@@ -262,6 +267,7 @@ export async function listGoogleFreeBusyIntervals(input: {
 }
 
 export async function createGoogleCalendarEvent(input: {
+  readonly additionalAttendees?: readonly GoogleCalendarEventAttendee[];
   readonly accessToken: string;
   readonly calendarId: string;
   readonly endAt: Date;
@@ -282,7 +288,7 @@ export async function createGoogleCalendarEvent(input: {
     `${GOOGLE_CALENDAR_API_URL}/calendars/${encodeURIComponent(input.calendarId)}/events`,
   );
 
-  if (input.guestEmail !== null) {
+  if (hasGoogleEventAttendees(input)) {
     url.searchParams.set("sendUpdates", "all");
   }
 
@@ -370,6 +376,7 @@ export function readGoogleCalendarId(calendarId: string | null) {
 }
 
 function buildGoogleEventBody(input: {
+  readonly additionalAttendees?: readonly GoogleCalendarEventAttendee[];
   readonly endAt: Date;
   readonly guestEmail: string | null;
   readonly guestName: string;
@@ -389,14 +396,60 @@ function buildGoogleEventBody(input: {
     summary: `schedule.pizza: ${input.guestName}`,
   };
 
-  if (input.guestEmail === null) {
+  const attendees = buildGoogleEventAttendees(input);
+
+  if (attendees.length === 0) {
     return base;
   }
 
   return {
     ...base,
-    attendees: [{ displayName: input.guestName, email: input.guestEmail }],
+    attendees,
   };
+}
+
+function buildGoogleEventAttendees(input: {
+  readonly additionalAttendees?: readonly GoogleCalendarEventAttendee[];
+  readonly guestEmail: string | null;
+  readonly guestName: string;
+}) {
+  const attendees: GoogleCalendarEventAttendee[] = [];
+  const guestEmail = input.guestEmail;
+
+  if (guestEmail !== null) {
+    attendees.push({ displayName: input.guestName, email: guestEmail });
+  }
+
+  attendees.push(...(input.additionalAttendees ?? []));
+
+  return dedupeGoogleEventAttendees(attendees);
+}
+
+function dedupeGoogleEventAttendees(
+  attendees: readonly GoogleCalendarEventAttendee[],
+) {
+  const seenEmails = new Set<string>();
+  const dedupedAttendees: GoogleCalendarEventAttendee[] = [];
+
+  for (const attendee of attendees) {
+    const email = attendee.email.trim().toLowerCase();
+
+    if (email === "" || seenEmails.has(email)) {
+      continue;
+    }
+
+    seenEmails.add(email);
+    dedupedAttendees.push({ ...attendee, email });
+  }
+
+  return dedupedAttendees;
+}
+
+function hasGoogleEventAttendees(input: {
+  readonly additionalAttendees?: readonly GoogleCalendarEventAttendee[];
+  readonly guestEmail: string | null;
+}) {
+  return input.guestEmail !== null || (input.additionalAttendees?.length ?? 0) > 0;
 }
 
 function defaultFetcher(input: string, init: RequestInit) {
