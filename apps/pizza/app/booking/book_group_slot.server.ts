@@ -2,8 +2,8 @@
  * Group booking writes one meeting across several schedule.pizza hosts.
  *
  * The function rechecks exact group availability immediately before writing,
- * reserves one local booking row per host in a transaction, creates one Google
- * organizer event with all attendees, then confirms every local row.
+ * reserves one local booking row per host through one D1 batch, creates one
+ * Google organizer event with all attendees, then confirms every local row.
  */
 
 import {
