@@ -1,6 +1,7 @@
 import { Form, redirect } from "react-router";
 
 import { readAuthSession } from "@/auth.server";
+import { cancelHostBooking } from "@/booking/cancel_host_booking.server";
 import { readCalendarStatus } from "@/dashboard/calendar_status.server";
 import {
   parseProfileForm,
@@ -9,6 +10,10 @@ import {
 import { updateExistingProfile } from "@/dashboard/profile_update.server";
 import { createDb } from "@/db/client.server";
 import {
+  countConfirmedBookingsForCalendarEvent,
+  listUpcomingConfirmedBookingsForHost,
+} from "@/db/functions/bookings.server";
+import {
   createBookingCode,
   rotateBookingCode,
 } from "@/db/functions/booking_codes.server";
@@ -16,10 +21,12 @@ import {
   createHostProfile,
   findHostProfileByAuthUserId,
 } from "@/db/functions/host_profiles.server";
+import { formatSlotLabel } from "@/scheduling/slot_labels";
 import { serverContext, type ServerEnv } from "@/server-context";
 import type { Route } from "./+types/dashboard";
 
 type DashboardActionData = NonNullable<Route.ComponentProps["actionData"]> | null;
+type DashboardActionCode = NonNullable<DashboardActionData>["code"];
 
 export function meta() {
   return [{ title: "dashboard - schedule.pizza" }];
@@ -35,13 +42,37 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 
   const db = createDb(env.DB);
   const profile = await findHostProfileByAuthUserId(db, session.user.id);
-  const calendarStatus = profile === null
-    ? "missing_profile"
-    : await readCalendarStatus(db, env, session.user.id);
+
+  if (profile === null) {
+    return { email: session.user.email, profile: null };
+  }
+
+  const [calendarStatus, bookings] = await Promise.all([
+    readCalendarStatus(db, env, session.user.id),
+    listUpcomingConfirmedBookingsForHost(db, {
+      hostId: profile.id,
+      limit: 5,
+      now: new Date(),
+    }),
+  ]);
+
+  const serializedBookings = await Promise.all(
+    bookings.map(async (booking) => ({
+      canCancel: await canCancelDashboardBooking(db, booking.calendarEventId),
+      id: booking.id,
+      guestEmail: booking.guestEmail,
+      guestName: booking.guestName,
+      slot: {
+        start: booking.slotStartAt.toISOString(),
+        end: booking.slotEndAt.toISOString(),
+      },
+    })),
+  );
 
   return {
     email: session.user.email,
-    profile: profile === null ? null : {
+    profile: {
+      bookings: serializedBookings,
       calendarStatus,
       slotSizeMinutes: profile.slotSizeMinutes,
       timezone: profile.timezone,
@@ -82,6 +113,14 @@ export async function action({ context, request }: Route.ActionArgs) {
     return updateExistingProfile(db, {
       authUserId: session.user.id,
       email: session.user.email,
+      env,
+      formData,
+    });
+  }
+
+  if (intent === "cancel_booking") {
+    return cancelExistingBooking(db, {
+      authUserId: session.user.id,
       env,
       formData,
     });
@@ -246,7 +285,50 @@ function ProfilePanel({
           rotate booking code
         </button>
       </Form>
+      <UpcomingBookings bookings={profile.bookings} timezone={profile.timezone} />
       <ActionMessage actionData={actionData} />
+    </section>
+  );
+}
+
+function UpcomingBookings({
+  bookings,
+  timezone,
+}: {
+  readonly bookings: NonNullable<Route.ComponentProps["loaderData"]["profile"]>["bookings"];
+  readonly timezone: string;
+}) {
+  if (bookings.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="space-y-3">
+      <h2 className="text-sm font-semibold">upcoming</h2>
+      {bookings.map((booking) => (
+        <div key={booking.id} className="space-y-1">
+          <p className="text-sm text-muted-foreground">
+            {formatSlotLabel(booking.slot, timezone)}
+            {" with "}
+            {booking.guestName}
+            {booking.guestEmail === null ? "" : ` <${booking.guestEmail}>`}
+          </p>
+          {booking.canCancel ? (
+            <Form method="post">
+              <input type="hidden" name="intent" value="cancel_booking" />
+              <input type="hidden" name="bookingId" value={booking.id} />
+              <button
+                type="submit"
+                className="rounded-md border px-3 py-2 text-sm transition-colors hover:bg-muted"
+              >
+                cancel
+              </button>
+            </Form>
+          ) : (
+            <p className="text-sm text-muted-foreground">group booking</p>
+          )}
+        </div>
+      ))}
     </section>
   );
 }
@@ -298,6 +380,10 @@ function ActionMessage({
     return <p className="text-sm text-muted-foreground">saved.</p>;
   }
 
+  if (actionData.code === "cancelled") {
+    return <p className="text-sm text-muted-foreground">cancelled booking.</p>;
+  }
+
   if (actionData.code === "invalid_field") {
     return (
       <p className="text-sm text-destructive">
@@ -328,7 +414,78 @@ function ActionMessage({
     );
   }
 
+  const cancellationError = readCancellationErrorMessage(actionData.code);
+
+  if (cancellationError !== null) {
+    return <p className="text-sm text-destructive">{cancellationError}</p>;
+  }
+
   return <p className="text-sm text-destructive">{actionData.code}</p>;
+}
+
+async function canCancelDashboardBooking(
+  db: ReturnType<typeof createDb>,
+  calendarEventId: string | null,
+) {
+  if (calendarEventId === null) {
+    return false;
+  }
+
+  const eventBookingCount = await countConfirmedBookingsForCalendarEvent(db, {
+    calendarEventId,
+  });
+
+  return eventBookingCount === 1;
+}
+
+function readCancellationErrorMessage(code: DashboardActionCode) {
+  if (code === "booking_missing") {
+    return "booking not found.";
+  }
+
+  if (code === "group_booking_cancel_unsupported") {
+    return "group booking cancellation is not supported yet.";
+  }
+
+  if (
+    code === "booking_calendar_missing" ||
+    code === "booking_cancel_failed" ||
+    code === "google_event_delete_failed"
+  ) {
+    return "could not cancel booking.";
+  }
+
+  return null;
+}
+
+async function cancelExistingBooking(
+  db: ReturnType<typeof createDb>,
+  input: {
+    readonly authUserId: string;
+    readonly env: ServerEnv;
+    readonly formData: FormData;
+  },
+) {
+  const bookingId = readRequiredFormString(input.formData, "bookingId");
+
+  if (bookingId === null) {
+    return { code: "invalid_field" as const, field: "bookingId" };
+  }
+
+  const profile = await findHostProfileByAuthUserId(db, input.authUserId);
+
+  if (profile === null) {
+    return { code: "profile_missing" as const };
+  }
+
+  return cancelHostBooking(db, {
+    authUserId: input.authUserId,
+    bookingId,
+    calendarId: profile.calendarId,
+    env: input.env,
+    hostId: profile.id,
+    now: new Date(),
+  });
 }
 
 async function createProfileAndCode(
@@ -389,6 +546,14 @@ async function createProfileAndCode(
     bookingCode: bookingCode.code,
     username: profile.username,
   };
+}
+
+function readRequiredFormString(formData: FormData, field: string) {
+  const value = formData.get(field);
+
+  return typeof value === "string" && value.trim() !== ""
+    ? value.trim()
+    : null;
 }
 
 async function createCodeForExistingProfile(

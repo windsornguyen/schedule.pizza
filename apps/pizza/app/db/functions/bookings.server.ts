@@ -1,4 +1,4 @@
-import { and, count, eq, gt, inArray, lt } from "drizzle-orm";
+import { and, asc, count, eq, gt, inArray, lt } from "drizzle-orm";
 
 import type { Database } from "@/db/client.server";
 import { booking } from "@/db/schema";
@@ -143,6 +143,77 @@ export async function countRecentBookingsForCode(
   return row.bookings;
 }
 
+export async function listUpcomingConfirmedBookingsForHost(
+  db: Database,
+  input: { hostId: string; limit: number; now: Date },
+) {
+  return db
+    .select({
+      calendarEventId: booking.calendarEventId,
+      calendarProvider: booking.calendarProvider,
+      guestEmail: booking.guestEmail,
+      guestName: booking.guestName,
+      id: booking.id,
+      slotEndAt: booking.slotEndAt,
+      slotStartAt: booking.slotStartAt,
+    })
+    .from(booking)
+    .where(
+      and(
+        eq(booking.hostId, input.hostId),
+        eq(booking.status, "confirmed"),
+        gt(booking.slotEndAt, input.now),
+      ),
+    )
+    .orderBy(asc(booking.slotStartAt))
+    .limit(input.limit);
+}
+
+export async function findConfirmedBookingForHost(
+  db: Database,
+  input: { bookingId: string; hostId: string },
+) {
+  const rows = await db
+    .select({
+      calendarEventId: booking.calendarEventId,
+      calendarProvider: booking.calendarProvider,
+      id: booking.id,
+    })
+    .from(booking)
+    .where(
+      and(
+        eq(booking.id, input.bookingId),
+        eq(booking.hostId, input.hostId),
+        eq(booking.status, "confirmed"),
+      ),
+    )
+    .limit(1);
+
+  return rows[0] ?? null;
+}
+
+export async function countConfirmedBookingsForCalendarEvent(
+  db: Database,
+  input: { calendarEventId: string },
+) {
+  const rows = await db
+    .select({ bookings: count() })
+    .from(booking)
+    .where(
+      and(
+        eq(booking.calendarEventId, input.calendarEventId),
+        eq(booking.status, "confirmed"),
+      ),
+    );
+  const row = rows[0];
+
+  if (row === undefined) {
+    throw new Error("booking event count query returned no rows");
+  }
+
+  return row.bookings;
+}
+
 export async function confirmCalendarBooking(
   db: Database,
   input: {
@@ -165,6 +236,28 @@ export async function confirmCalendarBooking(
         eq(booking.id, input.bookingId),
         eq(booking.status, "pending_calendar")
       )
+    )
+    .returning({ id: booking.id });
+
+  return rows[0] ?? null;
+}
+
+export async function markConfirmedBookingCancelled(
+  db: Database,
+  input: { bookingId: string; cancelledAt: Date },
+) {
+  const rows = await db
+    .update(booking)
+    .set({
+      cancelledAt: input.cancelledAt,
+      status: "cancelled",
+      updatedAt: input.cancelledAt,
+    })
+    .where(
+      and(
+        eq(booking.id, input.bookingId),
+        eq(booking.status, "confirmed"),
+      ),
     )
     .returning({ id: booking.id });
 

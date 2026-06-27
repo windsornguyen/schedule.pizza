@@ -25,7 +25,8 @@ export default function Docs() {
         <p className="text-sm leading-6 text-muted-foreground">
           Sign in with Google, choose a username, and share the generated link.
           The code in the link is the capability: without it, schedule.pizza
-          should not expose availability.
+          should not expose availability. Confirmed bookings appear in the
+          dashboard, where hosts can cancel upcoming one-on-one bookings.
         </p>
       </section>
 
