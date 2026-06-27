@@ -30,7 +30,11 @@ export async function bookAuthorizedSlot(input: {
     username: input.username,
   });
 
-  if (authorization.code !== "authorized") {
+  if (authorization.code === "booking_code_rate_limited") {
+    return { code: "booking_rate_limited" as const };
+  }
+
+  if (authorization.code === "booking_code_invalid") {
     return { code: "slot_unavailable" as const };
   }
 

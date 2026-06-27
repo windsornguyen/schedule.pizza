@@ -72,4 +72,42 @@ describe("authorized profile booking", () => {
       guestEmailNormalized: "ada@example.com",
     }));
   });
+
+  it("keeps wrong codes indistinguishable from unavailable slots", async () => {
+    mocks.authorizeBookingCode.mockResolvedValueOnce({
+      code: "booking_code_invalid",
+    });
+
+    await expect(bookAuthorizedSlot({
+      bookingCode: "wrong-code-alpha",
+      env,
+      guestEmail: "ada@example.com",
+      guestEmailNormalized: "ada@example.com",
+      guestName: "Ada",
+      guestTimezone: "America/Los_Angeles",
+      request: new Request("https://schedule.pizza/alice"),
+      slotStartAt,
+      username: "alice",
+    })).resolves.toEqual({ code: "slot_unavailable" });
+    expect(mocks.bookHostSlot).not.toHaveBeenCalled();
+  });
+
+  it("surfaces booking-code rate limits to humans", async () => {
+    mocks.authorizeBookingCode.mockResolvedValueOnce({
+      code: "booking_code_rate_limited",
+    });
+
+    await expect(bookAuthorizedSlot({
+      bookingCode: "moon-tiger-seven",
+      env,
+      guestEmail: "ada@example.com",
+      guestEmailNormalized: "ada@example.com",
+      guestName: "Ada",
+      guestTimezone: "America/Los_Angeles",
+      request: new Request("https://schedule.pizza/alice"),
+      slotStartAt,
+      username: "alice",
+    })).resolves.toEqual({ code: "booking_rate_limited" });
+    expect(mocks.bookHostSlot).not.toHaveBeenCalled();
+  });
 });
