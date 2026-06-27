@@ -31,6 +31,13 @@ describe("docs page examples", () => {
     expect(html).toContain("bookingUrl");
   });
 
+  it("describes recommendation response priority", () => {
+    const html = renderToStaticMarkup(<Docs />);
+
+    expect(html).toContain("It returns exact slots first");
+    expect(html).toContain("kind: &quot;alternatives&quot;");
+  });
+
   it("teaches agents to call availability with a booking link", () => {
     const html = renderToStaticMarkup(<Docs />);
 

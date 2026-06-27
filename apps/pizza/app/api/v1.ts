@@ -199,6 +199,10 @@ v1.get("/", (c) => {
         method: "POST",
         path: "/api/v1/recommend",
         body: "same as /api/v1/schedule",
+        response: {
+          exact: "returned first when everyone is free",
+          alternatives: "ranked by conflict cost when no exact slot exists",
+        },
         headers: { "CF-Connecting-IP": "string (injected by Cloudflare)" },
       },
       schedule: {

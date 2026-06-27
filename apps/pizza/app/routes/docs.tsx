@@ -149,8 +149,9 @@ export default function Docs() {
         <p className="text-sm leading-6 text-muted-foreground">
           <code className="font-mono">POST /api/v1/recommend</code> accepts the
           same body as <code className="font-mono">/api/v1/schedule</code>.{" "}
-          A response with <code className="font-mono">kind: "exact"</code>{" "}
-          means every participant is free for that interval. A response with{" "}
+          It returns exact slots first. A response with{" "}
+          <code className="font-mono">kind: "exact"</code> means every
+          participant is free for that interval. A response with{" "}
           <code className="font-mono">kind: "alternatives"</code> is a ranked
           recommendation: lower conflict cost is better, hard conflicts are
           shown before soft conflicts, and event details stay private.

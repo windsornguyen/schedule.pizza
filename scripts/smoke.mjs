@@ -29,7 +29,14 @@ await checkJson("/api/v1", "api descriptor", (body) => {
   assertEndpoint(body, "bookGroup");
   assertField(body, ["endpoints", "schedule", "body", "maxExactSlotCount"]);
   assertField(body, ["endpoints", "schedule", "body", "maxAlternativeSlotCount"]);
+  assertField(body, ["endpoints", "recommend", "response", "exact"]);
+  assertField(body, ["endpoints", "recommend", "response", "alternatives"]);
   assertField(body, ["endpoints", "bookGroup", "body", "slot"]);
+});
+await checkJsonStatus("/api/v1/availability?user=alice", "availability without code", 400, (body) => {
+  assertRecord(body, "availability without code");
+  assertField(body, ["error", "code"]);
+  assertEqual(body["error"]["code"], "missing_parameter", "availability error code");
 });
 await checkJson("/api/v1/health", "health", (body) => {
   assertRecord(body, "health");
@@ -73,6 +80,21 @@ function assertTextIncludes(text, label, requiredText) {
 async function checkJson(path, label, validate) {
   const response = await fetchResponse(path, label);
   const contentType = response.headers.get("content-type") ?? "";
+
+  if (!contentType.includes("application/json")) {
+    throw new Error(`${label} returned ${contentType || "no content type"}`);
+  }
+
+  validate(await response.json());
+}
+
+async function checkJsonStatus(path, label, expectedStatus, validate) {
+  const response = await fetch(new URL(path, baseUrl));
+  const contentType = response.headers.get("content-type") ?? "";
+
+  if (response.status !== expectedStatus) {
+    throw new Error(`${label} expected HTTP ${expectedStatus}, got ${response.status}`);
+  }
 
   if (!contentType.includes("application/json")) {
     throw new Error(`${label} returned ${contentType || "no content type"}`);

@@ -28,4 +28,5 @@ time across several people.
 
 All calendar times are UTC ISO 8601 strings ending in `Z`. Booking codes are
 capabilities. Calls without a valid code should not expose availability. Google
-Calendar event ids stay server-side.
+Calendar event ids stay server-side. Recommendation calls return exact slots
+first, then ranked alternatives only when no exact slot exists.

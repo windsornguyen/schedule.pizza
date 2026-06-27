@@ -249,6 +249,10 @@ describe("v1 API CORS", () => {
       recommend: {
         method: "POST",
         path: "/api/v1/recommend",
+        response: {
+          exact: expect.stringContaining("everyone is free"),
+          alternatives: expect.stringContaining("conflict cost"),
+        },
       },
       schedule: {
         method: "POST",
