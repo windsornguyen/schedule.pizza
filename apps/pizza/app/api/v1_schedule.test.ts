@@ -43,6 +43,75 @@ describe("schedule API body parser", () => {
     });
   });
 
+  it("parses schedule links as agent participants", () => {
+    expect(parseScheduleBody({
+      participants: [
+        { url: "schedule.pizza/Alice?code=moon tiger seven" },
+        { url: "https://www.schedule.pizza/bob?code=river-lime-harbor" },
+      ],
+      durationMinutes: 30,
+      granularityMinutes: 15,
+      maxExactSlotCount: 10,
+      maxAlternativeSlotCount: 5,
+      timeZone: "America/Los_Angeles",
+      window: {
+        start: "2026-06-26T16:00:00.000Z",
+        end: "2026-06-26T18:00:00.000Z",
+      },
+    })).toEqual({
+      code: "parsed",
+      body: {
+        participants: [
+          { username: "alice", bookingCode: "moon-tiger-seven" },
+          { username: "bob", bookingCode: "river-lime-harbor" },
+        ],
+        durationMinutes: 30,
+        granularityMinutes: 15,
+        maxExactSlotCount: 10,
+        maxAlternativeSlotCount: 5,
+        timeZone: "America/Los_Angeles",
+        window: interval("2026-06-26T16:00:00.000Z", "2026-06-26T18:00:00.000Z"),
+      },
+    });
+  });
+
+  it("rejects ambiguous participant capability fields", () => {
+    expect(parseScheduleBody({
+      participants: [
+        {
+          url: "schedule.pizza/alice?code=moon-tiger-seven",
+          user: "alice",
+        },
+      ],
+      durationMinutes: 30,
+      granularityMinutes: 15,
+      maxExactSlotCount: 10,
+      maxAlternativeSlotCount: 5,
+      timeZone: "America/Los_Angeles",
+      window: {
+        start: "2026-06-26T16:00:00.000Z",
+        end: "2026-06-26T18:00:00.000Z",
+      },
+    })).toEqual({ code: "invalid_field", field: "participants" });
+  });
+
+  it("rejects external participant links", () => {
+    expect(parseScheduleBody({
+      participants: [
+        { url: "https://example.com/alice?code=moon-tiger-seven" },
+      ],
+      durationMinutes: 30,
+      granularityMinutes: 15,
+      maxExactSlotCount: 10,
+      maxAlternativeSlotCount: 5,
+      timeZone: "America/Los_Angeles",
+      window: {
+        start: "2026-06-26T16:00:00.000Z",
+        end: "2026-06-26T18:00:00.000Z",
+      },
+    })).toEqual({ code: "invalid_field", field: "participants" });
+  });
+
   it("rejects missing participants before booking-code authorization", () => {
     expect(parseScheduleBody({
       durationMinutes: 30,

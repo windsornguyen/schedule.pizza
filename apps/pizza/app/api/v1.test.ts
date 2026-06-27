@@ -538,6 +538,40 @@ describe("group book API body parser", () => {
     });
   });
 
+  it("accepts schedule links for group booking participants", () => {
+    expect(parseGroupBookBody({
+      ...groupBookBody(),
+      participants: [
+        { url: "schedule.pizza/Alice?code=moon tiger seven" },
+        { url: "schedule.pizza/bob?code=river-lime-harbor" },
+      ],
+    })).toEqual({
+      code: "parsed",
+      body: {
+        schedule: {
+          participants: [
+            { username: "alice", bookingCode: "moon-tiger-seven" },
+            { username: "bob", bookingCode: "river-lime-harbor" },
+          ],
+          durationMinutes: 30,
+          granularityMinutes: 15,
+          maxExactSlotCount: 10,
+          maxAlternativeSlotCount: 5,
+          timeZone: "America/Los_Angeles",
+          window: timeInterval({
+            startAtMs: Date.parse("2026-06-26T16:00:00.000Z"),
+            endAtMs: Date.parse("2026-06-27T01:00:00.000Z"),
+          }),
+        },
+        slotStartAt: new Date("2026-06-26T17:00:00.000Z"),
+        guestName: "Ada",
+        email: "ada@example.com",
+        emailNormalized: "ada@example.com",
+        guestTimezone: "America/Los_Angeles",
+      },
+    });
+  });
+
   it("requires guest email before group booking writes can run", () => {
     const body = groupBookBody();
     delete body["email"];
@@ -672,6 +706,37 @@ describe("book API body parser", () => {
         guestTimezone: "America/Los_Angeles",
       },
     });
+  });
+
+  it("parses a schedule link as the booking target", () => {
+    expect(parseBookBody({
+      url: "schedule.pizza/Alice?code=moon tiger seven",
+      slot: "2026-06-26T16:00:00.000Z",
+      name: "Ada",
+      email: "ada@example.com",
+      timezone: "America/Los_Angeles",
+    })).toEqual({
+      code: "parsed",
+      body: {
+        username: "alice",
+        bookingCode: "moon-tiger-seven",
+        slotStartAt: new Date("2026-06-26T16:00:00.000Z"),
+        guestName: "Ada",
+        email: "ada@example.com",
+        emailNormalized: "ada@example.com",
+        guestTimezone: "America/Los_Angeles",
+      },
+    });
+  });
+
+  it("rejects ambiguous booking target capability fields", () => {
+    expect(parseBookBody({
+      url: "schedule.pizza/alice?code=moon-tiger-seven",
+      user: "alice",
+      slot: "2026-06-26T16:00:00.000Z",
+      name: "Ada",
+      email: "ada@example.com",
+    })).toEqual({ code: "invalid_field", field: "url" });
   });
 
   it("rejects missing required fields before booking-code authorization", () => {

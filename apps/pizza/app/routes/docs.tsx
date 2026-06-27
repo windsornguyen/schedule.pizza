@@ -48,13 +48,15 @@ export default function Docs() {
           Book the exact slot returned by availability. The server checks the
           booking code again and rejects the write if the slot is no longer
           free. A booking succeeds only after the Google Calendar event is
-          created.
+          created. Agents can send the shared link as{" "}
+          <code className="font-mono">url</code>, or split it into{" "}
+          <code className="font-mono">user</code> and{" "}
+          <code className="font-mono">code</code>.
         </p>
         <pre className="whitespace-pre-wrap break-words rounded-md border bg-muted p-3 font-mono text-sm">
           <code>{`POST /api/v1/book
 {
-  "user": "alice",
-  "code": "moon-tiger-seven",
+  "url": "https://schedule.pizza/alice?code=moon-tiger-seven",
   "slot": "2030-01-07T17:00:00.000Z",
   "name": "Ada",
   "email": "ada@example.com",
@@ -76,7 +78,10 @@ export default function Docs() {
           alternatives with the conflicting people and time ranges. Google event
           details stay private. Slots use weekday 9 AM-5 PM windows in the
           request time zone and snap to the requested granularity. Requests are
-          capped at eight people and a 31-day window.
+          capped at eight people and a 31-day window. Each participant accepts
+          either a shared link in <code className="font-mono">url</code> or the
+          split <code className="font-mono">user</code> and{" "}
+          <code className="font-mono">code</code> fields.
         </p>
         <p className="text-sm leading-6 text-muted-foreground">
           For people, use <a
@@ -92,8 +97,8 @@ export default function Docs() {
           <code>{`POST /api/v1/schedule
 {
   "participants": [
-    { "user": "alice", "code": "moon-tiger-seven" },
-    { "user": "bob", "code": "river-lime-harbor" }
+    { "url": "https://schedule.pizza/alice?code=moon-tiger-seven" },
+    { "url": "https://schedule.pizza/bob?code=river-lime-harbor" }
   ],
   "durationMinutes": 30,
   "granularityMinutes": 15,
@@ -114,8 +119,8 @@ export default function Docs() {
           <code>{`POST /api/v1/book-group
 {
   "participants": [
-    { "user": "alice", "code": "moon-tiger-seven" },
-    { "user": "bob", "code": "river-lime-harbor" }
+    { "url": "https://schedule.pizza/alice?code=moon-tiger-seven" },
+    { "url": "https://schedule.pizza/bob?code=river-lime-harbor" }
   ],
   "durationMinutes": 30,
   "granularityMinutes": 15,

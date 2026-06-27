@@ -48,6 +48,7 @@ import {
 import {
   executeScheduleRequest,
   parseScheduleBody,
+  parseScheduleParticipantLink,
   scheduleRoute,
 } from "./v1_schedule";
 import type { ParsedScheduleBody } from "./v1_schedule";
@@ -132,8 +133,9 @@ v1.get("/", (c) => {
         method: "POST",
         path: "/api/v1/book",
         body: {
-          user: "string (required)",
-          code: "string (required, booking code)",
+          url: "string (optional schedule.pizza link; use instead of user/code)",
+          user: "string (required unless url is provided)",
+          code: "string (required unless url is provided)",
           slot: "string (required, UTC ISO 8601 start time)",
           name: "string (required, booker name)",
           email: "string (required, valid booker email)",
@@ -145,7 +147,11 @@ v1.get("/", (c) => {
         method: "POST",
         path: "/api/v1/book-group",
         body: {
-          participants: [{ user: "string", code: "string" }],
+          participants: [{
+            url: "string (optional schedule.pizza link; use instead of user/code)",
+            user: "string (required unless url is provided)",
+            code: "string (required unless url is provided)",
+          }],
           durationMinutes: "number (1-480)",
           granularityMinutes: "number (1-240)",
           maxExactSlotCount: "number (1-100)",
@@ -172,7 +178,11 @@ v1.get("/", (c) => {
         method: "POST",
         path: "/api/v1/schedule",
         body: {
-          participants: [{ user: "string", code: "string" }],
+          participants: [{
+            url: "string (optional schedule.pizza link; use instead of user/code)",
+            user: "string (required unless url is provided)",
+            code: "string (required unless url is provided)",
+          }],
           durationMinutes: "number (1-480)",
           granularityMinutes: "number (1-240)",
           maxExactSlotCount: "number (1-100)",
@@ -913,11 +923,8 @@ export function parseBookBody(body: unknown): BookBodyParseResult {
     return { code: "missing_field", field: "user" };
   }
 
-  const username = readUsername(body["user"]);
-  if (username.code !== "parsed") return { code: username.code, field: "user" };
-
-  const bookingCode = readBookingCode(body["code"]);
-  if (bookingCode.code !== "parsed") return { code: bookingCode.code, field: "code" };
+  const target = readBookingTarget(body);
+  if (target.code !== "parsed") return target;
 
   const slotStartAt = readSlotStart(body["slot"]);
   if (slotStartAt.code !== "parsed") return { code: slotStartAt.code, field: "slot" };
@@ -937,14 +944,44 @@ export function parseBookBody(body: unknown): BookBodyParseResult {
   return {
     code: "parsed",
     body: {
-      username: username.value,
-      bookingCode: bookingCode.value,
+      username: target.username,
+      bookingCode: target.bookingCode,
       slotStartAt: slotStartAt.value,
       guestName,
       email: email.value,
       emailNormalized: email.normalized,
       guestTimezone: guestTimezone.value,
     },
+  };
+}
+
+function readBookingTarget(body: Record<string, unknown>):
+  | { readonly bookingCode: string; readonly code: "parsed"; readonly username: string }
+  | { readonly code: "invalid_field" | "missing_field"; readonly field: string } {
+  const hasUrl = body["url"] !== undefined;
+  const hasUser = body["user"] !== undefined;
+  const hasCode = body["code"] !== undefined;
+
+  if (hasUrl) {
+    const parsed = typeof body["url"] === "string"
+      ? parseScheduleParticipantLink(body["url"])
+      : null;
+
+    return hasUser || hasCode || parsed === null
+      ? { code: "invalid_field", field: "url" }
+      : { code: "parsed", ...parsed };
+  }
+
+  const username = readUsername(body["user"]);
+  if (username.code !== "parsed") return { code: username.code, field: "user" };
+
+  const bookingCode = readBookingCode(body["code"]);
+  if (bookingCode.code !== "parsed") return { code: bookingCode.code, field: "code" };
+
+  return {
+    code: "parsed",
+    username: username.value,
+    bookingCode: bookingCode.value,
   };
 }
 

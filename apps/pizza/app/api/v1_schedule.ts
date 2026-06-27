@@ -387,22 +387,86 @@ function parseParticipants(value: unknown):
       return { code: "invalid_field", field: "participants" };
     }
 
-    const username = typeof rawParticipant["user"] === "string" ? normalizeUsername(rawParticipant["user"]) : null;
-    const bookingCode = typeof rawParticipant["code"] === "string" ? normalizeBookingCode(rawParticipant["code"]) : null;
+    const participant = parseParticipant(rawParticipant);
 
-    if (username === null || bookingCode === null) {
+    if (participant === null) {
       return { code: "invalid_field", field: "participants" };
     }
 
-    if (usernames.has(username)) {
+    if (usernames.has(participant.username)) {
       return { code: "invalid_field", field: "participants" };
     }
 
-    usernames.add(username);
-    participants.push({ username, bookingCode });
+    usernames.add(participant.username);
+    participants.push(participant);
   }
 
   return { code: "parsed", participants };
+}
+
+function parseParticipant(value: Record<string, unknown>): ParsedParticipant | null {
+  const hasUrl = value["url"] !== undefined;
+  const hasUser = value["user"] !== undefined;
+  const hasCode = value["code"] !== undefined;
+
+  if (hasUrl) {
+    return hasUser || hasCode || typeof value["url"] !== "string"
+      ? null
+      : parseScheduleParticipantLink(value["url"]);
+  }
+
+  const username = typeof value["user"] === "string"
+    ? normalizeUsername(value["user"])
+    : null;
+  const bookingCode = typeof value["code"] === "string"
+    ? normalizeBookingCode(value["code"])
+    : null;
+
+  return username === null || bookingCode === null
+    ? null
+    : { username, bookingCode };
+}
+
+export function parseScheduleParticipantLink(value: string): ParsedParticipant | null {
+  const parsedUrl = parseScheduleUrl(value);
+
+  if (parsedUrl === null) {
+    return null;
+  }
+
+  const pathParts = parsedUrl.pathname.split("/").filter((part) => part !== "");
+  const rawUsername = pathParts[0];
+  const rawBookingCode = parsedUrl.searchParams.get("code");
+
+  if (rawUsername === undefined || pathParts.length !== 1 || rawBookingCode === null) {
+    return null;
+  }
+
+  const username = normalizeUsername(rawUsername);
+  const bookingCode = normalizeBookingCode(rawBookingCode);
+
+  return username === null || bookingCode === null
+    ? null
+    : { username, bookingCode };
+}
+
+function parseScheduleUrl(value: string): URL | null {
+  const trimmedValue = value.trim();
+
+  try {
+    const parsedUrl = new URL(
+      /^[a-z][a-z0-9+.-]*:/iu.test(trimmedValue)
+        ? trimmedValue
+        : `https://${trimmedValue}`,
+    );
+
+    return parsedUrl.hostname === "schedule.pizza" ||
+      parsedUrl.hostname === "www.schedule.pizza"
+      ? parsedUrl
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 function parseWindow(value: unknown):
