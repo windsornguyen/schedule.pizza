@@ -343,14 +343,19 @@ function ActionMessage({
   }
 
   if (actionData.code === "created_code" || actionData.code === "created_profile") {
+    const bookingUrl = formatDashboardBookingUrl(actionData);
+
     return (
       <p className="text-sm text-muted-foreground">
         code: <span className="font-mono">{actionData.bookingCode}</span>
         <br />
         link:{" "}
-        <span className="font-mono">
-          schedule.pizza/{actionData.username}?code={actionData.bookingCode}
-        </span>
+        <a
+          href={bookingUrl}
+          className="break-all font-mono underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
+        >
+          {bookingUrl}
+        </a>
         {actionData.code === "created_code" ? (
           <>
             <br />
@@ -362,7 +367,9 @@ function ActionMessage({
   }
 
   if (actionData.code === "updated_profile") {
-    if ("bookingCode" in actionData) {
+    if (hasDashboardBookingUrl(actionData)) {
+      const bookingUrl = formatDashboardBookingUrl(actionData);
+
       return (
         <p className="text-sm text-muted-foreground">
           saved. username changed, so previous codes are revoked.
@@ -370,9 +377,12 @@ function ActionMessage({
           code: <span className="font-mono">{actionData.bookingCode}</span>
           <br />
           link:{" "}
-          <span className="font-mono">
-            schedule.pizza/{actionData.username}?code={actionData.bookingCode}
-          </span>
+          <a
+            href={bookingUrl}
+            className="break-all font-mono underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
+          >
+            {bookingUrl}
+          </a>
         </p>
       );
     }
@@ -546,6 +556,25 @@ async function createProfileAndCode(
     bookingCode: bookingCode.code,
     username: profile.username,
   };
+}
+
+export function formatDashboardBookingUrl(input: {
+  readonly bookingCode: string;
+  readonly username: string;
+}) {
+  return `https://schedule.pizza/${input.username}?code=${input.bookingCode}`;
+}
+
+function hasDashboardBookingUrl(
+  actionData: NonNullable<DashboardActionData>,
+): actionData is NonNullable<DashboardActionData> & {
+  readonly bookingCode: string;
+  readonly username: string;
+} {
+  return "bookingCode" in actionData &&
+    "username" in actionData &&
+    typeof actionData.bookingCode === "string" &&
+    typeof actionData.username === "string";
 }
 
 function readRequiredFormString(formData: FormData, field: string) {

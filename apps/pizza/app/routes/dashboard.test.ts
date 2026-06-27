@@ -4,6 +4,7 @@ import {
   parseProfileForm,
   readDefaultUsernameFromEmail,
 } from "@/dashboard/profile_form";
+import { formatDashboardBookingUrl } from "./dashboard";
 
 describe("dashboard profile form parser", () => {
   it("normalizes valid profile setup input", () => {
@@ -66,5 +67,12 @@ describe("dashboard profile form parser", () => {
 
   it("drops unusable default usernames", () => {
     expect(readDefaultUsernameFromEmail("++@example.com")).toBe("");
+  });
+
+  it("formats the dashboard share link as an absolute schedule.pizza URL", () => {
+    expect(formatDashboardBookingUrl({
+      bookingCode: "moon-tiger-seven",
+      username: "alice",
+    })).toBe("https://schedule.pizza/alice?code=moon-tiger-seven");
   });
 });

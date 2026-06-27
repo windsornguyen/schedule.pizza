@@ -1200,6 +1200,7 @@ async function buildAccountPayload(
         activeBookingCode: null,
         bookingCode: input.bookingCode ?? null,
         bookingPath: null,
+        bookingUrl: null,
       },
     };
   }
@@ -1240,6 +1241,12 @@ async function buildAccountPayload(
       bookingPath: input.bookingCode === undefined
         ? null
         : `/${profile.username}?code=${input.bookingCode}`,
+      bookingUrl: input.bookingCode === undefined
+        ? null
+        : new URL(
+            `/${profile.username}?code=${input.bookingCode}`,
+            env.BETTER_AUTH_URL,
+          ).toString(),
     },
   };
 }

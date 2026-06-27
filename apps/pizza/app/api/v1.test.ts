@@ -585,6 +585,7 @@ describe("account profile API", () => {
         profilePath: "/alice-new",
         bookingCode: "sun-river-ten",
         bookingPath: "/alice-new?code=sun-river-ten",
+        bookingUrl: "https://schedule.pizza/alice-new?code=sun-river-ten",
       },
     });
     expect(mocks.updateHostProfile).toHaveBeenCalledWith(env.DB, {
