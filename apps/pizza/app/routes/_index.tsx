@@ -93,6 +93,12 @@ export default function Home({
           group
         </a>
         <a
+          href="/privacy"
+          className="underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
+        >
+          privacy
+        </a>
+        <a
           href="https://github.com/windsornguyen/schedule.pizza"
           className="underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
         >
