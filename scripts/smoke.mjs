@@ -10,6 +10,9 @@ await checkJson("/api/v1", "api descriptor", (body) => {
   assertEndpoint(body, "recommend");
   assertEndpoint(body, "book");
   assertEndpoint(body, "bookGroup");
+  assertField(body, ["endpoints", "schedule", "body", "maxExactSlotCount"]);
+  assertField(body, ["endpoints", "schedule", "body", "maxAlternativeSlotCount"]);
+  assertField(body, ["endpoints", "bookGroup", "body", "slot"]);
 });
 await checkJson("/api/v1/health", "health", (body) => {
   assertRecord(body, "health");
@@ -78,6 +81,23 @@ function assertEndpoint(body, name) {
 
   assertRecord(endpoints, "api endpoints");
   assertRecord(endpoints[name], `api endpoint ${name}`);
+}
+
+function assertField(body, path) {
+  let value = body;
+
+  for (let index = 0; index < path.length; index += 1) {
+    const segment = path[index];
+    const label = path.slice(0, index).join(".") || "api descriptor";
+
+    assertRecord(value, label);
+
+    if (!(segment in value)) {
+      throw new Error(`api descriptor is missing ${path.join(".")}`);
+    }
+
+    value = value[segment];
+  }
 }
 
 function assertEqual(actual, expected, label) {
