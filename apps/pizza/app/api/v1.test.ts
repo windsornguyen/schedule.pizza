@@ -8,12 +8,14 @@ import type * as BookingCodeAuthorizationsModule from "@/db/functions/booking_co
 import type * as BookingCodesModule from "@/db/functions/booking_codes.server";
 import type * as BookingsModule from "@/db/functions/bookings.server";
 import type * as HostProfilesModule from "@/db/functions/host_profiles.server";
+import type * as HostAvailabilityModule from "@/scheduling/host_availability.server";
 import { timeInterval } from "@/scheduling/engine";
 
 import {
   parseAccountProfileBody,
   parseBookBody,
   parseGroupBookBody,
+  readAvailabilityTarget,
   v1,
 } from "./v1";
 
@@ -30,6 +32,7 @@ const mocks = vi.hoisted(() => ({
   findActiveBookingCodeForHost: vi.fn<AsyncMock>(),
   findHostProfileByAuthUserId: vi.fn<AsyncMock>(),
   findHostProfileByUsername: vi.fn<AsyncMock>(),
+  listHostAvailableSlots: vi.fn<AsyncMock>(),
   listUpcomingConfirmedBookingsForHost: vi.fn<AsyncMock>(),
   readAuthSession: vi.fn<AsyncMock>(),
   readGoogleCalendarAccess: vi.fn<AsyncMock>(),
@@ -122,6 +125,15 @@ vi.mock("@/db/functions/host_profiles.server", async (importOriginal) => {
   };
 });
 
+vi.mock("@/scheduling/host_availability.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof HostAvailabilityModule>();
+
+  return {
+    ...actual,
+    listHostAvailableSlots: mocks.listHostAvailableSlots,
+  };
+});
+
 const db = {};
 const env = {
   BETTER_AUTH_SECRET: "better_auth_secret",
@@ -172,6 +184,15 @@ beforeEach(() => {
   });
   mocks.countConfirmedBookingsForCalendarEvent.mockResolvedValue(1);
   mocks.findActiveBookingCodeForHost.mockResolvedValue(null);
+  mocks.listHostAvailableSlots.mockResolvedValue({
+    code: "listed",
+    slots: [
+      {
+        startAt: new Date("2030-01-07T17:00:00.000Z"),
+        endAt: new Date("2030-01-07T17:30:00.000Z"),
+      },
+    ],
+  });
   mocks.listUpcomingConfirmedBookingsForHost.mockResolvedValue([]);
   mocks.readAuthSession.mockResolvedValue({
     session: { id: "session_1", userId: "auth_user_1" },
@@ -200,8 +221,9 @@ describe("v1 API CORS", () => {
         method: "GET",
         path: "/api/v1/availability",
         params: {
-          user: expect.stringContaining("required"),
-          code: expect.stringContaining("booking code"),
+          url: expect.stringContaining("schedule.pizza link"),
+          user: expect.stringContaining("unless url"),
+          code: expect.stringContaining("unless url"),
         },
       },
       bookGroup: {
@@ -260,6 +282,79 @@ describe("v1 API CORS", () => {
     expect(response.headers.get("Access-Control-Allow-Headers")).toBe(
       "Content-Type",
     );
+  });
+});
+
+describe("availability API", () => {
+  it("accepts a shared schedule link as the capability", async () => {
+    const response = await v1.request(
+      "https://schedule.pizza/availability?url=https%3A%2F%2Fschedule.pizza%2FAlice%3Fcode%3Dmoon%2520tiger%2520seven",
+      {
+        headers: { "CF-Connecting-IP": "203.0.113.10" },
+      },
+      env,
+    );
+
+    await expect(response.json()).resolves.toEqual({
+      user: "alice",
+      timezone: "America/Los_Angeles",
+      slotSizeMinutes: 30,
+      slots: [
+        {
+          start: "2030-01-07T17:00:00.000Z",
+          end: "2030-01-07T17:30:00.000Z",
+        },
+      ],
+    });
+    expect(response.status).toBe(200);
+    expect(mocks.authorizeBookingCode).toHaveBeenCalledWith(db, {
+      bookingCode: "moon-tiger-seven",
+      ipHash: expect.any(String) as string,
+      now: expect.any(Date) as Date,
+      username: "alice",
+    });
+  });
+
+  it("rejects ambiguous shared link parameters before authorization", async () => {
+    const response = await v1.request(
+      "https://schedule.pizza/availability?url=https%3A%2F%2Fschedule.pizza%2Falice%3Fcode%3Dmoon-tiger-seven&user=alice",
+      {
+        headers: { "CF-Connecting-IP": "203.0.113.10" },
+      },
+      env,
+    );
+
+    await expect(response.json()).resolves.toEqual({
+      error: { code: "invalid_field", message: "url is invalid" },
+    });
+    expect(response.status).toBe(400);
+    expect(mocks.authorizeBookingCode).not.toHaveBeenCalled();
+  });
+});
+
+describe("availability API query parser", () => {
+  it("parses split user and code params", () => {
+    expect(readAvailabilityTarget({
+      code: "moon tiger seven",
+      url: null,
+      user: "Alice",
+    })).toEqual({
+      code: "parsed",
+      body: { username: "alice", bookingCode: "moon-tiger-seven" },
+    });
+  });
+
+  it("reports missing split params precisely", () => {
+    expect(readAvailabilityTarget({
+      code: "moon-tiger-seven",
+      url: null,
+      user: null,
+    })).toEqual({ code: "missing_parameter", field: "user" });
+    expect(readAvailabilityTarget({
+      code: null,
+      url: null,
+      user: "alice",
+    })).toEqual({ code: "missing_parameter", field: "code" });
   });
 });
 

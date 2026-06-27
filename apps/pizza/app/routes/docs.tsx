@@ -38,7 +38,9 @@ export default function Docs() {
           schedule.pizza bookings and the host's Google Calendar busy times.
         </p>
         <pre className="whitespace-pre-wrap break-words rounded-md border bg-muted p-3 font-mono text-sm">
-          <code>GET /api/v1/availability?user=alice&code=moon-tiger-seven</code>
+          <code>
+            GET /api/v1/availability?url=https%3A%2F%2Fschedule.pizza%2Falice%3Fcode%3Dmoon-tiger-seven
+          </code>
         </pre>
       </section>
 

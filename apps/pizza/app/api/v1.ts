@@ -67,6 +67,11 @@ type ParsedBookBody = {
   readonly username: string;
 };
 
+type ParsedAvailabilityTarget = {
+  readonly bookingCode: string;
+  readonly username: string;
+};
+
 type ParsedGroupBookBody = {
   readonly email: string;
   readonly emailNormalized: string;
@@ -79,6 +84,13 @@ type ParsedGroupBookBody = {
 type BookBodyParseResult =
   | { readonly body: ParsedBookBody; readonly code: "parsed" }
   | { readonly code: "invalid_field" | "missing_field"; readonly field: string };
+
+type AvailabilityTargetReadResult =
+  | { readonly body: ParsedAvailabilityTarget; readonly code: "parsed" }
+  | {
+      readonly code: "invalid_field" | "missing_parameter";
+      readonly field: "code" | "url" | "user";
+    };
 
 type GroupBookBodyParseResult =
   | { readonly body: ParsedGroupBookBody; readonly code: "parsed" }
@@ -121,7 +133,11 @@ v1.get("/", (c) => {
       availability: {
         method: "GET",
         path: "/api/v1/availability",
-        params: { user: "string (required)", code: "string (required, booking code)" },
+        params: {
+          url: "string (optional schedule.pizza link; use instead of user/code)",
+          user: "string (required unless url is provided)",
+          code: "string (required unless url is provided)",
+        },
         headers: { "CF-Connecting-IP": "string (injected by Cloudflare)" },
       },
       health: {
@@ -601,14 +617,21 @@ v1.post("/me/booking-code", async (c) => {
 });
 
 v1.get("/availability", async (c) => {
-  const username = normalizeUsername(c.req.query("user") ?? "");
-  if (username === null) {
-    return c.json({ error: { code: "missing_parameter", message: "Missing required parameter: user" } }, 400);
-  }
+  const target = readAvailabilityTarget({
+    code: c.req.query("code") ?? null,
+    url: c.req.query("url") ?? null,
+    user: c.req.query("user") ?? null,
+  });
 
-  const bookingCode = normalizeBookingCode(c.req.query("code") ?? "");
-  if (bookingCode === null) {
-    return c.json({ error: { code: "missing_parameter", message: "Missing required parameter: code" } }, 400);
+  if (target.code !== "parsed") {
+    return c.json({
+      error: {
+        code: target.code,
+        message: target.code === "missing_parameter"
+          ? `Missing required parameter: ${target.field}`
+          : `${target.field} is invalid`,
+      },
+    }, 400);
   }
 
   const clientIpHash = await readCloudflareClientIpHash(c.req.raw);
@@ -619,10 +642,10 @@ v1.get("/availability", async (c) => {
   const db = createDb(c.env.DB);
   const now = new Date();
   const authorization = await authorizeBookingCode(db, {
-    bookingCode,
+    bookingCode: target.body.bookingCode,
     ipHash: clientIpHash.ipHash,
     now,
-    username,
+    username: target.body.username,
   });
 
   if (authorization.code === "booking_code_rate_limited") {
@@ -667,6 +690,40 @@ v1.get("/availability", async (c) => {
     slots: availability.slots.map(serializeSlot),
   });
 });
+
+export function readAvailabilityTarget(input: {
+  readonly code: string | null;
+  readonly url: string | null;
+  readonly user: string | null;
+}): AvailabilityTargetReadResult {
+  if (input.url !== null) {
+    const parsed = parseScheduleParticipantLink(input.url);
+
+    return input.user !== null || input.code !== null || parsed === null
+      ? { code: "invalid_field", field: "url" }
+      : { code: "parsed", body: parsed };
+  }
+
+  if (input.user === null || input.user.trim() === "") {
+    return { code: "missing_parameter", field: "user" };
+  }
+
+  const username = normalizeUsername(input.user);
+  if (username === null) {
+    return { code: "invalid_field", field: "user" };
+  }
+
+  if (input.code === null || input.code.trim() === "") {
+    return { code: "missing_parameter", field: "code" };
+  }
+
+  const bookingCode = normalizeBookingCode(input.code);
+  if (bookingCode === null) {
+    return { code: "invalid_field", field: "code" };
+  }
+
+  return { code: "parsed", body: { username, bookingCode } };
+}
 
 v1.post("/book", async (c) => {
   const parsedJson = parseJsonText(await c.req.text());
