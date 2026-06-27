@@ -30,6 +30,7 @@ type ProfileActionData =
   | {
       readonly code:
         | "booking_rate_limited"
+        | "booking_unavailable"
         | "calendar_unavailable"
         | "invalid_field"
         | "slot_unavailable";
@@ -295,6 +296,11 @@ function BookingForm({
       {actionData?.code === "booking_rate_limited" ? (
         <p className="text-sm text-destructive">
           too many bookings for this code. ask the host for a new code.
+        </p>
+      ) : null}
+      {actionData?.code === "booking_unavailable" ? (
+        <p className="text-sm text-destructive">
+          booking unavailable. try another time.
         </p>
       ) : null}
     </Form>

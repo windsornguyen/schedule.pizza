@@ -1,9 +1,22 @@
-import { bookHostSlot } from "@/booking/book_slot.server";
+import { bookHostSlot, type BookSlotResult } from "@/booking/book_slot.server";
 import { createDb } from "@/db/client.server";
 import { authorizeBookingCode } from "@/db/functions/booking_code_authorizations.server";
 import { readCloudflareClientIpHash } from "@/http/client_ip.server";
 import { serializeSlot } from "@/scheduling/slots.server";
 import type { ServerEnv } from "@/server-context";
+
+export type BookAuthorizedSlotResult =
+  | {
+      readonly code: "booked";
+      readonly slot: { readonly end: string; readonly start: string };
+    }
+  | {
+      readonly code:
+        | "booking_rate_limited"
+        | "booking_unavailable"
+        | "calendar_unavailable"
+        | "slot_unavailable";
+    };
 
 export async function bookAuthorizedSlot(input: {
   readonly bookingCode: string;
@@ -15,7 +28,7 @@ export async function bookAuthorizedSlot(input: {
   readonly request: Request;
   readonly slotStartAt: Date;
   readonly username: string;
-}) {
+}): Promise<BookAuthorizedSlotResult> {
   const clientIpHash = await readCloudflareClientIpHash(input.request);
   if (clientIpHash.code === "client_ip_unavailable") {
     throw new Response("client ip unavailable", { status: 500 });
@@ -52,28 +65,48 @@ export async function bookAuthorizedSlot(input: {
     slotStartAt: input.slotStartAt,
   });
 
-  if (booked.code === "booked") {
-    return { code: "booked" as const, slot: serializeSlot(booked.slot) };
-  }
+  return mapBookSlotResult(booked);
+}
 
-  if (booked.code === "invalid_slot" || booked.code === "slot_unavailable") {
-    return { code: "slot_unavailable" as const };
-  }
+function mapBookSlotResult(booked: BookSlotResult): BookAuthorizedSlotResult {
+  switch (booked.code) {
+    case "booked":
+      return { code: "booked", slot: serializeSlot(booked.slot) };
 
-  if (booked.code === "booking_rate_limited") {
-    return { code: "booking_rate_limited" as const };
-  }
+    case "invalid_slot":
+    case "slot_unavailable":
+      return { code: "slot_unavailable" };
 
-  if (booked.code === "host_configuration_invalid") {
-    throw new Response("host slot configuration invalid", { status: 500 });
-  }
+    case "booking_rate_limited":
+      return { code: "booking_rate_limited" };
 
-  if (
-    booked.code === "booking_confirmation_failed" ||
-    booked.code === "booking_failure_record_failed"
-  ) {
-    throw new Response(booked.code, { status: 500 });
-  }
+    case "booking_confirmation_failed":
+    case "booking_failure_record_failed":
+      return { code: "booking_unavailable" };
 
-  return { code: "calendar_unavailable" as const };
+    case "host_configuration_invalid":
+      throw new Response("host slot configuration invalid", { status: 500 });
+
+    case "google_account_missing":
+    case "google_access_token_missing":
+    case "google_calendar_scope_missing":
+    case "google_event_delete_failed":
+    case "google_event_insert_failed":
+    case "google_event_insert_response_invalid":
+    case "google_freebusy_failed":
+    case "google_freebusy_response_invalid":
+    case "google_refresh_token_missing":
+    case "google_token_refresh_failed":
+    case "google_token_response_invalid":
+      return { code: "calendar_unavailable" };
+
+    default:
+      return assertUnreachableBookSlotResult(booked);
+  }
+}
+
+function assertUnreachableBookSlotResult(result: never): never {
+  throw new Response(`unhandled booking result: ${JSON.stringify(result)}`, {
+    status: 500,
+  });
 }

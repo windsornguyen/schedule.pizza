@@ -110,4 +110,40 @@ describe("authorized profile booking", () => {
     })).resolves.toEqual({ code: "booking_rate_limited" });
     expect(mocks.bookHostSlot).not.toHaveBeenCalled();
   });
+
+  it("maps google calendar failures to calendar unavailable", async () => {
+    mocks.bookHostSlot.mockResolvedValueOnce({
+      code: "google_event_insert_failed",
+    });
+
+    await expect(bookAuthorizedSlot({
+      bookingCode: "moon-tiger-seven",
+      env,
+      guestEmail: "ada@example.com",
+      guestEmailNormalized: "ada@example.com",
+      guestName: "Ada",
+      guestTimezone: "America/Los_Angeles",
+      request: new Request("https://schedule.pizza/alice"),
+      slotStartAt,
+      username: "alice",
+    })).resolves.toEqual({ code: "calendar_unavailable" });
+  });
+
+  it("maps booking state transition failures to booking unavailable", async () => {
+    mocks.bookHostSlot.mockResolvedValueOnce({
+      code: "booking_confirmation_failed",
+    });
+
+    await expect(bookAuthorizedSlot({
+      bookingCode: "moon-tiger-seven",
+      env,
+      guestEmail: "ada@example.com",
+      guestEmailNormalized: "ada@example.com",
+      guestName: "Ada",
+      guestTimezone: "America/Los_Angeles",
+      request: new Request("https://schedule.pizza/alice"),
+      slotStartAt,
+      username: "alice",
+    })).resolves.toEqual({ code: "booking_unavailable" });
+  });
 });

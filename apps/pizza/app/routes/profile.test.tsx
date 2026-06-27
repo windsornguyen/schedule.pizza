@@ -114,6 +114,33 @@ describe("profile booking form", () => {
     expect(html).toContain("Mon, Jan 7, 9:00 AM - 9:30 AM PST");
     expect(html).not.toContain('name="timezone"');
   });
+
+  it("renders typed booking failures without exposing backend codes", () => {
+    const Stub = createRoutesStub([{
+      Component: () => (
+        <ProfileContent
+          actionData={{ code: "booking_unavailable" }}
+          loaderData={{
+            state: "available",
+            username: "alice",
+            bookingCode: "moon-tiger-seven",
+            slotSizeMinutes: 30,
+            timezone: "America/Los_Angeles",
+            slots: [{
+              start: "2030-01-07T17:00:00.000Z",
+              end: "2030-01-07T17:30:00.000Z",
+            }],
+          }}
+        />
+      ),
+      path: "/alice",
+    }]);
+    const html = renderToStaticMarkup(<Stub initialEntries={["/alice"]} />);
+
+    expect(html).toContain("booking unavailable. try another time.");
+    expect(html).not.toContain("booking_confirmation_failed");
+    expect(html).not.toContain("booking_failure_record_failed");
+  });
 });
 
 function createLoaderArgs(input: {
