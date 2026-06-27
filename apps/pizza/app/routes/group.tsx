@@ -380,8 +380,7 @@ function ConflictText({
 
   return (
     <p className="text-sm leading-6 text-muted-foreground">
-      cost {slot.conflictCost}
-      {conflicts.length > 0 ? `; ${conflicts.join("; ")}` : ""}
+      {conflicts.length > 0 ? conflicts.join("; ") : "no conflicts."}
     </p>
   );
 }

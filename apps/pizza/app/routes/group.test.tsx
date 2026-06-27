@@ -65,8 +65,9 @@ describe("group scheduling page", () => {
 
     expect(html).toContain("closest times");
     expect(html).toContain("Mon, Jan 7, 10:00 AM - 10:30 AM PST");
-    expect(html).toContain("cost 4; alice is busy");
+    expect(html).toContain("alice is busy");
     expect(html).toContain("bob can move");
+    expect(html).not.toContain("cost 4");
     expect(html).not.toContain("book group");
   });
 
