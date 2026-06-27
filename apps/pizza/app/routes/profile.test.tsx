@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
+import { createRoutesStub } from "react-router";
 
 import type { ServerEnv } from "@/server-context";
 import { serverContext } from "@/server-context";
-import { loader } from "./profile";
+import { loader, ProfileContent } from "./profile";
 
 type AsyncMock = (...args: unknown[]) => Promise<unknown>;
 type SyncMock = (...args: unknown[]) => unknown;
@@ -83,6 +85,34 @@ describe("profile loader booking-code privacy", () => {
 
     expect(mocks.authorizeBookingCode).toHaveBeenCalledTimes(2);
     expect(mocks.listHostAvailableSlots).not.toHaveBeenCalled();
+  });
+});
+
+describe("profile booking form", () => {
+  it("does not submit the host timezone as the guest timezone", () => {
+    const Stub = createRoutesStub([{
+      Component: () => (
+        <ProfileContent
+          actionData={null}
+          loaderData={{
+            state: "available",
+            username: "alice",
+            bookingCode: "moon-tiger-seven",
+            slotSizeMinutes: 30,
+            timezone: "America/Los_Angeles",
+            slots: [{
+              start: "2030-01-07T17:00:00.000Z",
+              end: "2030-01-07T17:30:00.000Z",
+            }],
+          }}
+        />
+      ),
+      path: "/alice",
+    }]);
+    const html = renderToStaticMarkup(<Stub initialEntries={["/alice"]} />);
+
+    expect(html).toContain("Mon, Jan 7, 9:00 AM - 9:30 AM PST");
+    expect(html).not.toContain('name="timezone"');
   });
 });
 

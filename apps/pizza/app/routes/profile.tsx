@@ -125,9 +125,22 @@ export default function Profile({
   loaderData,
 }: Route.ComponentProps) {
   const profileActionData = actionData ?? null;
-  const bookedSlotLabel = profileActionData?.code === "booked" &&
+
+  return (
+    <ProfileContent actionData={profileActionData} loaderData={loaderData} />
+  );
+}
+
+export function ProfileContent({
+  actionData,
+  loaderData,
+}: {
+  readonly actionData: ProfileActionData | null;
+  readonly loaderData: Route.ComponentProps["loaderData"];
+}) {
+  const bookedSlotLabel = actionData?.code === "booked" &&
     loaderData.state === "available"
-    ? formatSlotLabel(profileActionData.slot, loaderData.timezone)
+    ? formatSlotLabel(actionData.slot, loaderData.timezone)
     : null;
 
   return (
@@ -143,7 +156,7 @@ export default function Profile({
         </p>
       ) : null}
 
-      <ProfileState actionData={profileActionData} loaderData={loaderData} />
+      <ProfileState actionData={actionData} loaderData={loaderData} />
     </main>
   );
 }
@@ -248,7 +261,6 @@ function BookingForm({
           className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none focus:border-ring focus:ring-[3px] focus:ring-ring/50"
         />
       </label>
-      <input type="hidden" name="timezone" value={timezone} />
       <div className="space-y-2">
         <p className="text-sm font-semibold">time</p>
         {slots.length === 0 ? (
