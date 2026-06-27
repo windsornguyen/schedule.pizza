@@ -36,22 +36,22 @@ describe("docs page examples", () => {
     expect(html).toContain("Renaming a profile revokes previous codes");
     expect(html).toContain("same-site");
     expect(html).toContain("Origin");
-    expect(html).toContain("Ask the group organizer to cancel");
+    expect(html).toContain("group organizer cancels");
   });
 
   it("describes recommendation response priority", () => {
     const html = renderToStaticMarkup(<Docs />);
 
     expect(html).toContain("It returns exact slots first");
-    expect(html).toContain("copyable recommendation request body");
     expect(html).toContain("kind: &quot;alternatives&quot;");
+    expect(html).toContain("ranked by conflict cost");
   });
 
   it("keeps availability examples readable while documenting booking links", () => {
     const html = renderToStaticMarkup(<Docs />);
 
     expect(html).toContain("/api/v1/availability?user=alice&amp;code=moon-tiger-seven");
-    expect(html).toContain("You can pass the shared link as");
+    expect(html).toContain("Agents can pass the full link as");
     expect(html).toContain("url");
     expect(html).not.toContain("https%3A%2F%2Fschedule.pizza");
   });

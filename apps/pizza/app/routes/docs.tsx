@@ -13,52 +13,47 @@ export default function Docs() {
     <main className="mx-auto w-full max-w-[550px] px-4 pt-20 pb-24 antialiased">
       <h1 className="text-sm font-semibold">docs</h1>
       <p className="mt-2 text-sm leading-6 text-muted-foreground">
-        schedule.pizza gives each host a booking code. If you have the code,
-        you can ask for times, book a time, or ask the scheduler to find a time
-        across several people. When a host rotates their code, previous codes
-        stop working. The shared link is the capability. Times are UTC ISO
-        strings ending in{" "}
-        <code className="font-mono">Z</code>.
+        schedule.pizza has one public object: a booking link. The link contains
+        the username and the booking code. If you have it, you can read
+        availability, book a slot, or ask the scheduler to find a time across
+        several people. If you do not have it, username guesses should not
+        expose availability.
+      </p>
+      <p className="mt-3 text-sm leading-6 text-muted-foreground">
+        Agents can pass the full link as{" "}
+        <code className="font-mono">url</code>, or split it into{" "}
+        <code className="font-mono">user</code> and{" "}
+        <code className="font-mono">code</code>. Times are UTC ISO strings
+        ending in <code className="font-mono">Z</code>.
       </p>
 
       <section className="mt-10 space-y-3">
-        <h2 className="text-sm font-semibold">host setup</h2>
+        <h2 className="text-sm font-semibold">hosts</h2>
         <p className="text-sm leading-6 text-muted-foreground">
-          Sign in with Google, choose a username, and share the generated link.
-          The code in the link is the capability: without it, schedule.pizza
-          should not expose availability. Confirmed bookings appear in the
-          dashboard, where hosts can cancel upcoming individual bookings.
-          New links are shown once. If a host loses the code, they create a
-          new link and the old code stops working.
+          Sign in with Google, choose a username, and share the generated
+          booking link. New links are shown once. If a host loses the code, they
+          create a new link and the old code stops working. Confirmed bookings
+          appear in the dashboard. Individual bookings can be cancelled there.
+          Group bookings stay visible, but the group organizer cancels the
+          shared event from Google Calendar.
         </p>
       </section>
 
       <section className="mt-10 space-y-3">
-        <h2 className="text-sm font-semibold">availability</h2>
+        <h2 className="text-sm font-semibold">one person</h2>
         <p className="text-sm leading-6 text-muted-foreground">
-          Use this when you already know whose calendar you want. The code is
-          required; username guesses do not expose availability. Slots exclude
-          schedule.pizza bookings and the host's Google Calendar busy times.
-          You can pass the shared link as{" "}
-          <code className="font-mono">url</code> instead of splitting it.
+          Start with availability. Slots exclude schedule.pizza bookings and
+          the host's Google Calendar busy times.
         </p>
         <pre className={CODE_BLOCK_CLASS}>
           <code>
             GET /api/v1/availability?user=alice&code=moon-tiger-seven
           </code>
         </pre>
-      </section>
-
-      <section className="mt-10 space-y-3">
-        <h2 className="text-sm font-semibold">booking</h2>
         <p className="text-sm leading-6 text-muted-foreground">
-          Book the exact slot returned by availability. The server checks the
-          booking code again and rejects the write if the slot is no longer
-          free. A booking succeeds only after the Google Calendar event is
-          created. Agents can send the shared link as{" "}
-          <code className="font-mono">url</code>, or split it into{" "}
-          <code className="font-mono">user</code> and{" "}
-          <code className="font-mono">code</code>.
+          Then book the exact slot returned by availability. The server checks
+          the code again and rejects the write if the slot is no longer free. A
+          booking succeeds only after the Google Calendar event is created.
         </p>
         <pre className={CODE_BLOCK_CLASS}>
           <code>{`POST /api/v1/book
@@ -72,24 +67,19 @@ export default function Docs() {
 }`}</code>
         </pre>
         <p className="text-sm leading-6 text-muted-foreground">
-          Email is required so Google can invite the booker. Success returns the
-          schedule.pizza booking id and the confirmed slot after the Google
-          Calendar event is created.
+          Email is required so Google can invite the booker. Public booking
+          responses return the schedule.pizza booking id, not the Google event
+          id.
         </p>
       </section>
 
       <section className="mt-10 space-y-3">
-        <h2 className="text-sm font-semibold">group scheduling</h2>
+        <h2 className="text-sm font-semibold">several people</h2>
         <p className="text-sm leading-6 text-muted-foreground">
-          Send every participant with their booking code. The scheduler returns
+          Send every participant with their booking link. The scheduler returns
           exact slots when everyone is free. If none exist, it returns ranked
-          alternatives with the conflicting people and time ranges. Google event
-          details stay private. Slots use weekday 9 AM-5 PM windows in the
-          request time zone and snap to the requested granularity. Requests are
-          capped at eight people and a 31-day window. Each participant accepts
-          either a shared link in <code className="font-mono">url</code> or the
-          split <code className="font-mono">user</code> and{" "}
-          <code className="font-mono">code</code> fields.
+          recommendations with the conflicting people and time ranges. Google
+          event details stay private.
         </p>
         <p className="text-sm leading-6 text-muted-foreground">
           For people, use <a
@@ -99,7 +89,7 @@ export default function Docs() {
             group scheduling
           </a>{" "}
           and paste one schedule.pizza link per line. For agents, call the API
-          directly.
+          directly. Requests are capped at eight people and a 31-day window.
         </p>
         <pre className={CODE_BLOCK_CLASS}>
           <code>{`POST /api/v1/schedule
@@ -120,8 +110,17 @@ export default function Docs() {
 }`}</code>
         </pre>
         <p className="text-sm leading-6 text-muted-foreground">
-          To book an exact group slot returned by the scheduler, send the same
-          scheduling body with the selected slot and booker identity.
+          <code className="font-mono">POST /api/v1/recommend</code> accepts the
+          same body. It returns exact slots first. A response with{" "}
+          <code className="font-mono">kind: "exact"</code> means everyone is
+          free. A response with{" "}
+          <code className="font-mono">kind: "alternatives"</code> is ranked by
+          conflict cost. Lower is better.
+        </p>
+        <p className="text-sm leading-6 text-muted-foreground">
+          To book an exact group slot, send the same scheduling body to{" "}
+          <code className="font-mono">/api/v1/book-group</code> with the
+          selected slot and booker identity.
         </p>
         <pre className={CODE_BLOCK_CLASS}>
           <code>{`POST /api/v1/book-group
@@ -148,21 +147,6 @@ export default function Docs() {
       </section>
 
       <section className="mt-10 space-y-3">
-        <h2 className="text-sm font-semibold">recommendations</h2>
-        <p className="text-sm leading-6 text-muted-foreground">
-          <code className="font-mono">POST /api/v1/recommend</code> accepts the
-          same body as <code className="font-mono">/api/v1/schedule</code>.{" "}
-          It returns exact slots first. A response with{" "}
-          <code className="font-mono">kind: "exact"</code> means every
-          participant is free for that interval. A response with{" "}
-          <code className="font-mono">kind: "alternatives"</code> is a ranked
-          recommendation: lower conflict cost is better, hard conflicts are
-          shown before soft conflicts, and event details stay private.
-          The API index includes a copyable recommendation request body.
-        </p>
-      </section>
-
-      <section className="mt-10 space-y-3">
         <h2 className="text-sm font-semibold">host agents</h2>
         <p className="text-sm leading-6 text-muted-foreground">
           A signed-in host can read account state at{" "}
@@ -181,13 +165,10 @@ export default function Docs() {
           that can be handed to people or agents. Later account reads do not
           return the plaintext code. Account mutations require the Better Auth
           cookie and a same-site <code className="font-mono">Origin</code>{" "}
-          header.
-          To cancel an upcoming individual booking, call{" "}
+          header. To cancel an upcoming individual booking, call{" "}
           <code className="font-mono">
             POST /api/v1/account/bookings/:bookingId/cancel
-          </code>. Group bookings stay visible in each host's dashboard.
-          Ask the group organizer to cancel the shared event from Google
-          Calendar.
+          </code>.
         </p>
         <pre className={CODE_BLOCK_CLASS}>
           <code>{`Account mutation header:
@@ -219,11 +200,13 @@ POST /api/v1/account/bookings/booking_123/cancel`}</code>
       </section>
 
       <section className="mt-10 space-y-3">
-        <h2 className="text-sm font-semibold">calendar errors</h2>
+        <h2 className="text-sm font-semibold">failure model</h2>
         <p className="text-sm leading-6 text-muted-foreground">
-          If a host has not granted calendar access, API calls fail with a typed
-          Google Calendar error. The host fixes it by reconnecting Google from
-          the dashboard.
+          Public calls fail closed with typed error codes. Missing or wrong
+          booking codes return <code className="font-mono">404</code>. Stale
+          slots return <code className="font-mono">409</code>. Calendar access
+          problems return typed Google Calendar errors. The host fixes those by
+          reconnecting Google from the dashboard.
         </p>
       </section>
 
