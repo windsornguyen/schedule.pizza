@@ -26,6 +26,20 @@ await checkText("/.well-known/security.txt", "security policy", [
   "Contact: mailto:security@schedule.pizza",
   "Expires:",
 ]);
+await checkText("/favicon.svg", "favicon svg", ["#F1C34B", "#171512"]);
+await checkAsset("/favicon.ico", "favicon ico", "image/x-icon");
+await checkAsset("/favicon-32x32.png", "favicon png", "image/png");
+await checkAsset("/apple-touch-icon.png", "apple touch icon", "image/png");
+await checkAsset("/icon-192.png", "web app icon 192", "image/png");
+await checkAsset("/icon-512.png", "web app icon 512", "image/png");
+await checkJson("/site.webmanifest", "web manifest", (body) => {
+  assertRecord(body, "web manifest");
+  assertManifestIcon(body, "/favicon.svg");
+  assertManifestIcon(body, "/favicon-32x32.png");
+  assertManifestIcon(body, "/apple-touch-icon.png");
+  assertManifestIcon(body, "/icon-192.png");
+  assertManifestIcon(body, "/icon-512.png");
+});
 await checkJson("/api/v1", "api descriptor", (body) => {
   assertRecord(body, "api descriptor");
   assertEqual(body["name"], "schedule.pizza", "api descriptor name");
@@ -90,6 +104,15 @@ async function checkText(path, label, requiredText) {
   assertTextIncludes(text, label, requiredText);
 }
 
+async function checkAsset(path, label, expectedContentType) {
+  const response = await fetchResponse(path, label);
+  const contentType = response.headers.get("content-type") ?? "";
+
+  if (!contentType.includes(expectedContentType)) {
+    throw new Error(`${label} returned ${contentType || "no content type"}`);
+  }
+}
+
 function assertTextIncludes(text, label, requiredText) {
   for (const textFragment of requiredText) {
     if (!text.includes(textFragment)) {
@@ -98,11 +121,15 @@ function assertTextIncludes(text, label, requiredText) {
   }
 }
 
+function isJsonContentType(contentType) {
+  return contentType.includes("application/json") || contentType.includes("+json");
+}
+
 async function checkJson(path, label, validate) {
   const response = await fetchResponse(path, label);
   const contentType = response.headers.get("content-type") ?? "";
 
-  if (!contentType.includes("application/json")) {
+  if (!isJsonContentType(contentType)) {
     throw new Error(`${label} returned ${contentType || "no content type"}`);
   }
 
@@ -117,7 +144,7 @@ async function checkJsonStatus(path, label, expectedStatus, validate) {
     throw new Error(`${label} expected HTTP ${expectedStatus}, got ${response.status}`);
   }
 
-  if (!contentType.includes("application/json")) {
+  if (!isJsonContentType(contentType)) {
     throw new Error(`${label} returned ${contentType || "no content type"}`);
   }
 
@@ -164,6 +191,18 @@ function assertEndpoint(body, name) {
 
   assertRecord(endpoints, "api endpoints");
   assertRecord(endpoints[name], `api endpoint ${name}`);
+}
+
+function assertManifestIcon(body, src) {
+  const icons = body["icons"];
+
+  if (!Array.isArray(icons)) {
+    throw new Error("web manifest icons must be an array");
+  }
+
+  if (!icons.some((icon) => icon?.src === src)) {
+    throw new Error(`web manifest is missing ${src}`);
+  }
 }
 
 function assertField(body, path) {

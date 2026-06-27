@@ -40,6 +40,12 @@ describe("root browser chrome", () => {
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
       {
         rel: "icon",
+        type: "image/png",
+        sizes: "32x32",
+        href: "/favicon-32x32.png",
+      },
+      {
+        rel: "icon",
         type: "image/x-icon",
         sizes: "16x16 32x32 48x48",
         href: "/favicon.ico",
@@ -55,7 +61,20 @@ describe("root browser chrome", () => {
     expect(JSON.parse(siteManifest)).toMatchObject({
       icons: [
         { src: "/favicon.svg", sizes: "any", type: "image/svg+xml" },
+        { src: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
         { src: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+        {
+          src: "/icon-192.png",
+          sizes: "192x192",
+          type: "image/png",
+          purpose: "any maskable",
+        },
+        {
+          src: "/icon-512.png",
+          sizes: "512x512",
+          type: "image/png",
+          purpose: "any maskable",
+        },
       ],
     });
   });
