@@ -725,6 +725,10 @@ v1.put("/account/profile", async (c) => {
     return c.json({ error: { code: "host_profile_missing", message: "Host profile is missing" } }, 409);
   }
 
+  if (updated.code === "profile_conflict") {
+    return c.json({ error: { code: "username_taken", message: "Username is taken" } }, 409);
+  }
+
   return c.json(await buildAccountPayload(
     db,
     c.env,

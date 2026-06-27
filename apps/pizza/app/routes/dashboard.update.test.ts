@@ -125,6 +125,20 @@ describe("updateExistingProfile", () => {
     expect(mocks.updateHostProfile).not.toHaveBeenCalled();
   });
 
+  it("reports atomic rename conflicts as username taken", async () => {
+    mocks.findHostProfileByUsername.mockResolvedValueOnce(null);
+    mocks.updateHostProfile.mockResolvedValueOnce({
+      code: "profile_conflict",
+    });
+
+    await expect(updateExistingProfile(db, {
+      authUserId: "auth_user_1",
+      email: "alice@example.com",
+      env,
+      formData: profileFormData("Alice-New"),
+    })).resolves.toEqual({ code: "username_taken" });
+  });
+
   it("requires an authenticated account email before writing the profile", async () => {
     await expect(updateExistingProfile(db, {
       authUserId: "auth_user_1",

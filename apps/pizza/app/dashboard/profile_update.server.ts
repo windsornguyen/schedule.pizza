@@ -77,6 +77,10 @@ export async function updateExistingProfile(
     return { code: "profile_missing" as const };
   }
 
+  if (updated.code === "profile_conflict") {
+    return { code: "username_taken" as const };
+  }
+
   if (updated.bookingCode === null) {
     return { code: "updated_profile" as const };
   }

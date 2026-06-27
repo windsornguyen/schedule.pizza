@@ -856,6 +856,35 @@ describe("account profile API", () => {
     });
     expect(mocks.rotateBookingCode).not.toHaveBeenCalled();
   });
+
+  it("reports atomic profile rename conflicts as username taken", async () => {
+    mocks.findHostProfileByAuthUserId.mockResolvedValueOnce({
+      authUserId: "auth_user_1",
+      id: "host_1",
+      username: "alice",
+    });
+    mocks.findHostProfileByUsername.mockResolvedValue(null);
+    mocks.updateHostProfile.mockResolvedValue({
+      code: "profile_conflict",
+    });
+
+    const response = await v1.request("https://schedule.pizza/account/profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: "Alice-New",
+        timezone: "America/Los_Angeles",
+      }),
+    }, env);
+
+    await expect(response.json()).resolves.toEqual({
+      error: {
+        code: "username_taken",
+        message: "Username is taken",
+      },
+    });
+    expect(response.status).toBe(409);
+  });
 });
 
 describe("group book API body parser", () => {

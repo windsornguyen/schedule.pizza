@@ -25,6 +25,7 @@ type HostProfileCreateResult =
     };
 
 type HostProfileUpdateResult =
+  | { readonly code: "profile_conflict" }
   | { readonly code: "profile_missing" }
   | {
       readonly bookingCode: string | null;
@@ -175,6 +176,7 @@ export async function updateHostProfile(
   const codeHash = await hashNormalizedBookingCode(bookingCode);
   const results = await database.batch([
     profileUpdateStatement(database, input),
+    usernameConflictStatement(database, input),
     database
       .prepare(
         `update booking_code
@@ -182,7 +184,7 @@ export async function updateHostProfile(
           where hostId = ?
             and exists (
               select 1 from host_profile
-              where id = ? and authUserId = ?
+              where id = ? and authUserId = ? and username = ?
             )
             and revokedAt is null
             and (expiresAt is null or expiresAt > ?)`,
@@ -193,6 +195,7 @@ export async function updateHostProfile(
         input.currentHostId,
         input.currentHostId,
         input.authUserId,
+        input.username,
         toUnixSeconds(input.now),
       ),
     database
@@ -204,7 +207,7 @@ export async function updateHostProfile(
         select ?, ?, ?, null, ?, ?, ?, null, null, null, ?, ?
         where exists (
           select 1 from host_profile
-          where id = ? and authUserId = ?
+          where id = ? and authUserId = ? and username = ?
         )`,
       )
       .bind(
@@ -218,18 +221,25 @@ export async function updateHostProfile(
         toUnixSeconds(input.now),
         input.currentHostId,
         input.authUserId,
+        input.username,
       ),
   ]);
 
   const profileUpdate = results[0];
-  const codeInsert = results[2];
+  const usernameConflict = results[1];
+  const codeInsert = results[3];
 
   if (
     profileUpdate === undefined ||
+    usernameConflict === undefined ||
     codeInsert === undefined ||
     !hasSingleChangedRow(profileUpdate) ||
     !hasSingleChangedRow(codeInsert)
   ) {
+    if (usernameConflict !== undefined && hasAnyResult(usernameConflict)) {
+      return { code: "profile_conflict" };
+    }
+
     return { code: "profile_missing" };
   }
 
@@ -251,7 +261,15 @@ function profileUpdateStatement(
             calendarAccountEmail = ?,
             calendarId = ?,
             updatedAt = ?
-        where authUserId = ? and id = ?`,
+        where authUserId = ?
+          and id = ?
+          and (
+            username = ?
+            or not exists (
+              select 1 from host_profile
+              where username = ?
+            )
+          )`,
     )
     .bind(
       input.username,
@@ -264,11 +282,30 @@ function profileUpdateStatement(
       toUnixSeconds(input.now),
       input.authUserId,
       input.currentHostId,
+      input.username,
+      input.username,
     );
+}
+
+function usernameConflictStatement(
+  database: D1ProfileUpdateDatabase,
+  input: HostProfileUpdateInput,
+) {
+  return database
+    .prepare(
+      `select id from host_profile
+        where username = ? and authUserId <> ?
+        limit 1`,
+    )
+    .bind(input.username, input.authUserId);
 }
 
 function hasSingleChangedRow(result: D1Result) {
   return result.meta.changes === 1;
+}
+
+function hasAnyResult(result: D1Result) {
+  return Array.isArray(result.results) && result.results.length > 0;
 }
 
 function toUnixSeconds(date: Date) {

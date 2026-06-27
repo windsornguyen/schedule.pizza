@@ -66,7 +66,7 @@ describe("host profile updates", () => {
       bookingCode: null,
     });
     expect(statements.map((statement) => compactSql(statement.sql))).toEqual([
-      "update host_profile set username = ?, displayName = ?, timezone = ?, slotSizeMinutes = ?, calendarProvider = ?, calendarAccountEmail = ?, calendarId = ?, updatedAt = ? where authUserId = ? and id = ?",
+      "update host_profile set username = ?, displayName = ?, timezone = ?, slotSizeMinutes = ?, calendarProvider = ?, calendarAccountEmail = ?, calendarId = ?, updatedAt = ? where authUserId = ? and id = ? and ( username = ? or not exists ( select 1 from host_profile where username = ? ) )",
     ]);
   });
 
@@ -84,11 +84,12 @@ describe("host profile updates", () => {
 
     expect(updated.bookingCode.split("-")).toHaveLength(3);
     expect(statements.map((statement) => compactSql(statement.sql))).toEqual([
-      "update host_profile set username = ?, displayName = ?, timezone = ?, slotSizeMinutes = ?, calendarProvider = ?, calendarAccountEmail = ?, calendarId = ?, updatedAt = ? where authUserId = ? and id = ?",
-      "update booking_code set revokedAt = ?, updatedAt = ? where hostId = ? and exists ( select 1 from host_profile where id = ? and authUserId = ? ) and revokedAt is null and (expiresAt is null or expiresAt > ?)",
-      "insert into booking_code ( id, hostId, hostUsername, label, codeHash, codeHashVersion, wordCount, lastUsedAt, expiresAt, revokedAt, createdAt, updatedAt ) select ?, ?, ?, null, ?, ?, ?, null, null, null, ?, ? where exists ( select 1 from host_profile where id = ? and authUserId = ? )",
+      "update host_profile set username = ?, displayName = ?, timezone = ?, slotSizeMinutes = ?, calendarProvider = ?, calendarAccountEmail = ?, calendarId = ?, updatedAt = ? where authUserId = ? and id = ? and ( username = ? or not exists ( select 1 from host_profile where username = ? ) )",
+      "select id from host_profile where username = ? and authUserId <> ? limit 1",
+      "update booking_code set revokedAt = ?, updatedAt = ? where hostId = ? and exists ( select 1 from host_profile where id = ? and authUserId = ? and username = ? ) and revokedAt is null and (expiresAt is null or expiresAt > ?)",
+      "insert into booking_code ( id, hostId, hostUsername, label, codeHash, codeHashVersion, wordCount, lastUsedAt, expiresAt, revokedAt, createdAt, updatedAt ) select ?, ?, ?, null, ?, ?, ?, null, null, null, ?, ? where exists ( select 1 from host_profile where id = ? and authUserId = ? and username = ? )",
     ]);
-    expect(statements[2]?.params.slice(1, 7)).toEqual([
+    expect(statements[3]?.params.slice(1, 7)).toEqual([
       "host_1",
       "alice-new",
       expect.any(String),
@@ -96,6 +97,18 @@ describe("host profile updates", () => {
       3,
       1_782_489_600,
     ]);
+  });
+
+  it("reports rename conflicts without relying on D1 constraint errors", async () => {
+    const { database } = createD1BatchRecorder(
+      [0, 0, 0, 0],
+      [[], [{ id: "host_2" }], [], []],
+    );
+
+    await expect(updateHostProfile(database, updateInput({
+      currentUsername: "alice",
+      username: "alice-new",
+    }))).resolves.toEqual({ code: "profile_conflict" });
   });
 });
 
@@ -133,7 +146,10 @@ function updateInput(
   };
 }
 
-function createD1BatchRecorder(changes: readonly number[] = []): {
+function createD1BatchRecorder(
+  changes: readonly number[] = [],
+  results: readonly (readonly Record<string, unknown>[])[] = [],
+): {
   readonly database: D1Database;
   readonly statements: CapturedStatement[];
 } {
@@ -153,6 +169,7 @@ function createD1BatchRecorder(changes: readonly number[] = []): {
 
       return batchStatements.map((_, index) => ({
         meta: { changes: changes[index] ?? 1 },
+        results: results[index] ?? [],
       }));
     },
     prepare(sql: string) {
