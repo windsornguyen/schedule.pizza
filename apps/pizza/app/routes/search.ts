@@ -36,8 +36,9 @@ function parseScheduleUrl(value: string) {
         : `https://${normalizedValue}`,
     );
 
-    return parsed.hostname === "schedule.pizza" ||
-      parsed.hostname === "www.schedule.pizza"
+    return (parsed.protocol === "http:" || parsed.protocol === "https:") &&
+      (parsed.hostname === "schedule.pizza" ||
+        parsed.hostname === "www.schedule.pizza")
       ? parsed
       : null;
   } catch {

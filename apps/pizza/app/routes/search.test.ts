@@ -21,4 +21,9 @@ describe("search target parsing", () => {
     expect(readSearchTarget("https://example.com/alice?code=moon-tiger-seven"))
       .toBe("/");
   });
+
+  it("rejects non-http schedule links", () => {
+    expect(readSearchTarget("ftp://schedule.pizza/alice?code=moon-tiger-seven"))
+      .toBe("/");
+  });
 });
