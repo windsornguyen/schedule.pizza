@@ -91,6 +91,12 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 
 export async function action({ context, request }: Route.ActionArgs) {
   const { env } = context.get(serverContext);
+  const originError = rejectCrossSiteDashboardAction(env, request);
+
+  if (originError !== null) {
+    throw originError;
+  }
+
   const session = await readAuthSession(env, request.headers);
 
   if (session === null) {
@@ -135,6 +141,38 @@ export async function action({ context, request }: Route.ActionArgs) {
   }
 
   return { code: "invalid_intent" as const };
+}
+
+function rejectCrossSiteDashboardAction(env: ServerEnv, request: Request) {
+  const origin = request.headers.get("Origin");
+
+  if (origin === null || origin.trim() === "") {
+    return null;
+  }
+
+  const trustedOrigin = readTrustedDashboardOrigin(env);
+
+  if (trustedOrigin.code === "runtime_secret_missing") {
+    return new Response("runtime_secret_missing", { status: 503 });
+  }
+
+  return origin === trustedOrigin.origin
+    ? null
+    : new Response("forbidden_origin", { status: 403 });
+}
+
+function readTrustedDashboardOrigin(env: ServerEnv) {
+  const authUrl = env.BETTER_AUTH_URL;
+
+  if (authUrl === undefined || authUrl.trim() === "") {
+    return { code: "runtime_secret_missing" as const };
+  }
+
+  try {
+    return { code: "read" as const, origin: new URL(authUrl).origin };
+  } catch {
+    return { code: "runtime_secret_missing" as const };
+  }
 }
 
 export default function Dashboard({
