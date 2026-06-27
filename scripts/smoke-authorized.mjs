@@ -156,10 +156,14 @@ function readScheduleRequestBody(participant) {
 async function checkScheduleLike(baseUrl, path, label, body) {
   const responseBody = await postJson(baseUrl, path, label, body);
 
+  return readScheduleLikeSummary(responseBody, label);
+}
+
+export function readScheduleLikeSummary(responseBody, label) {
   assertRecord(responseBody, label);
 
-  if (responseBody["kind"] !== "exact" && responseBody["kind"] !== "alternatives") {
-    throw new Error(`${label} returned invalid kind`);
+  if (responseBody["kind"] !== "exact") {
+    throw new Error(`${label} expected exact slots, got ${String(responseBody["kind"])}`);
   }
 
   assertNonEmptyArray(responseBody["slots"], `${label} slots`);

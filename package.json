@@ -2,7 +2,7 @@
   "name": "schedule.pizza",
   "private": true,
   "scripts": {
-    "check": "pnpm --filter @schedule.pizza/web check",
+    "check": "node --test scripts/*.test.mjs && pnpm --filter @schedule.pizza/web check",
     "dev": "pnpm --filter @schedule.pizza/web dev",
     "db": "pnpm --filter @schedule.pizza/web db",
     "build": "pnpm --filter @schedule.pizza/web build",
@@ -11,7 +11,7 @@
     "smoke": "node scripts/smoke.mjs",
     "smoke-authorized": "node scripts/smoke-authorized.mjs",
     "typecheck": "pnpm --filter @schedule.pizza/web typecheck",
-    "test": "pnpm --filter @schedule.pizza/web test"
+    "test": "node --test scripts/*.test.mjs && pnpm --filter @schedule.pizza/web test"
   },
   "devDependencies": {
     "@dedalus-labs/hollywood": "0.1.0-alpha.1"
