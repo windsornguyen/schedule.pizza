@@ -177,6 +177,23 @@ describe("bookHostSlot", () => {
     expect(mocks.createGoogleCalendarEvent).not.toHaveBeenCalled();
     expect(mocks.markBookingCodeUsed).not.toHaveBeenCalled();
   });
+
+  it("requires the availability recheck to return the selected slot", async () => {
+    mocks.listHostAvailableSlots.mockResolvedValueOnce({
+      code: "listed",
+      slots: [{
+        startAt: new Date("2026-06-26T16:30:00.000Z"),
+        endAt: new Date("2026-06-26T17:00:00.000Z"),
+      }],
+    });
+
+    await expect(bookHostSlot(db, createInput())).resolves.toEqual({
+      code: "slot_unavailable",
+    });
+    expect(mocks.createPendingCalendarBooking).not.toHaveBeenCalled();
+    expect(mocks.createGoogleCalendarEvent).not.toHaveBeenCalled();
+    expect(mocks.markBookingCodeUsed).not.toHaveBeenCalled();
+  });
 });
 
 function createInput(): BookHostSlotInput {

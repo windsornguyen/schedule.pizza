@@ -99,7 +99,7 @@ export async function bookHostSlot(
     return availability;
   }
 
-  if (availability.slots[0] === undefined) {
+  if (!hasExactSlot(availability.slots, slot)) {
     return { code: "slot_unavailable" };
   }
 
@@ -187,6 +187,17 @@ export async function bookHostSlot(
     calendarEventId: calendarEvent.eventId,
     slot,
   };
+}
+
+function hasExactSlot(
+  slots: readonly SlotRange[],
+  selectedSlot: SlotRange,
+) {
+  return slots.some(
+    (slot) =>
+      slot.startAt.getTime() === selectedSlot.startAt.getTime() &&
+      slot.endAt.getTime() === selectedSlot.endAt.getTime(),
+  );
 }
 
 function getBookingRateLimitWindowStart(now: Date) {
