@@ -1,7 +1,7 @@
 locals {
   deploy_token_account_permissions = [
     "Account Settings Read",
-    "D1 Read",
+    "D1 Write",
     "Workers Scripts Write",
   ]
 
