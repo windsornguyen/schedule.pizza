@@ -14,12 +14,11 @@ import {
   listUpcomingConfirmedBookingsForHost,
 } from "@/db/functions/bookings.server";
 import {
-  createBookingCode,
   findActiveBookingCodeForHost,
   rotateBookingCode,
 } from "@/db/functions/booking_codes.server";
 import {
-  createHostProfile,
+  createHostProfileWithBookingCode,
   findHostProfileByAuthUserId,
 } from "@/db/functions/host_profiles.server";
 import { formatSlotLabel } from "@/scheduling/slot_labels";
@@ -682,7 +681,7 @@ async function createProfileAndCode(
     return { code: "calendar_authorization_required" as const };
   }
 
-  const profile = await createHostProfile(db, {
+  const created = await createHostProfileWithBookingCode(input.env.DB, {
     id: crypto.randomUUID(),
     authUserId: input.authUserId,
     calendarAccountEmail: input.email,
@@ -695,22 +694,14 @@ async function createProfileAndCode(
     now,
   });
 
-  if (profile === null) {
+  if (created.code === "profile_conflict") {
     return { code: "profile_conflict" as const };
   }
 
-  const bookingCode = await createBookingCode(db, {
-    hostId: profile.id,
-    hostUsername: profile.username,
-    wordCount: 3,
-    label: null,
-    now,
-  });
-
   return {
     code: "created_profile" as const,
-    bookingCode: bookingCode.code,
-    username: profile.username,
+    bookingCode: created.bookingCode,
+    username: created.profile.username,
   };
 }
 

@@ -13,7 +13,6 @@ type SchedulePizzaSqlite<RunResult> = BaseSQLiteDatabase<
   typeof databaseSchema
 >;
 type BookingCodeReader<RunResult> = Pick<SchedulePizzaSqlite<RunResult>, "select">;
-type BookingCodeWriter<RunResult> = Pick<SchedulePizzaSqlite<RunResult>, "insert">;
 type D1BatchDatabase = Pick<D1Database, "batch" | "prepare">;
 
 export function generateBookingCode(wordCount: number): string {
@@ -23,34 +22,6 @@ export function generateBookingCode(wordCount: number): string {
   const bytes = new Uint32Array(wordCount);
   crypto.getRandomValues(bytes);
   return Array.from(bytes, (b: number) => (wordlist as string[])[b % (wordlist as string[]).length]).join("-");
-}
-
-export async function createBookingCode<RunResult>(
-  db: BookingCodeWriter<RunResult>,
-  input: {
-    hostId: string;
-    hostUsername: string;
-    wordCount: number;
-    label: string | null;
-    now: Date;
-  },
-) {
-  const code = generateBookingCode(input.wordCount);
-  const codeHash = await hashNormalizedBookingCode(code);
-
-  await db.insert(bookingCode).values({
-    id: crypto.randomUUID(),
-    hostId: input.hostId,
-    hostUsername: input.hostUsername,
-    label: input.label,
-    codeHash,
-    codeHashVersion: 1,
-    wordCount: input.wordCount,
-    createdAt: input.now,
-    updatedAt: input.now,
-  });
-
-  return { code, codeHash };
 }
 
 export async function rotateBookingCode(

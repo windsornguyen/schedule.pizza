@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => ({
   bookHostSlot: vi.fn<AsyncMock>(),
   cancelHostBooking: vi.fn<AsyncMock>(),
   createDb: vi.fn<SyncMock>(),
+  createHostProfileWithBookingCode: vi.fn<AsyncMock>(),
   countConfirmedBookingsForCalendarEvent: vi.fn<AsyncMock>(),
   findActiveBookingCodeForHost: vi.fn<AsyncMock>(),
   findHostProfileByAuthUserId: vi.fn<AsyncMock>(),
@@ -119,6 +120,7 @@ vi.mock("@/db/functions/host_profiles.server", async (importOriginal) => {
 
   return {
     ...actual,
+    createHostProfileWithBookingCode: mocks.createHostProfileWithBookingCode,
     findHostProfileByAuthUserId: mocks.findHostProfileByAuthUserId,
     findHostProfileByUsername: mocks.findHostProfileByUsername,
     updateHostProfile: mocks.updateHostProfile,
@@ -183,6 +185,12 @@ beforeEach(() => {
     bookingId: "booking_1",
   });
   mocks.countConfirmedBookingsForCalendarEvent.mockResolvedValue(1);
+  mocks.createHostProfileWithBookingCode.mockResolvedValue({
+    code: "created_profile",
+    bookingCode: "moon-tiger-seven",
+    bookingCodeHash: "booking_code_hash",
+    profile: { id: "host_1", username: "alice" },
+  });
   mocks.findActiveBookingCodeForHost.mockResolvedValue(null);
   mocks.listHostAvailableSlots.mockResolvedValue({
     code: "listed",
@@ -626,6 +634,53 @@ describe("v1 health API", () => {
 });
 
 describe("account profile API", () => {
+  it("bootstraps host profile and booking code through one atomic helper", async () => {
+    mocks.findHostProfileByAuthUserId
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        authUserId: "auth_user_1",
+        displayName: "Alice",
+        id: "host_1",
+        slotSizeMinutes: 30,
+        timezone: "America/Los_Angeles",
+        username: "alice",
+      });
+    mocks.findHostProfileByUsername.mockResolvedValue(null);
+
+    const response = await v1.request("https://schedule.pizza/me/bootstrap", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: "Alice",
+        timezone: "America/Los_Angeles",
+      }),
+    }, env);
+    const body = await response.json() as Record<string, unknown>;
+
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      ok: true,
+      account: {
+        profilePath: "/alice",
+        bookingCode: "moon-tiger-seven",
+        bookingPath: "/alice?code=moon-tiger-seven",
+        bookingUrl: "https://schedule.pizza/alice?code=moon-tiger-seven",
+      },
+    });
+    expect(mocks.createHostProfileWithBookingCode).toHaveBeenCalledWith(env.DB, {
+      authUserId: "auth_user_1",
+      calendarAccountEmail: "alice@example.com",
+      calendarId: "primary",
+      calendarProvider: "google",
+      displayName: "alice",
+      id: expect.any(String) as string,
+      username: "alice",
+      timezone: "America/Los_Angeles",
+      slotSizeMinutes: 30,
+      now: expect.any(Date) as Date,
+    });
+  });
+
   it("rejects cross-site account mutations before rotating booking codes", async () => {
     mocks.findHostProfileByAuthUserId.mockResolvedValue({
       authUserId: "auth_user_1",

@@ -14,7 +14,6 @@ import { parseOptionalGuestTimezone } from "@/booking/guest_timezone";
 import { createDb } from "@/db/client.server";
 import { authorizeBookingCode } from "@/db/functions/booking_code_authorizations.server";
 import {
-  createBookingCode,
   findActiveBookingCodeForHost,
   normalizeBookingCode,
   rotateBookingCode,
@@ -24,7 +23,7 @@ import {
   listUpcomingConfirmedBookingsForHost,
 } from "@/db/functions/bookings.server";
 import {
-  createHostProfile,
+  createHostProfileWithBookingCode,
   findHostProfileByAuthUserId,
   findHostProfileByUsername,
   normalizeUsername,
@@ -627,7 +626,7 @@ v1.post("/me/bootstrap", async (c) => {
   }
 
   const now = new Date();
-  const profile = await createHostProfile(db, {
+  const created = await createHostProfileWithBookingCode(c.env.DB, {
     id: crypto.randomUUID(),
     authUserId: session.session.user.id,
     calendarAccountEmail: email,
@@ -640,20 +639,12 @@ v1.post("/me/bootstrap", async (c) => {
     now,
   });
 
-  if (profile === null) {
+  if (created.code === "profile_conflict") {
     return c.json({ error: { code: "username_taken", message: "Username is taken" } }, 409);
   }
 
-  const code = await createBookingCode(db, {
-    hostId: profile.id,
-    hostUsername: profile.username,
-    wordCount: 3,
-    label: null,
-    now,
-  });
-
   return c.json(await buildAccountPayload(db, c.env, session.session, {
-    bookingCode: code.code,
+    bookingCode: created.bookingCode,
     now,
   }));
 });

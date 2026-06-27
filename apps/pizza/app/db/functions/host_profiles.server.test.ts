@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { updateHostProfile } from "./host_profiles.server";
+import {
+  createHostProfileWithBookingCode,
+  updateHostProfile,
+} from "./host_profiles.server";
 
 type CapturedStatement = {
   readonly params: readonly unknown[];
@@ -8,6 +11,53 @@ type CapturedStatement = {
 };
 
 describe("host profile updates", () => {
+  it("creates the profile and initial booking code in one D1 batch", async () => {
+    const { database, statements } = createD1BatchRecorder();
+
+    const created = await createHostProfileWithBookingCode(database, createInput());
+
+    if (created.code !== "created_profile") {
+      throw new Error("expected profile bootstrap to return a booking code");
+    }
+
+    expect(created.bookingCode.split("-")).toHaveLength(3);
+    expect(created.profile).toEqual({ id: "host_1", username: "alice" });
+    expect(statements.map((statement) => compactSql(statement.sql))).toEqual([
+      "insert into host_profile ( id, authUserId, username, displayName, timezone, slotSizeMinutes, calendarProvider, calendarAccountEmail, calendarId, createdAt, updatedAt ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) on conflict do nothing",
+      "insert into booking_code ( id, hostId, hostUsername, label, codeHash, codeHashVersion, wordCount, lastUsedAt, expiresAt, revokedAt, createdAt, updatedAt ) select ?, ?, ?, null, ?, ?, ?, null, null, null, ?, ? where exists ( select 1 from host_profile where id = ? and authUserId = ? and username = ? )",
+    ]);
+    expect(statements[0]?.params).toEqual([
+      "host_1",
+      "auth_user_1",
+      "alice",
+      "alice",
+      "America/Los_Angeles",
+      30,
+      "google",
+      "alice@example.com",
+      "primary",
+      1_782_489_600,
+      1_782_489_600,
+    ]);
+    expect(statements[1]?.params.slice(1, 8)).toEqual([
+      "host_1",
+      "alice",
+      created.bookingCodeHash,
+      1,
+      3,
+      1_782_489_600,
+      1_782_489_600,
+    ]);
+  });
+
+  it("reports a bootstrap conflict unless both D1 statements write", async () => {
+    const { database } = createD1BatchRecorder([1, 0]);
+
+    await expect(
+      createHostProfileWithBookingCode(database, createInput()),
+    ).resolves.toEqual({ code: "profile_conflict" });
+  });
+
   it("updates ordinary profile settings with one D1 statement", async () => {
     const { database, statements } = createD1BatchRecorder();
 
@@ -49,6 +99,21 @@ describe("host profile updates", () => {
   });
 });
 
+function createInput(): Parameters<typeof createHostProfileWithBookingCode>[1] {
+  return {
+    authUserId: "auth_user_1",
+    calendarAccountEmail: "alice@example.com",
+    calendarId: "primary",
+    calendarProvider: "google",
+    displayName: "alice",
+    id: "host_1",
+    now: new Date("2026-06-26T16:00:00.000Z"),
+    slotSizeMinutes: 30,
+    timezone: "America/Los_Angeles",
+    username: "alice",
+  };
+}
+
 function updateInput(
   override: Partial<Parameters<typeof updateHostProfile>[1]> = {},
 ): Parameters<typeof updateHostProfile>[1] {
@@ -68,7 +133,7 @@ function updateInput(
   };
 }
 
-function createD1BatchRecorder(): {
+function createD1BatchRecorder(changes: readonly number[] = []): {
   readonly database: D1Database;
   readonly statements: CapturedStatement[];
 } {
@@ -86,7 +151,9 @@ function createD1BatchRecorder(): {
         statements.push(capturedStatement);
       }
 
-      return batchStatements.map(() => ({ meta: { changes: 1 } }));
+      return batchStatements.map((_, index) => ({
+        meta: { changes: changes[index] ?? 1 },
+      }));
     },
     prepare(sql: string) {
       return createPreparedStatement(captured, sql, []);

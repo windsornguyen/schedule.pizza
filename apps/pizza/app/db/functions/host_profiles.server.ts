@@ -10,6 +10,19 @@ import {
 export { normalizeUsername } from "./host_profile_values";
 
 type D1ProfileUpdateDatabase = Pick<D1Database, "batch" | "prepare">;
+type D1ProfileCreateDatabase = Pick<D1Database, "batch" | "prepare">;
+
+type HostProfileCreateResult =
+  | { readonly code: "profile_conflict" }
+  | {
+      readonly bookingCode: string;
+      readonly bookingCodeHash: string;
+      readonly code: "created_profile";
+      readonly profile: {
+        readonly id: string;
+        readonly username: string;
+      };
+    };
 
 type HostProfileUpdateResult =
   | { readonly code: "profile_missing" }
@@ -26,6 +39,19 @@ type HostProfileUpdateInput = {
   readonly currentHostId: string;
   readonly currentUsername: string;
   readonly displayName: string;
+  readonly now: Date;
+  readonly slotSizeMinutes: number;
+  readonly timezone: string;
+  readonly username: string;
+};
+
+type HostProfileCreateInput = {
+  readonly authUserId: string;
+  readonly calendarAccountEmail: string;
+  readonly calendarId: string;
+  readonly calendarProvider: "google";
+  readonly displayName: string;
+  readonly id: string;
   readonly now: Date;
   readonly slotSizeMinutes: number;
   readonly timezone: string;
@@ -58,40 +84,78 @@ export async function findHostProfileByAuthUserId(
   return rows[0] ?? null;
 }
 
-export async function createHostProfile(
-  db: Database,
-  input: {
-    authUserId: string;
-    calendarAccountEmail: string;
-    calendarId: string;
-    calendarProvider: "google";
-    displayName: string;
-    id: string;
-    now: Date;
-    slotSizeMinutes: number;
-    timezone: string;
-    username: string;
-  }
-) {
-  const rows = await db
-    .insert(hostProfile)
-    .values({
-      id: input.id,
-      authUserId: input.authUserId,
-      username: input.username,
-      displayName: input.displayName,
-      timezone: input.timezone,
-      slotSizeMinutes: input.slotSizeMinutes,
-      calendarProvider: input.calendarProvider,
-      calendarAccountEmail: input.calendarAccountEmail,
-      calendarId: input.calendarId,
-      createdAt: input.now,
-      updatedAt: input.now,
-    })
-    .onConflictDoNothing()
-    .returning();
+export async function createHostProfileWithBookingCode(
+  database: D1ProfileCreateDatabase,
+  input: HostProfileCreateInput,
+): Promise<HostProfileCreateResult> {
+  const bookingCode = generateBookingCode(3);
+  const bookingCodeHash = await hashNormalizedBookingCode(bookingCode);
+  const results = await database.batch([
+    database
+      .prepare(
+        `insert into host_profile (
+          id, authUserId, username, displayName, timezone, slotSizeMinutes,
+          calendarProvider, calendarAccountEmail, calendarId, createdAt, updatedAt
+        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        on conflict do nothing`,
+      )
+      .bind(
+        input.id,
+        input.authUserId,
+        input.username,
+        input.displayName,
+        input.timezone,
+        input.slotSizeMinutes,
+        input.calendarProvider,
+        input.calendarAccountEmail,
+        input.calendarId,
+        toUnixSeconds(input.now),
+        toUnixSeconds(input.now),
+      ),
+    database
+      .prepare(
+        `insert into booking_code (
+          id, hostId, hostUsername, label, codeHash, codeHashVersion, wordCount,
+          lastUsedAt, expiresAt, revokedAt, createdAt, updatedAt
+        )
+        select ?, ?, ?, null, ?, ?, ?, null, null, null, ?, ?
+        where exists (
+          select 1 from host_profile
+          where id = ? and authUserId = ? and username = ?
+        )`,
+      )
+      .bind(
+        crypto.randomUUID(),
+        input.id,
+        input.username,
+        bookingCodeHash,
+        1,
+        3,
+        toUnixSeconds(input.now),
+        toUnixSeconds(input.now),
+        input.id,
+        input.authUserId,
+        input.username,
+      ),
+  ]);
+  const profileInsert = results[0];
+  const codeInsert = results[1];
 
-  return rows[0] ?? null;
+  if (
+    profileInsert === undefined ||
+    codeInsert === undefined ||
+    !hasSingleChangedRow(profileInsert) ||
+    !hasSingleChangedRow(codeInsert)
+  ) {
+    return { code: "profile_conflict" };
+  }
+
+  return {
+    code: "created_profile",
+    bookingCode,
+    bookingCodeHash,
+    profile: { id: input.id, username: input.username },
+  };
 }
 
 export async function updateHostProfile(
