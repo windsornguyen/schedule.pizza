@@ -41,7 +41,10 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     request.headers,
   );
 
-  return { loggedIn: session !== null };
+  return {
+    currentPath: new URL(request.url).pathname,
+    loggedIn: session !== null,
+  };
 }
 
 export function Layout({
@@ -81,13 +84,24 @@ export function DocumentSecurityMeta() {
 export default function App({ loaderData }: Route.ComponentProps) {
   return (
     <>
-      <AccountHeader loggedIn={loaderData.loggedIn} />
+      <AccountHeader
+        currentPath={loaderData.currentPath}
+        loggedIn={loaderData.loggedIn}
+      />
       <Outlet />
     </>
   );
 }
 
-export function AccountHeader({ loggedIn }: { readonly loggedIn: boolean }) {
+export function AccountHeader({
+  currentPath,
+  loggedIn,
+}: {
+  readonly currentPath: string;
+  readonly loggedIn: boolean;
+}) {
+  const showLoginLink = !loggedIn && currentPath !== "/login";
+
   return (
     <header className="mx-auto flex w-full max-w-[550px] items-center justify-between gap-3 px-4 pt-8">
       <a
@@ -113,14 +127,15 @@ export function AccountHeader({ loggedIn }: { readonly loggedIn: boolean }) {
             logout
           </a>
         </nav>
-      ) : (
+      ) : null}
+      {showLoginLink ? (
         <a
           href="/login"
           className="text-sm text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
         >
           login
         </a>
-      )}
+      ) : null}
     </header>
   );
 }

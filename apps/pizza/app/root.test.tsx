@@ -9,7 +9,7 @@ import { AccountHeader, DocumentSecurityMeta, links } from "./root";
 
 describe("root account header", () => {
   it("carries the launch-video logo mark on every page", () => {
-    const html = renderToStaticMarkup(<AccountHeader loggedIn={false} />);
+    const html = renderToStaticMarkup(<AccountHeader currentPath="/" loggedIn={false} />);
 
     expect(html).toContain('aria-label="schedule.pizza home"');
     expect(html).toContain('viewBox="0 0 32 32"');
@@ -18,11 +18,19 @@ describe("root account header", () => {
   });
 
   it("keeps signed-in account links grouped", () => {
-    const html = renderToStaticMarkup(<AccountHeader loggedIn />);
+    const html = renderToStaticMarkup(<AccountHeader currentPath="/" loggedIn />);
 
     expect(html).toContain('<nav class="flex items-center gap-3">');
     expect(html).toContain('href="/dashboard"');
     expect(html).toContain('href="/auth/logout"');
+  });
+
+  it("does not link the login page to itself", () => {
+    const html = renderToStaticMarkup(
+      <AccountHeader currentPath="/login" loggedIn={false} />,
+    );
+
+    expect(html).not.toContain('href="/login"');
   });
 });
 
