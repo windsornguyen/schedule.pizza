@@ -45,8 +45,9 @@ and `GET /api/v1/me` return profile state. `PUT /api/v1/account/profile`
 updates username, display name, calendar id, time zone, and slot size.
 Bootstrap, profile rename, and code rotation responses include the newly
 generated `bookingUrl`; later account reads return active code metadata but not
-the plaintext booking code. `GET /api/v1/account/bookings` returns upcoming
-confirmed bookings with `kind` and a structured `cancel` object. Individual
-bookings can be cancelled through the account cancellation endpoint. Group
-bookings are visible to each host, but the group organizer cancels the shared
-event from Google Calendar.
+the plaintext booking code. Host-agent mutations require the Better Auth cookie
+and a same-site `Origin` header. `GET /api/v1/account/bookings` returns
+upcoming confirmed bookings with `kind` and a structured `cancel` object.
+Individual bookings can be cancelled through the account cancellation endpoint.
+Group bookings are visible to each host, but the group organizer cancels the
+shared event from Google Calendar.

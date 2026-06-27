@@ -269,6 +269,9 @@ describe("v1 API CORS", () => {
       cancelBooking: {
         method: "POST",
         path: "/api/v1/account/bookings/:bookingId/cancel",
+        headers: {
+          Origin: "same origin as BETTER_AUTH_URL",
+        },
       },
       recommend: {
         method: "POST",
@@ -329,15 +332,29 @@ describe("v1 API CORS", () => {
         method: "POST",
         path: "/api/v1/me/bootstrap",
         auth: "Better Auth session cookie",
+        headers: {
+          Origin: "https://schedule.pizza",
+        },
         body: {
           username: "alice",
           slotSizeMinutes: 30,
+        },
+      },
+      saveProfile: {
+        method: "PUT",
+        path: "/api/v1/account/profile",
+        auth: "Better Auth session cookie",
+        headers: {
+          Origin: "https://schedule.pizza",
         },
       },
       rotateBookingCode: {
         method: "POST",
         path: "/api/v1/me/booking-code",
         auth: "Better Auth session cookie",
+        headers: {
+          Origin: "https://schedule.pizza",
+        },
       },
       accountBookings: {
         method: "GET",
@@ -348,6 +365,9 @@ describe("v1 API CORS", () => {
         method: "POST",
         path: "/api/v1/account/bookings/booking_123/cancel",
         auth: "Better Auth session cookie",
+        headers: {
+          Origin: "https://schedule.pizza",
+        },
       },
     });
     expect(body["errors"]).toMatchObject({

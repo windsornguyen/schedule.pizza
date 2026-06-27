@@ -23,6 +23,7 @@ await checkText("/llms.txt", "llms", [
   "POST /api/v1/recommend",
   "GET /api/v1/me",
   "PUT /api/v1/account/profile",
+  "same-site `Origin`",
   "GET /api/v1/account/bookings",
   "kind",
   "structured `cancel`",
@@ -84,6 +85,10 @@ await checkJson("/api/v1", "api descriptor", (body) => {
   assertEndpoint(body, "rotateBookingCode");
   assertEndpoint(body, "accountBookings");
   assertEndpoint(body, "cancelBooking");
+  assertField(body, ["endpoints", "bootstrap", "headers", "Origin"]);
+  assertField(body, ["endpoints", "saveProfile", "headers", "Origin"]);
+  assertField(body, ["endpoints", "rotateBookingCode", "headers", "Origin"]);
+  assertField(body, ["endpoints", "cancelBooking", "headers", "Origin"]);
   assertField(body, ["endpoints", "schedule", "body", "maxExactSlotCount"]);
   assertField(body, ["endpoints", "schedule", "body", "maxAlternativeSlotCount"]);
   assertField(body, ["endpoints", "recommend", "response", "exact"]);

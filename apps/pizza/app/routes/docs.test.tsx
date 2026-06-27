@@ -34,6 +34,8 @@ describe("docs page examples", () => {
     expect(html).toContain("/api/v1/account/bookings/booking_123/cancel");
     expect(html).toContain("bookingUrl");
     expect(html).toContain("Renaming a profile revokes previous codes");
+    expect(html).toContain("same-site");
+    expect(html).toContain("Origin");
     expect(html).toContain("Ask the group organizer to cancel");
   });
 

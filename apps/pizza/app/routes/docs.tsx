@@ -178,7 +178,9 @@ export default function Docs() {
           When a host creates or rotates a booking code, account responses
           include the absolute <code className="font-mono">bookingUrl</code>{" "}
           that can be handed to people or agents. Later account reads do not
-          return the plaintext code.
+          return the plaintext code. Account mutations require the Better Auth
+          cookie and a same-site <code className="font-mono">Origin</code>{" "}
+          header.
           To cancel an upcoming individual booking, call{" "}
           <code className="font-mono">
             POST /api/v1/account/bookings/:bookingId/cancel
@@ -187,7 +189,10 @@ export default function Docs() {
           Calendar.
         </p>
         <pre className="whitespace-pre-wrap break-words rounded-md border bg-muted p-3 font-mono text-sm">
-          <code>{`POST /api/v1/me/bootstrap
+          <code>{`Account mutation header:
+Origin: https://schedule.pizza
+
+POST /api/v1/me/bootstrap
 {
   "username": "alice",
   "timezone": "America/Los_Angeles",
@@ -206,6 +211,7 @@ PUT /api/v1/account/profile
 }
 
 POST /api/v1/me/booking-code
+
 GET /api/v1/account/bookings
 POST /api/v1/account/bookings/booking_123/cancel`}</code>
         </pre>

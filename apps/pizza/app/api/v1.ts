@@ -251,11 +251,19 @@ v1.get("/", (c) => {
         method: "POST",
         path: "/api/v1/account/bookings/:bookingId/cancel",
         auth: "Better Auth session cookie",
+        headers: {
+          Cookie: "Better Auth session cookie",
+          Origin: "same origin as BETTER_AUTH_URL",
+        },
       },
       bootstrap: {
         method: "POST",
         path: "/api/v1/me/bootstrap",
         auth: "Better Auth session cookie",
+        headers: {
+          Cookie: "Better Auth session cookie",
+          Origin: "same origin as BETTER_AUTH_URL",
+        },
         body: {
           username: "string (required)",
           timezone: "IANA time zone (required)",
@@ -268,6 +276,10 @@ v1.get("/", (c) => {
         method: "PUT",
         path: "/api/v1/account/profile",
         auth: "Better Auth session cookie",
+        headers: {
+          Cookie: "Better Auth session cookie",
+          Origin: "same origin as BETTER_AUTH_URL",
+        },
         body: {
           username: "string (required)",
           timezone: "IANA time zone (required)",
@@ -280,6 +292,10 @@ v1.get("/", (c) => {
         method: "POST",
         path: "/api/v1/me/booking-code",
         auth: "Better Auth session cookie",
+        headers: {
+          Cookie: "Better Auth session cookie",
+          Origin: "same origin as BETTER_AUTH_URL",
+        },
       },
     },
     examples: {
@@ -368,6 +384,10 @@ v1.get("/", (c) => {
         method: "POST",
         path: "/api/v1/me/bootstrap",
         auth: "Better Auth session cookie",
+        headers: {
+          Cookie: "Better Auth session cookie",
+          Origin: "https://schedule.pizza",
+        },
         body: {
           username: "alice",
           timezone: "America/Los_Angeles",
@@ -380,6 +400,10 @@ v1.get("/", (c) => {
         method: "PUT",
         path: "/api/v1/account/profile",
         auth: "Better Auth session cookie",
+        headers: {
+          Cookie: "Better Auth session cookie",
+          Origin: "https://schedule.pizza",
+        },
         body: {
           username: "alice",
           timezone: "America/Los_Angeles",
@@ -392,6 +416,10 @@ v1.get("/", (c) => {
         method: "POST",
         path: "/api/v1/me/booking-code",
         auth: "Better Auth session cookie",
+        headers: {
+          Cookie: "Better Auth session cookie",
+          Origin: "https://schedule.pizza",
+        },
       },
       accountBookings: {
         method: "GET",
@@ -402,6 +430,10 @@ v1.get("/", (c) => {
         method: "POST",
         path: "/api/v1/account/bookings/booking_123/cancel",
         auth: "Better Auth session cookie",
+        headers: {
+          Cookie: "Better Auth session cookie",
+          Origin: "https://schedule.pizza",
+        },
       },
     },
     errors: {
