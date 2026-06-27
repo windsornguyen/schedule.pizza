@@ -16,6 +16,9 @@ await checkHtml("/privacy", "privacy", [
 await checkText("/llms.txt", "llms", [
   "GET /api/v1/availability?url=",
   "POST /api/v1/recommend",
+  "GET /api/v1/account/bookings",
+  "kind",
+  "structured `cancel` object",
 ]);
 await checkText("/robots.txt", "robots", ["Allow: /api/v1", "Disallow: /api/"]);
 await checkText("/.well-known/security.txt", "security policy", [
