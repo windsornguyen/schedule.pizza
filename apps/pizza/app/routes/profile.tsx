@@ -223,7 +223,7 @@ function CodeForm({ username }: { readonly username: string }) {
         show times
       </button>
       <p className="text-sm text-muted-foreground">
-        schedule.pizza/{username} needs a code.
+        ask {username} for the full link or booking code.
       </p>
     </Form>
   );

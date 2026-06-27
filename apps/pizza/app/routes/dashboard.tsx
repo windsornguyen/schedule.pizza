@@ -288,7 +288,7 @@ function ProfilePanel({
   return (
     <section className="mt-10 space-y-4">
       <p className="text-sm text-muted-foreground">
-        schedule.pizza/{profile.username}
+        profile: schedule.pizza/{profile.username}
       </p>
       <p className="text-sm text-muted-foreground">
         {profile.slotSizeMinutes} minute slots, {profile.timezone}
@@ -476,13 +476,13 @@ function ActionMessage({
         {actionData.code === "created_code" ? (
           <>
             <br />
-            save this link. previous codes are revoked.
+            save this full link. previous codes are revoked.
           </>
         ) : null}
         {actionData.code === "created_profile" ? (
           <>
             <br />
-            save this link. schedule.pizza only stores a hash of the code.
+            save this full link. schedule.pizza only stores a hash of the code.
           </>
         ) : null}
       </p>
@@ -507,7 +507,7 @@ function ActionMessage({
             {bookingUrl}
           </a>
           <br />
-          save this link. schedule.pizza only stores a hash of the code.
+          save this full link. schedule.pizza only stores a hash of the code.
         </p>
       );
     }
@@ -748,13 +748,13 @@ export function readActiveBookingCodeNotice(input: {
 }) {
   if (input.calendarStatus === "reconnect_required") {
     return input.hasActiveBookingCode
-      ? "a share link exists. reconnect google calendar before people or agents can see times."
-      : "reconnect google calendar before creating a share link.";
+      ? "an active share link exists, but google calendar needs reconnect before people or agents can see times."
+      : "reconnect google calendar before creating a full share link.";
   }
 
   return input.hasActiveBookingCode
-    ? "a share link exists. schedule.pizza only shows the code when it is created. create a new link if you lost it."
-    : "no share link yet. create one to reveal the code.";
+    ? "an active share link exists. schedule.pizza hides the code after creation; create a new link if you need the full URL again."
+    : "no active share link. create one to reveal the full URL.";
 }
 
 export function readBookingCodeActionLabel(hasActiveBookingCode: boolean) {

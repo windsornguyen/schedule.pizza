@@ -89,7 +89,7 @@ describe("dashboard profile form parser", () => {
       calendarStatus: "connected",
       hasActiveBookingCode: false,
     })).toBe(
-      "no share link yet. create one to reveal the code.",
+      "no active share link. create one to reveal the full URL.",
     );
   });
 
@@ -98,7 +98,7 @@ describe("dashboard profile form parser", () => {
       calendarStatus: "connected",
       hasActiveBookingCode: true,
     })).toBe(
-      "a share link exists. schedule.pizza only shows the code when it is created. create a new link if you lost it.",
+      "an active share link exists. schedule.pizza hides the code after creation; create a new link if you need the full URL again.",
     );
   });
 
@@ -107,7 +107,7 @@ describe("dashboard profile form parser", () => {
       calendarStatus: "reconnect_required",
       hasActiveBookingCode: true,
     })).toBe(
-      "a share link exists. reconnect google calendar before people or agents can see times.",
+      "an active share link exists, but google calendar needs reconnect before people or agents can see times.",
     );
   });
 
@@ -156,7 +156,8 @@ describe("dashboard profile form parser", () => {
     expect(html.indexOf("moon-tiger-seven")).toBeLessThan(
       html.indexOf("upcoming"),
     );
-    expect(html).toContain("save this link. previous codes are revoked.");
+    expect(html).toContain("profile: schedule.pizza/alice");
+    expect(html).toContain("save this full link. previous codes are revoked.");
   });
 
   it("renders host-facing messages instead of raw action codes", () => {

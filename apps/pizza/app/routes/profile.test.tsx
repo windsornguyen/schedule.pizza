@@ -89,6 +89,22 @@ describe("profile loader booking-code privacy", () => {
 });
 
 describe("profile booking form", () => {
+  it("asks guests for the full share link or code", () => {
+    const Stub = createRoutesStub([{
+      Component: () => (
+        <ProfileContent
+          actionData={null}
+          loaderData={{ state: "code_required", username: "alice" }}
+        />
+      ),
+      path: "/alice",
+    }]);
+    const html = renderToStaticMarkup(<Stub initialEntries={["/alice"]} />);
+
+    expect(html).toContain("ask alice for the full link or booking code.");
+    expect(html).not.toContain("needs a code");
+  });
+
   it("does not submit the host timezone as the guest timezone", () => {
     const Stub = createRoutesStub([{
       Component: () => (
