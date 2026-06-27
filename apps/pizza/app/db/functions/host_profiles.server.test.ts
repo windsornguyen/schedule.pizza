@@ -23,8 +23,8 @@ describe("host profile updates", () => {
     expect(created.bookingCode.split("-")).toHaveLength(3);
     expect(created.profile).toEqual({ id: "host_1", username: "alice" });
     expect(statements.map((statement) => compactSql(statement.sql))).toEqual([
-      "insert into host_profile ( id, authUserId, username, displayName, timezone, slotSizeMinutes, calendarProvider, calendarAccountEmail, calendarId, createdAt, updatedAt ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) on conflict do nothing",
-      "insert into booking_code ( id, hostId, hostUsername, label, codeHash, codeHashVersion, wordCount, lastUsedAt, expiresAt, revokedAt, createdAt, updatedAt ) select ?, ?, ?, null, ?, ?, ?, null, null, null, ?, ? where exists ( select 1 from host_profile where id = ? and authUserId = ? and username = ? )",
+      "insert into host_profile ( id, authUserId, username, displayName, timezone, slotSizeMinutes, calendarProvider, calendarAccountEmail, calendarId, createdAt, updatedAt ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      "insert into booking_code ( id, hostId, hostUsername, label, codeHash, codeHashVersion, wordCount, lastUsedAt, expiresAt, revokedAt, createdAt, updatedAt ) values (?, ?, ?, null, ?, ?, ?, null, null, null, ?, ?)",
     ]);
     expect(statements[0]?.params).toEqual([
       "host_1",
@@ -50,8 +50,12 @@ describe("host profile updates", () => {
     ]);
   });
 
-  it("reports a bootstrap conflict unless both D1 statements write", async () => {
-    const { database } = createD1BatchRecorder([1, 0]);
+  it("reports a bootstrap conflict when D1 rejects the profile insert", async () => {
+    const { database } = createD1BatchRecorder(
+      [],
+      [],
+      new Error("D1_ERROR: UNIQUE constraint failed: host_profile.username"),
+    );
 
     await expect(
       createHostProfileWithBookingCode(database, createInput()),
@@ -66,7 +70,7 @@ describe("host profile updates", () => {
       bookingCode: null,
     });
     expect(statements.map((statement) => compactSql(statement.sql))).toEqual([
-      "update host_profile set username = ?, displayName = ?, timezone = ?, slotSizeMinutes = ?, calendarProvider = ?, calendarAccountEmail = ?, calendarId = ?, updatedAt = ? where authUserId = ? and id = ? and ( username = ? or not exists ( select 1 from host_profile where username = ? ) )",
+      "update host_profile set username = ?, displayName = ?, timezone = ?, slotSizeMinutes = ?, calendarProvider = ?, calendarAccountEmail = ?, calendarId = ?, updatedAt = ? where authUserId = ? and id = ?",
     ]);
   });
 
@@ -84,12 +88,11 @@ describe("host profile updates", () => {
 
     expect(updated.bookingCode.split("-")).toHaveLength(3);
     expect(statements.map((statement) => compactSql(statement.sql))).toEqual([
-      "update host_profile set username = ?, displayName = ?, timezone = ?, slotSizeMinutes = ?, calendarProvider = ?, calendarAccountEmail = ?, calendarId = ?, updatedAt = ? where authUserId = ? and id = ? and ( username = ? or not exists ( select 1 from host_profile where username = ? ) )",
-      "select id from host_profile where username = ? and authUserId <> ? limit 1",
+      "update host_profile set username = ?, displayName = ?, timezone = ?, slotSizeMinutes = ?, calendarProvider = ?, calendarAccountEmail = ?, calendarId = ?, updatedAt = ? where authUserId = ? and id = ?",
       "update booking_code set revokedAt = ?, updatedAt = ? where hostId = ? and exists ( select 1 from host_profile where id = ? and authUserId = ? and username = ? ) and revokedAt is null and (expiresAt is null or expiresAt > ?)",
       "insert into booking_code ( id, hostId, hostUsername, label, codeHash, codeHashVersion, wordCount, lastUsedAt, expiresAt, revokedAt, createdAt, updatedAt ) select ?, ?, ?, null, ?, ?, ?, null, null, null, ?, ? where exists ( select 1 from host_profile where id = ? and authUserId = ? and username = ? )",
     ]);
-    expect(statements[3]?.params.slice(1, 7)).toEqual([
+    expect(statements[2]?.params.slice(1, 7)).toEqual([
       "host_1",
       "alice-new",
       expect.any(String),
@@ -99,10 +102,11 @@ describe("host profile updates", () => {
     ]);
   });
 
-  it("reports rename conflicts without relying on D1 constraint errors", async () => {
+  it("reports rename conflicts from D1 unique constraint errors", async () => {
     const { database } = createD1BatchRecorder(
-      [0, 0, 0, 0],
-      [[], [{ id: "host_2" }], [], []],
+      [],
+      [],
+      new Error("D1_ERROR: UNIQUE constraint failed: host_profile.username"),
     );
 
     await expect(updateHostProfile(database, updateInput({
@@ -149,6 +153,7 @@ function updateInput(
 function createD1BatchRecorder(
   changes: readonly number[] = [],
   results: readonly (readonly Record<string, unknown>[])[] = [],
+  error?: Error,
 ): {
   readonly database: D1Database;
   readonly statements: CapturedStatement[];
@@ -157,6 +162,10 @@ function createD1BatchRecorder(
   const statements: CapturedStatement[] = [];
   const database = {
     async batch(batchStatements: D1PreparedStatement[]) {
+      if (error !== undefined) {
+        throw error;
+      }
+
       for (const statement of batchStatements) {
         const capturedStatement = captured.get(statement);
 

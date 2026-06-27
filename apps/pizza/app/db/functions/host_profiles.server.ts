@@ -91,14 +91,13 @@ export async function createHostProfileWithBookingCode(
 ): Promise<HostProfileCreateResult> {
   const bookingCode = generateBookingCode(3);
   const bookingCodeHash = await hashNormalizedBookingCode(bookingCode);
-  const results = await database.batch([
+  const results = await runProfileBatch(database, [
     database
       .prepare(
         `insert into host_profile (
           id, authUserId, username, displayName, timezone, slotSizeMinutes,
           calendarProvider, calendarAccountEmail, calendarId, createdAt, updatedAt
-        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        on conflict do nothing`,
+        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .bind(
         input.id,
@@ -118,12 +117,7 @@ export async function createHostProfileWithBookingCode(
         `insert into booking_code (
           id, hostId, hostUsername, label, codeHash, codeHashVersion, wordCount,
           lastUsedAt, expiresAt, revokedAt, createdAt, updatedAt
-        )
-        select ?, ?, ?, null, ?, ?, ?, null, null, null, ?, ?
-        where exists (
-          select 1 from host_profile
-          where id = ? and authUserId = ? and username = ?
-        )`,
+        ) values (?, ?, ?, null, ?, ?, ?, null, null, null, ?, ?)`,
       )
       .bind(
         crypto.randomUUID(),
@@ -134,11 +128,13 @@ export async function createHostProfileWithBookingCode(
         3,
         toUnixSeconds(input.now),
         toUnixSeconds(input.now),
-        input.id,
-        input.authUserId,
-        input.username,
       ),
   ]);
+
+  if (results === "profile_conflict") {
+    return { code: "profile_conflict" };
+  }
+
   const profileInsert = results[0];
   const codeInsert = results[1];
 
@@ -164,7 +160,12 @@ export async function updateHostProfile(
   input: HostProfileUpdateInput,
 ): Promise<HostProfileUpdateResult> {
   if (input.currentUsername === input.username) {
-    const results = await database.batch([profileUpdateStatement(database, input)]);
+    const results = await runProfileBatch(database, [profileUpdateStatement(database, input)]);
+
+    if (results === "profile_conflict") {
+      return { code: "profile_conflict" };
+    }
+
     const profileUpdate = results[0];
 
     return profileUpdate !== undefined && hasSingleChangedRow(profileUpdate)
@@ -174,9 +175,8 @@ export async function updateHostProfile(
 
   const bookingCode = generateBookingCode(3);
   const codeHash = await hashNormalizedBookingCode(bookingCode);
-  const results = await database.batch([
+  const results = await runProfileBatch(database, [
     profileUpdateStatement(database, input),
-    usernameConflictStatement(database, input),
     database
       .prepare(
         `update booking_code
@@ -225,21 +225,19 @@ export async function updateHostProfile(
       ),
   ]);
 
+  if (results === "profile_conflict") {
+    return { code: "profile_conflict" };
+  }
+
   const profileUpdate = results[0];
-  const usernameConflict = results[1];
-  const codeInsert = results[3];
+  const codeInsert = results[2];
 
   if (
     profileUpdate === undefined ||
-    usernameConflict === undefined ||
     codeInsert === undefined ||
     !hasSingleChangedRow(profileUpdate) ||
     !hasSingleChangedRow(codeInsert)
   ) {
-    if (usernameConflict !== undefined && hasAnyResult(usernameConflict)) {
-      return { code: "profile_conflict" };
-    }
-
     return { code: "profile_missing" };
   }
 
@@ -262,14 +260,7 @@ function profileUpdateStatement(
             calendarId = ?,
             updatedAt = ?
         where authUserId = ?
-          and id = ?
-          and (
-            username = ?
-            or not exists (
-              select 1 from host_profile
-              where username = ?
-            )
-          )`,
+          and id = ?`,
     )
     .bind(
       input.username,
@@ -282,30 +273,32 @@ function profileUpdateStatement(
       toUnixSeconds(input.now),
       input.authUserId,
       input.currentHostId,
-      input.username,
-      input.username,
     );
-}
-
-function usernameConflictStatement(
-  database: D1ProfileUpdateDatabase,
-  input: HostProfileUpdateInput,
-) {
-  return database
-    .prepare(
-      `select id from host_profile
-        where username = ? and authUserId <> ?
-        limit 1`,
-    )
-    .bind(input.username, input.authUserId);
 }
 
 function hasSingleChangedRow(result: D1Result) {
   return result.meta.changes === 1;
 }
 
-function hasAnyResult(result: D1Result) {
-  return Array.isArray(result.results) && result.results.length > 0;
+async function runProfileBatch(
+  database: Pick<D1Database, "batch">,
+  statements: readonly D1PreparedStatement[],
+) {
+  try {
+    return await database.batch([...statements]);
+  } catch (error: unknown) {
+    if (isHostProfileConflict(error)) {
+      return "profile_conflict";
+    }
+
+    throw error;
+  }
+}
+
+function isHostProfileConflict(error: unknown) {
+  return error instanceof Error &&
+    error.message.includes("UNIQUE constraint failed") &&
+    error.message.includes("host_profile");
 }
 
 function toUnixSeconds(date: Date) {
