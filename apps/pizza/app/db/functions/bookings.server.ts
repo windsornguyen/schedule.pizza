@@ -26,7 +26,7 @@ export type PendingCalendarBookingInsert = {
   source: "api" | "web";
 };
 type D1ReservationDatabase = Pick<D1Database, "prepare">;
-type D1BatchDatabase = Pick<D1Database, "batch" | "prepare">;
+type D1MutationDatabase = Pick<D1Database, "prepare">;
 
 export const PENDING_CALENDAR_BOOKING_TTL_MS = 15 * 60 * 1_000;
 
@@ -359,7 +359,7 @@ export async function markConfirmedBookingCancelled(
 }
 
 export async function confirmCalendarBookings(
-  database: D1BatchDatabase,
+  database: D1MutationDatabase,
   input: {
     bookingIds: readonly string[];
     calendarEventId: string;
@@ -367,28 +367,39 @@ export async function confirmCalendarBookings(
     provider: "google";
   },
 ) {
-  const results = await database.batch(input.bookingIds.map((bookingId) =>
-    database
-      .prepare(
-        `update booking
-          set calendarProvider = ?, calendarEventId = ?, status = ?, updatedAt = ?
-          where id = ? and status = ?`,
-      )
-      .bind(
-        input.provider,
-        input.calendarEventId,
-        "confirmed",
-        toUnixSeconds(input.confirmedAt),
-        bookingId,
-        "pending_calendar",
+  const placeholders = getBookingIdPlaceholders(input.bookingIds, "confirm");
+  const result = await database
+    .prepare(
+      `with requested (id) as (
+        values ${placeholders}
       ),
-  ));
+      ready (bookingCount) as (
+        select count(*)
+        from booking
+        join requested on requested.id = booking.id
+        where booking.status = ?
+      )
+      update booking
+      set calendarProvider = ?, calendarEventId = ?, status = ?, updatedAt = ?
+      where id in (select id from requested)
+        and status = ?
+        and (select bookingCount from ready) = ?`,
+    )
+    .bind(
+      ...input.bookingIds,
+      "pending_calendar",
+      input.provider,
+      input.calendarEventId,
+      "confirmed",
+      toUnixSeconds(input.confirmedAt),
+      "pending_calendar",
+      input.bookingIds.length,
+    )
+    .run();
 
-  if (!results.every((result) => result.meta.changes === 1)) {
-    return null;
-  }
-
-  return [...input.bookingIds];
+  return result.meta.changes === input.bookingIds.length
+    ? [...input.bookingIds]
+    : null;
 }
 
 export async function markCalendarBookingFailed(
@@ -413,35 +424,61 @@ export async function markCalendarBookingFailed(
 }
 
 export async function markCalendarBookingsFailed(
-  database: D1BatchDatabase,
+  database: D1MutationDatabase,
   input: { bookingIds: readonly string[]; failedAt: Date },
 ) {
-  const results = await database.batch(input.bookingIds.map((bookingId) =>
-    database
-      .prepare(
-        `update booking
-          set status = ?, updatedAt = ?
-          where id = ? and status = ?`,
-      )
-      .bind(
-        "calendar_failed",
-        toUnixSeconds(input.failedAt),
-        bookingId,
-        "pending_calendar",
+  const placeholders = getBookingIdPlaceholders(input.bookingIds, "mark failed");
+  const result = await database
+    .prepare(
+      `with requested (id) as (
+        values ${placeholders}
       ),
-  ));
+      ready (bookingCount) as (
+        select count(*)
+        from booking
+        join requested on requested.id = booking.id
+        where booking.status = ?
+      )
+      update booking
+      set status = ?, updatedAt = ?
+      where id in (select id from requested)
+        and status = ?
+        and (select bookingCount from ready) = ?`,
+    )
+    .bind(
+      ...input.bookingIds,
+      "pending_calendar",
+      "calendar_failed",
+      toUnixSeconds(input.failedAt),
+      "pending_calendar",
+      input.bookingIds.length,
+    )
+    .run();
 
-  if (!results.every((result) => result.meta.changes === 1)) {
-    return null;
-  }
-
-  return [...input.bookingIds];
+  return result.meta.changes === input.bookingIds.length
+    ? [...input.bookingIds]
+    : null;
 }
 
 function isBookingReservationConflict(error: unknown) {
   return error instanceof Error &&
     error.message.includes("UNIQUE constraint failed") &&
     error.message.includes("booking");
+}
+
+function getBookingIdPlaceholders(
+  bookingIds: readonly string[],
+  operation: "confirm" | "mark failed",
+) {
+  if (bookingIds.length === 0) {
+    throw new Error(`cannot ${operation} empty booking batch`);
+  }
+
+  if (new Set(bookingIds).size !== bookingIds.length) {
+    throw new Error(`cannot ${operation} duplicate booking ids`);
+  }
+
+  return bookingIds.map(() => "(?)").join(", ");
 }
 
 function toUnixSeconds(date: Date) {

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  confirmCalendarBookings,
   createPendingCalendarBooking,
   createPendingCalendarBookings,
+  markCalendarBookingsFailed,
   type PendingCalendarBookingInsert,
 } from "./bookings.server";
 
@@ -132,6 +134,84 @@ describe("group booking reservations", () => {
     await expect(createPendingCalendarBookings(database, [
       pendingBooking("booking_1", "host_alice"),
     ])).resolves.toBeNull();
+  });
+});
+
+describe("group booking state transitions", () => {
+  it("confirms grouped bookings with one conditional update", async () => {
+    const { database, statements } = createD1Recorder({ changes: [2] });
+
+    await expect(confirmCalendarBookings(database, {
+      bookingIds: ["booking_1", "booking_2"],
+      calendarEventId: "google_event_1",
+      confirmedAt: new Date("2026-06-26T15:05:00.000Z"),
+      provider: "google",
+    })).resolves.toEqual(["booking_1", "booking_2"]);
+    expect(statements).toHaveLength(1);
+    expect(compactSql(statements[0]?.sql ?? "")).toContain(
+      "with requested (id) as ( values (?), (?) ), ready (bookingCount) as",
+    );
+    expect(compactSql(statements[0]?.sql ?? "")).toContain(
+      "and (select bookingCount from ready) = ?",
+    );
+    expect(statements[0]?.params).toEqual([
+      "booking_1",
+      "booking_2",
+      "pending_calendar",
+      "google",
+      "google_event_1",
+      "confirmed",
+      1_782_486_300,
+      "pending_calendar",
+      2,
+    ]);
+  });
+
+  it("returns null without partial grouped confirmation", async () => {
+    const { database, statements } = createD1Recorder({ changes: [0] });
+
+    await expect(confirmCalendarBookings(database, {
+      bookingIds: ["booking_1", "booking_2"],
+      calendarEventId: "google_event_1",
+      confirmedAt: new Date("2026-06-26T15:05:00.000Z"),
+      provider: "google",
+    })).resolves.toBeNull();
+    expect(statements).toHaveLength(1);
+  });
+
+  it("marks grouped bookings failed with one conditional update", async () => {
+    const { database, statements } = createD1Recorder({ changes: [2] });
+
+    await expect(markCalendarBookingsFailed(database, {
+      bookingIds: ["booking_1", "booking_2"],
+      failedAt: new Date("2026-06-26T15:05:00.000Z"),
+    })).resolves.toEqual(["booking_1", "booking_2"]);
+    expect(statements).toHaveLength(1);
+    expect(compactSql(statements[0]?.sql ?? "")).toContain(
+      "with requested (id) as ( values (?), (?) ), ready (bookingCount) as",
+    );
+    expect(compactSql(statements[0]?.sql ?? "")).toContain(
+      "and (select bookingCount from ready) = ?",
+    );
+    expect(statements[0]?.params).toEqual([
+      "booking_1",
+      "booking_2",
+      "pending_calendar",
+      "calendar_failed",
+      1_782_486_300,
+      "pending_calendar",
+      2,
+    ]);
+  });
+
+  it("returns null without partial grouped failure marking", async () => {
+    const { database, statements } = createD1Recorder({ changes: [0] });
+
+    await expect(markCalendarBookingsFailed(database, {
+      bookingIds: ["booking_1", "booking_2"],
+      failedAt: new Date("2026-06-26T15:05:00.000Z"),
+    })).resolves.toBeNull();
+    expect(statements).toHaveLength(1);
   });
 });
 
