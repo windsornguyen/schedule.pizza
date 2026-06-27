@@ -29,7 +29,6 @@ const mocks = vi.hoisted(() => ({
   cancelHostBooking: vi.fn<AsyncMock>(),
   createDb: vi.fn<SyncMock>(),
   createHostProfileWithBookingCode: vi.fn<AsyncMock>(),
-  countConfirmedBookingsForCalendarEvent: vi.fn<AsyncMock>(),
   findActiveBookingCodeForHost: vi.fn<AsyncMock>(),
   findHostProfileByAuthUserId: vi.fn<AsyncMock>(),
   findHostProfileByUsername: vi.fn<AsyncMock>(),
@@ -37,6 +36,7 @@ const mocks = vi.hoisted(() => ({
   listUpcomingConfirmedBookingsForHost: vi.fn<AsyncMock>(),
   readAuthSession: vi.fn<AsyncMock>(),
   readGoogleCalendarAccess: vi.fn<AsyncMock>(),
+  readHostBookingCancellation: vi.fn<AsyncMock>(),
   rotateBookingCode: vi.fn<AsyncMock>(),
   updateHostProfile: vi.fn<AsyncMock>(),
 }));
@@ -60,6 +60,7 @@ vi.mock("@/booking/cancel_host_booking.server", async (importOriginal) => {
   return {
     ...actual,
     cancelHostBooking: mocks.cancelHostBooking,
+    readHostBookingCancellation: mocks.readHostBookingCancellation,
   };
 });
 
@@ -109,8 +110,6 @@ vi.mock("@/db/functions/bookings.server", async (importOriginal) => {
 
   return {
     ...actual,
-    countConfirmedBookingsForCalendarEvent:
-      mocks.countConfirmedBookingsForCalendarEvent,
     listUpcomingConfirmedBookingsForHost: mocks.listUpcomingConfirmedBookingsForHost,
   };
 });
@@ -184,7 +183,6 @@ beforeEach(() => {
     code: "cancelled",
     bookingId: "booking_1",
   });
-  mocks.countConfirmedBookingsForCalendarEvent.mockResolvedValue(1);
   mocks.createHostProfileWithBookingCode.mockResolvedValue({
     code: "created_profile",
     bookingCode: "moon-tiger-seven",
@@ -209,6 +207,11 @@ beforeEach(() => {
   mocks.readGoogleCalendarAccess.mockResolvedValue({
     code: "authorized",
     accessToken: "google_access_token",
+  });
+  mocks.readHostBookingCancellation.mockResolvedValue({
+    canCancel: true,
+    disabledReason: null,
+    kind: "individual",
   });
   mocks.rotateBookingCode.mockResolvedValue({
     code: "sun-river-ten",
@@ -249,6 +252,13 @@ describe("v1 API CORS", () => {
       accountBookings: {
         method: "GET",
         path: "/api/v1/account/bookings",
+        response: {
+          kind: expect.stringContaining("individual"),
+          cancel: {
+            allowed: "boolean",
+            disabledReason: expect.stringContaining("group_booking"),
+          },
+        },
       },
       cancelBooking: {
         method: "POST",
@@ -477,11 +487,16 @@ describe("account bookings API", () => {
       bookings: [
         {
           canCancel: true,
+          cancel: {
+            allowed: true,
+            disabledReason: null,
+          },
           guest: {
             email: "ada@example.com",
             name: "Ada",
           },
           id: "booking_1",
+          kind: "individual",
           slot: {
             start: "2026-06-26T16:00:00.000Z",
             end: "2026-06-26T16:30:00.000Z",
@@ -495,6 +510,57 @@ describe("account bookings API", () => {
       hostId: "host_1",
       limit: 20,
       now: expect.any(Date) as Date,
+    });
+    expect(mocks.readHostBookingCancellation).toHaveBeenCalledWith(
+      db,
+      "google_event_1",
+    );
+  });
+
+  it("tells host agents why group bookings cannot be cancelled through account APIs", async () => {
+    mocks.findHostProfileByAuthUserId.mockResolvedValue({
+      authUserId: "auth_user_1",
+      calendarId: "primary",
+      id: "host_1",
+      username: "alice",
+    });
+    mocks.listUpcomingConfirmedBookingsForHost.mockResolvedValue([
+      {
+        calendarEventId: "google_event_1",
+        guestEmail: "ada@example.com",
+        guestName: "Ada",
+        id: "booking_1",
+        slotEndAt: new Date("2026-06-26T16:30:00.000Z"),
+        slotStartAt: new Date("2026-06-26T16:00:00.000Z"),
+      },
+    ]);
+    mocks.readHostBookingCancellation.mockResolvedValue({
+      canCancel: false,
+      disabledReason: "group_booking",
+      kind: "group",
+    });
+
+    const response = await v1.request(
+      "https://schedule.pizza/account/bookings",
+      {},
+      env,
+    );
+    const body = await response.json() as Record<string, unknown>;
+
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      ok: true,
+      bookings: [
+        {
+          canCancel: false,
+          cancel: {
+            allowed: false,
+            disabledReason: "group_booking",
+          },
+          id: "booking_1",
+          kind: "group",
+        },
+      ],
     });
   });
 

@@ -1,7 +1,10 @@
 import { Form, redirect } from "react-router";
 
 import { readAuthSession } from "@/auth.server";
-import { cancelHostBooking } from "@/booking/cancel_host_booking.server";
+import {
+  cancelHostBooking,
+  readHostBookingCancellation,
+} from "@/booking/cancel_host_booking.server";
 import { readCalendarStatus } from "@/dashboard/calendar_status.server";
 import {
   parseProfileForm,
@@ -9,10 +12,7 @@ import {
 } from "@/dashboard/profile_form";
 import { updateExistingProfile } from "@/dashboard/profile_update.server";
 import { createDb } from "@/db/client.server";
-import {
-  countConfirmedBookingsForCalendarEvent,
-  listUpcomingConfirmedBookingsForHost,
-} from "@/db/functions/bookings.server";
+import { listUpcomingConfirmedBookingsForHost } from "@/db/functions/bookings.server";
 import {
   findActiveBookingCodeForHost,
   rotateBookingCode,
@@ -63,16 +63,25 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   ]);
 
   const serializedBookings = await Promise.all(
-    bookings.map(async (booking) => ({
-      canCancel: await canCancelDashboardBooking(db, booking.calendarEventId),
-      id: booking.id,
-      guestEmail: booking.guestEmail,
-      guestName: booking.guestName,
-      slot: {
-        start: booking.slotStartAt.toISOString(),
-        end: booking.slotEndAt.toISOString(),
-      },
-    })),
+    bookings.map(async (booking) => {
+      const cancellation = await readHostBookingCancellation(
+        db,
+        booking.calendarEventId,
+      );
+
+      return {
+        canCancel: cancellation.canCancel,
+        cancelDisabledReason: cancellation.disabledReason,
+        id: booking.id,
+        kind: cancellation.kind,
+        guestEmail: booking.guestEmail,
+        guestName: booking.guestName,
+        slot: {
+          start: booking.slotStartAt.toISOString(),
+          end: booking.slotEndAt.toISOString(),
+        },
+      };
+    }),
   );
 
   return {
@@ -417,12 +426,24 @@ function UpcomingBookings({
               </button>
             </Form>
           ) : (
-            <p className="text-sm text-muted-foreground">group booking</p>
+            <p className="text-sm text-muted-foreground">
+              {readBookingCancellationNotice(booking)}
+            </p>
           )}
         </div>
       ))}
     </section>
   );
+}
+
+function readBookingCancellationNotice(
+  booking: NonNullable<Route.ComponentProps["loaderData"]["profile"]>["bookings"][number],
+) {
+  if (booking.cancelDisabledReason === "group_booking") {
+    return "group booking. cancel from google calendar.";
+  }
+
+  return "calendar event missing. reconnect google calendar.";
 }
 
 function ActionMessage({
@@ -527,21 +548,6 @@ function ActionMessage({
   return errorMessage === null
     ? null
     : <p className="text-sm text-destructive">{errorMessage}</p>;
-}
-
-async function canCancelDashboardBooking(
-  db: ReturnType<typeof createDb>,
-  calendarEventId: string | null,
-) {
-  if (calendarEventId === null) {
-    return false;
-  }
-
-  const eventBookingCount = await countConfirmedBookingsForCalendarEvent(db, {
-    calendarEventId,
-  });
-
-  return eventBookingCount === 1;
 }
 
 function readCancellationErrorMessage(code: DashboardActionCode) {

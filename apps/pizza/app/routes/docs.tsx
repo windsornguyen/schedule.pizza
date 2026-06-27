@@ -166,6 +166,9 @@ export default function Docs() {
           <code className="font-mono">GET /api/v1/account</code>. Upcoming
           bookings are available at{" "}
           <code className="font-mono">GET /api/v1/account/bookings</code>.
+          Each booking includes <code className="font-mono">kind</code> and a
+          structured <code className="font-mono">cancel</code> object, so
+          agents can tell individual bookings from shared group bookings.
           When a host creates or rotates a booking code, account responses
           include the absolute <code className="font-mono">bookingUrl</code>{" "}
           that can be handed to people or agents.

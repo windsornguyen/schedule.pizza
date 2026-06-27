@@ -31,6 +31,23 @@ export type CancelHostBookingResult =
   | { readonly bookingId: string; readonly code: "cancelled" }
   | { readonly code: CancelHostBookingErrorCode };
 
+export type HostBookingCancellation =
+  | {
+      readonly canCancel: true;
+      readonly disabledReason: null;
+      readonly kind: "individual";
+    }
+  | {
+      readonly canCancel: false;
+      readonly disabledReason: "calendar_missing";
+      readonly kind: "unknown";
+    }
+  | {
+      readonly canCancel: false;
+      readonly disabledReason: "group_booking";
+      readonly kind: "group";
+    };
+
 export async function cancelHostBooking(
   db: Database,
   input: {
@@ -55,12 +72,14 @@ export async function cancelHostBooking(
     return { code: "booking_calendar_missing" };
   }
 
-  const eventBookingCount = await countConfirmedBookingsForCalendarEvent(db, {
-    calendarEventId: booking.calendarEventId,
-  });
+  const cancellation = await readHostBookingCancellation(db, booking.calendarEventId);
 
-  if (eventBookingCount !== 1) {
-    return { code: "group_booking_cancel_unsupported" };
+  if (!cancellation.canCancel) {
+    return {
+      code: cancellation.disabledReason === "group_booking"
+        ? "group_booking_cancel_unsupported"
+        : "booking_calendar_missing",
+    };
   }
 
   const googleAccess = await readGoogleCalendarAccess(db, {
@@ -93,4 +112,25 @@ export async function cancelHostBooking(
   return cancelled === null
     ? { code: "booking_cancel_failed" }
     : { code: "cancelled", bookingId: cancelled.id };
+}
+
+export async function readHostBookingCancellation(
+  db: Database,
+  calendarEventId: string | null,
+): Promise<HostBookingCancellation> {
+  if (calendarEventId === null) {
+    return {
+      canCancel: false,
+      disabledReason: "calendar_missing",
+      kind: "unknown",
+    };
+  }
+
+  const eventBookingCount = await countConfirmedBookingsForCalendarEvent(db, {
+    calendarEventId,
+  });
+
+  return eventBookingCount === 1
+    ? { canCancel: true, disabledReason: null, kind: "individual" }
+    : { canCancel: false, disabledReason: "group_booking", kind: "group" };
 }

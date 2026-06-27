@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { cancelHostBooking } from "./cancel_host_booking.server";
+import {
+  cancelHostBooking,
+  readHostBookingCancellation,
+} from "./cancel_host_booking.server";
 
 type AsyncMock = (...args: unknown[]) => Promise<unknown>;
 type ReadCalendarIdMock = (calendarId: string | null) => string;
@@ -97,6 +100,36 @@ describe("cancelHostBooking", () => {
       code: "booking_missing",
     });
     expect(mocks.deleteGoogleCalendarEvent).not.toHaveBeenCalled();
+  });
+});
+
+describe("readHostBookingCancellation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("describes individual, group, and unmanaged booking cancellation", async () => {
+    mocks.countConfirmedBookingsForCalendarEvent.mockResolvedValueOnce(1);
+    await expect(readHostBookingCancellation(db, "google_event_1"))
+      .resolves.toEqual({
+        canCancel: true,
+        disabledReason: null,
+        kind: "individual",
+      });
+
+    mocks.countConfirmedBookingsForCalendarEvent.mockResolvedValueOnce(2);
+    await expect(readHostBookingCancellation(db, "google_event_2"))
+      .resolves.toEqual({
+        canCancel: false,
+        disabledReason: "group_booking",
+        kind: "group",
+      });
+
+    await expect(readHostBookingCancellation(db, null)).resolves.toEqual({
+      canCancel: false,
+      disabledReason: "calendar_missing",
+      kind: "unknown",
+    });
   });
 });
 

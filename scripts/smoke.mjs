@@ -34,6 +34,8 @@ await checkJson("/api/v1", "api descriptor", (body) => {
   assertField(body, ["examples", "rotateBookingCode", "path"]);
   assertField(body, ["examples", "accountBookings", "path"]);
   assertField(body, ["examples", "cancelBooking", "path"]);
+  assertField(body, ["endpoints", "accountBookings", "response", "kind"]);
+  assertField(body, ["endpoints", "accountBookings", "response", "cancel", "allowed"]);
   assertEndpoint(body, "schedule");
   assertEndpoint(body, "recommend");
   assertEndpoint(body, "book");

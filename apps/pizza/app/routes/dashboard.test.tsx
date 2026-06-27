@@ -129,9 +129,11 @@ describe("dashboard profile form parser", () => {
           profile: {
             bookings: [{
               canCancel: true,
+              cancelDisabledReason: null,
               guestEmail: "ada@example.com",
               guestName: "Ada",
               id: "booking_1",
+              kind: "individual",
               slot: {
                 start: "2030-01-07T17:00:00.000Z",
                 end: "2030-01-07T17:30:00.000Z",
@@ -176,5 +178,41 @@ describe("dashboard profile form parser", () => {
     expect(readDashboardActionErrorMessage("google_token_refresh_failed")).toBe(
       "google calendar unavailable.",
     );
+  });
+
+  it("explains why group bookings do not have dashboard cancellation", () => {
+    const Stub = createRoutesStub([{
+      Component: () => <DashboardContent
+        actionData={null}
+        loaderData={{
+          email: "alice@example.com",
+          profile: {
+            bookings: [{
+              canCancel: false,
+              cancelDisabledReason: "group_booking",
+              guestEmail: "ada@example.com",
+              guestName: "Ada",
+              id: "booking_1",
+              kind: "group",
+              slot: {
+                start: "2030-01-07T17:00:00.000Z",
+                end: "2030-01-07T17:30:00.000Z",
+              },
+            }],
+            calendarStatus: "connected",
+            hasActiveBookingCode: true,
+            slotSizeMinutes: 30,
+            timezone: "America/Los_Angeles",
+            username: "alice",
+          },
+        }}
+      />,
+      path: "/dashboard",
+    }]);
+    const html = renderToStaticMarkup(
+      <Stub initialEntries={["/dashboard"]} />,
+    );
+
+    expect(html).toContain("group booking. cancel from google calendar.");
   });
 });

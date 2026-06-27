@@ -2,7 +2,10 @@ import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
 
 import { AuthConfigError, readAuthSession } from "@/auth.server";
-import { cancelHostBooking } from "@/booking/cancel_host_booking.server";
+import {
+  cancelHostBooking,
+  readHostBookingCancellation,
+} from "@/booking/cancel_host_booking.server";
 import {
   readGoogleCalendarAccess,
   type GoogleCalendarErrorCode,
@@ -18,10 +21,7 @@ import {
   normalizeBookingCode,
   rotateBookingCode,
 } from "@/db/functions/booking_codes.server";
-import {
-  countConfirmedBookingsForCalendarEvent,
-  listUpcomingConfirmedBookingsForHost,
-} from "@/db/functions/bookings.server";
+import { listUpcomingConfirmedBookingsForHost } from "@/db/functions/bookings.server";
 import {
   createHostProfileWithBookingCode,
   findHostProfileByAuthUserId,
@@ -239,6 +239,13 @@ v1.get("/", (c) => {
         method: "GET",
         path: "/api/v1/account/bookings",
         auth: "Better Auth session cookie",
+        response: {
+          kind: "individual, group, or unknown",
+          cancel: {
+            allowed: "boolean",
+            disabledReason: "null, group_booking, or calendar_missing",
+          },
+        },
       },
       cancelBooking: {
         method: "POST",
@@ -1270,37 +1277,34 @@ async function buildHostBookingsPayload(
 ) {
   const bookings = await listUpcomingConfirmedBookingsForHost(db, input);
   const serializedBookings = await Promise.all(
-    bookings.map(async (booking) => ({
-      canCancel: await canCancelHostBooking(db, booking.calendarEventId),
-      guest: {
-        email: booking.guestEmail,
-        name: booking.guestName,
-      },
-      id: booking.id,
-      slot: {
-        start: booking.slotStartAt.toISOString(),
-        end: booking.slotEndAt.toISOString(),
-      },
-      status: "confirmed" as const,
-    })),
+    bookings.map(async (booking) => {
+      const cancellation = await readHostBookingCancellation(
+        db,
+        booking.calendarEventId,
+      );
+
+      return {
+        canCancel: cancellation.canCancel,
+        cancel: {
+          allowed: cancellation.canCancel,
+          disabledReason: cancellation.disabledReason,
+        },
+        guest: {
+          email: booking.guestEmail,
+          name: booking.guestName,
+        },
+        id: booking.id,
+        kind: cancellation.kind,
+        slot: {
+          start: booking.slotStartAt.toISOString(),
+          end: booking.slotEndAt.toISOString(),
+        },
+        status: "confirmed" as const,
+      };
+    }),
   );
 
   return { ok: true, bookings: serializedBookings };
-}
-
-async function canCancelHostBooking(
-  db: ReturnType<typeof createDb>,
-  calendarEventId: string | null,
-) {
-  if (calendarEventId === null) {
-    return false;
-  }
-
-  const bookingCount = await countConfirmedBookingsForCalendarEvent(db, {
-    calendarEventId,
-  });
-
-  return bookingCount === 1;
 }
 
 async function readApiSession(c: V1Context):
