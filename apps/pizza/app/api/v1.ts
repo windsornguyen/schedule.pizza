@@ -745,7 +745,7 @@ v1.post("/book", async (c) => {
       user: host.username,
       slot: serializeSlot(booked.slot),
       booker: { name: parsed.body.guestName, email: parsed.body.email },
-      calendar: { provider: "google", eventId: booked.calendarEventId },
+      calendar: { provider: "google" },
       status: "confirmed",
     },
   });
@@ -829,7 +829,7 @@ v1.post("/book-group", async (c) => {
         end: booked.slot.endAt.toISOString(),
       },
       booker: { name: parsed.body.guestName, email: parsed.body.email },
-      calendar: { provider: "google", eventId: booked.calendarEventId },
+      calendar: { provider: "google" },
       status: "confirmed",
     },
   });

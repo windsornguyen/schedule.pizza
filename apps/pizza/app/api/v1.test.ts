@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as AuthServerModule from "@/auth.server";
 import type * as CancelHostBookingModule from "@/booking/cancel_host_booking.server";
+import type * as BookGroupSlotModule from "@/booking/book_group_slot.server";
+import type * as BookSlotModule from "@/booking/book_slot.server";
+import type * as BookingCodeAuthorizationsModule from "@/db/functions/booking_code_authorizations.server";
 import type * as BookingCodesModule from "@/db/functions/booking_codes.server";
 import type * as BookingsModule from "@/db/functions/bookings.server";
 import type * as HostProfilesModule from "@/db/functions/host_profiles.server";
@@ -18,6 +21,9 @@ type AsyncMock = (...args: unknown[]) => Promise<unknown>;
 type SyncMock = (...args: unknown[]) => unknown;
 
 const mocks = vi.hoisted(() => ({
+  authorizeBookingCode: vi.fn<AsyncMock>(),
+  bookGroupSlot: vi.fn<AsyncMock>(),
+  bookHostSlot: vi.fn<AsyncMock>(),
   cancelHostBooking: vi.fn<AsyncMock>(),
   createDb: vi.fn<SyncMock>(),
   countConfirmedBookingsForCalendarEvent: vi.fn<AsyncMock>(),
@@ -53,9 +59,36 @@ vi.mock("@/booking/cancel_host_booking.server", async (importOriginal) => {
   };
 });
 
+vi.mock("@/booking/book_group_slot.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof BookGroupSlotModule>();
+
+  return {
+    ...actual,
+    bookGroupSlot: mocks.bookGroupSlot,
+  };
+});
+
+vi.mock("@/booking/book_slot.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof BookSlotModule>();
+
+  return {
+    ...actual,
+    bookHostSlot: mocks.bookHostSlot,
+  };
+});
+
 vi.mock("@/db/client.server", () => ({
   createDb: mocks.createDb,
 }));
+
+vi.mock("@/db/functions/booking_code_authorizations.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof BookingCodeAuthorizationsModule>();
+
+  return {
+    ...actual,
+    authorizeBookingCode: mocks.authorizeBookingCode,
+  };
+});
 
 vi.mock("@/db/functions/booking_codes.server", async (importOriginal) => {
   const actual = await importOriginal<typeof BookingCodesModule>();
@@ -101,6 +134,38 @@ const env = {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.createDb.mockReturnValue(db);
+  mocks.authorizeBookingCode.mockResolvedValue({
+    code: "authorized",
+    access: {
+      code: { id: "booking_code_1" },
+      host: {
+        authUserId: "auth_user_1",
+        calendarId: "primary",
+        id: "host_1",
+        slotSizeMinutes: 30,
+        timezone: "America/Los_Angeles",
+        username: "alice",
+      },
+    },
+  });
+  mocks.bookGroupSlot.mockResolvedValue({
+    code: "booked",
+    bookingIds: ["booking_1", "booking_2"],
+    calendarEventId: "google_event_1",
+    slot: {
+      startAt: new Date("2026-06-26T16:00:00.000Z"),
+      endAt: new Date("2026-06-26T16:30:00.000Z"),
+    },
+  });
+  mocks.bookHostSlot.mockResolvedValue({
+    code: "booked",
+    bookingId: "booking_1",
+    calendarEventId: "google_event_1",
+    slot: {
+      startAt: new Date("2026-06-26T16:00:00.000Z"),
+      endAt: new Date("2026-06-26T16:30:00.000Z"),
+    },
+  });
   mocks.cancelHostBooking.mockResolvedValue({
     code: "cancelled",
     bookingId: "booking_1",
@@ -249,6 +314,70 @@ describe("account bookings API", () => {
       limit: 20,
       now: expect.any(Date) as Date,
     });
+  });
+
+  it("confirms individual bookings without leaking Google event ids", async () => {
+    const response = await v1.request("https://schedule.pizza/book", {
+      method: "POST",
+      headers: {
+        "CF-Connecting-IP": "203.0.113.10",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        user: "alice",
+        code: "moon-tiger-seven",
+        slot: "2026-06-26T16:00:00.000Z",
+        name: "Ada",
+        email: "ada@example.com",
+        timezone: "America/Los_Angeles",
+      }),
+    }, env);
+    const body = await response.json() as Record<string, unknown>;
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual({
+      ok: true,
+      booking: {
+        id: "booking_1",
+        user: "alice",
+        slot: {
+          start: "2026-06-26T16:00:00.000Z",
+          end: "2026-06-26T16:30:00.000Z",
+        },
+        booker: { name: "Ada", email: "ada@example.com" },
+        calendar: { provider: "google" },
+        status: "confirmed",
+      },
+    });
+    expect(JSON.stringify(body)).not.toContain("google_event_1");
+  });
+
+  it("confirms group bookings without leaking Google event ids", async () => {
+    const response = await v1.request("https://schedule.pizza/book-group", {
+      method: "POST",
+      headers: {
+        "CF-Connecting-IP": "203.0.113.10",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(groupBookBody()),
+    }, env);
+    const body = await response.json() as Record<string, unknown>;
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual({
+      ok: true,
+      booking: {
+        ids: ["booking_1", "booking_2"],
+        slot: {
+          start: "2026-06-26T16:00:00.000Z",
+          end: "2026-06-26T16:30:00.000Z",
+        },
+        booker: { name: "Ada", email: "ada@example.com" },
+        calendar: { provider: "google" },
+        status: "confirmed",
+      },
+    });
+    expect(JSON.stringify(body)).not.toContain("google_event_1");
   });
 
   it("cancels a host-owned booking through the cancellation domain helper", async () => {

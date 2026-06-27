@@ -63,8 +63,8 @@ export default function Docs() {
         </pre>
         <p className="text-sm leading-6 text-muted-foreground">
           Email is required so Google can invite the booker. Success returns the
-          schedule.pizza booking id, the confirmed slot, and the Google Calendar
-          event id.
+          schedule.pizza booking id and the confirmed slot after the Google
+          Calendar event is created.
         </p>
       </section>
 
