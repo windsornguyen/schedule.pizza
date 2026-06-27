@@ -94,7 +94,7 @@ export const v1 = new Hono<{ Bindings: Bindings }>();
 
 v1.use("*", cors({
   allowHeaders: ["Content-Type"],
-  allowMethods: ["GET", "POST", "OPTIONS"],
+  allowMethods: ["GET", "POST", "PUT", "OPTIONS"],
   maxAge: 600,
   origin: "*",
 }));
