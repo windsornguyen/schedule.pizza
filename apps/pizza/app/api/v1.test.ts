@@ -784,6 +784,51 @@ describe("v1 health API", () => {
 });
 
 describe("account profile API", () => {
+  it("does not return plaintext booking capabilities on account reads", async () => {
+    mocks.findHostProfileByAuthUserId.mockResolvedValue({
+      authUserId: "auth_user_1",
+      displayName: "Alice",
+      id: "host_1",
+      slotSizeMinutes: 30,
+      timezone: "America/Los_Angeles",
+      username: "alice",
+    });
+    mocks.findActiveBookingCodeForHost.mockResolvedValue({
+      createdAt: new Date("2030-01-07T17:00:00.000Z"),
+      expiresAt: null,
+      id: "booking_code_1",
+      wordCount: 3,
+    });
+
+    const response = await v1.request("https://schedule.pizza/account", {}, env);
+    const body = await response.json() as Record<string, unknown>;
+
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      ok: true,
+      account: {
+        profile: {
+          username: "alice",
+          calendarStatus: "connected",
+        },
+        profilePath: "/alice",
+        activeBookingCode: {
+          createdAt: "2030-01-07T17:00:00.000Z",
+          expiresAt: null,
+          wordCount: 3,
+        },
+        bookingCode: null,
+        bookingPath: null,
+        bookingUrl: null,
+      },
+    });
+    expect(JSON.stringify(body)).not.toContain("moon-tiger-seven");
+    expect(mocks.findActiveBookingCodeForHost).toHaveBeenCalledWith(db, {
+      hostId: "host_1",
+      now: expect.any(Date) as Date,
+    });
+  });
+
   it("bootstraps host profile and booking code through one atomic helper", async () => {
     mocks.findHostProfileByAuthUserId
       .mockResolvedValueOnce(null)
