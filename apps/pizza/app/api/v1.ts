@@ -1481,6 +1481,10 @@ function readRuntimeHealth(env: ServerEnv):
     return { code: "runtime_secret_missing", message: "BETTER_AUTH_URL is missing" };
   }
 
+  if (readRuntimeOrigin(env.BETTER_AUTH_URL ?? null) === null) {
+    return { code: "runtime_secret_missing", message: "BETTER_AUTH_URL is invalid" };
+  }
+
   if (isMissingRuntimeString(env.GOOGLE_CLIENT_ID ?? null)) {
     return { code: "runtime_secret_missing", message: "GOOGLE_CLIENT_ID is missing" };
   }
@@ -1494,6 +1498,18 @@ function readRuntimeHealth(env: ServerEnv):
 
 function isMissingRuntimeString(value: string | null) {
   return value === null || value.trim() === "";
+}
+
+function readRuntimeOrigin(value: string | null) {
+  if (value === null) {
+    return null;
+  }
+
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
 }
 
 async function readDatabaseHealth(env: ServerEnv):

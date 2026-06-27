@@ -698,6 +698,23 @@ describe("v1 health API", () => {
     expect(mocks.createDb).not.toHaveBeenCalled();
   });
 
+  it("reports invalid auth URLs before claiming Google redirect health", async () => {
+    const response = await v1.request("https://schedule.pizza/health", {}, {
+      ...env,
+      BETTER_AUTH_URL: "not a url",
+    });
+
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      error: {
+        code: "runtime_secret_missing",
+        message: "BETTER_AUTH_URL is invalid",
+      },
+    });
+    expect(response.status).toBe(503);
+    expect(mocks.createDb).not.toHaveBeenCalled();
+  });
+
   it.each([
     "GOOGLE_CLIENT_ID",
     "GOOGLE_CLIENT_SECRET",
