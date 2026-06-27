@@ -5,6 +5,13 @@ import { describe, expect, it } from "vitest";
 import { GroupContent } from "./group";
 
 describe("group scheduling page", () => {
+  it("labels numeric scheduling controls with their units", () => {
+    const html = renderGroup(null);
+
+    expect(html).toContain("meeting length (minutes)");
+    expect(html).toContain("time spacing (minutes)");
+  });
+
   it("renders exact slots once as booking choices", () => {
     const html = renderGroup({
       code: "scheduled",
