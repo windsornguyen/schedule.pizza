@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { parseCreateProfileForm } from "./dashboard";
+import {
+  parseCreateProfileForm,
+  readDefaultUsernameFromEmail,
+} from "./dashboard";
 
 describe("dashboard profile form parser", () => {
   it("normalizes valid profile setup input", () => {
@@ -53,5 +56,15 @@ describe("dashboard profile form parser", () => {
       timezone: "America/Los_Angeles",
       slotSizeMinutes: 30,
     });
+  });
+
+  it("derives a username default from the signed-in email", () => {
+    expect(readDefaultUsernameFromEmail("Alice.Example+demo@example.com")).toBe(
+      "alice-example-demo",
+    );
+  });
+
+  it("drops unusable default usernames", () => {
+    expect(readDefaultUsernameFromEmail("++@example.com")).toBe("");
   });
 });

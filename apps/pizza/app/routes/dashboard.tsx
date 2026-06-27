@@ -99,7 +99,10 @@ export default function Dashboard({
       <p className="mt-2 text-sm text-muted-foreground">{loaderData.email}</p>
 
       {loaderData.profile === null ? (
-        <CreateProfileForm actionData={dashboardActionData} />
+        <CreateProfileForm
+          actionData={dashboardActionData}
+          defaultUsername={readDefaultUsernameFromEmail(loaderData.email)}
+        />
       ) : (
         <ProfilePanel actionData={dashboardActionData} profile={loaderData.profile} />
       )}
@@ -109,8 +112,10 @@ export default function Dashboard({
 
 function CreateProfileForm({
   actionData,
+  defaultUsername,
 }: {
   readonly actionData: DashboardActionData;
+  readonly defaultUsername: string;
 }) {
   return (
     <Form method="post" className="mt-10 space-y-4">
@@ -121,6 +126,7 @@ function CreateProfileForm({
           name="username"
           autoComplete="off"
           className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none focus:border-ring focus:ring-[3px] focus:ring-ring/50"
+          defaultValue={defaultUsername}
           placeholder="alice"
         />
       </label>
@@ -130,17 +136,21 @@ function CreateProfileForm({
           name="timezone"
           autoComplete="off"
           className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none focus:border-ring focus:ring-[3px] focus:ring-ring/50"
-          placeholder="America/Los_Angeles"
+          defaultValue="America/Los_Angeles"
         />
       </label>
       <label className="block space-y-2">
         <span className="text-sm font-semibold">slot minutes</span>
-        <input
+        <select
           name="slotSizeMinutes"
-          inputMode="numeric"
           className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none focus:border-ring focus:ring-[3px] focus:ring-ring/50"
-          placeholder="30"
-        />
+          defaultValue="30"
+        >
+          <option value="15">15</option>
+          <option value="30">30</option>
+          <option value="45">45</option>
+          <option value="60">60</option>
+        </select>
       </label>
       <button
         type="submit"
@@ -431,4 +441,14 @@ function readSlotSizeMinutes(formData: FormData) {
   const slotSizeMinutes = Number.parseInt(value.trim(), 10);
 
   return [15, 30, 45, 60].includes(slotSizeMinutes) ? slotSizeMinutes : null;
+}
+
+export function readDefaultUsernameFromEmail(email: string) {
+  const localPart = email.split("@")[0]?.toLowerCase() ?? "";
+  const candidate = localPart
+    .replace(/[^a-z0-9_-]+/gu, "-")
+    .replace(/^[^a-z0-9]+/u, "")
+    .slice(0, 40);
+
+  return USERNAME_PATTERN.test(candidate) ? candidate : "";
 }
