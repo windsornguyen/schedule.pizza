@@ -95,7 +95,7 @@ export function AccountHeader({ loggedIn }: { readonly loggedIn: boolean }) {
         <span>schedule.pizza</span>
       </a>
       {loggedIn ? (
-        <>
+        <nav className="flex items-center gap-3">
           <a
             href="/dashboard"
             className="text-sm text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
@@ -108,7 +108,7 @@ export function AccountHeader({ loggedIn }: { readonly loggedIn: boolean }) {
           >
             logout
           </a>
-        </>
+        </nav>
       ) : (
         <a
           href="/login"

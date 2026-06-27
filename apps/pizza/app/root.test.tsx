@@ -11,6 +11,14 @@ describe("root account header", () => {
     expect(html).toContain(">p</span>");
     expect(html).toContain("schedule.pizza");
   });
+
+  it("keeps signed-in account links grouped", () => {
+    const html = renderToStaticMarkup(<AccountHeader loggedIn />);
+
+    expect(html).toContain('<nav class="flex items-center gap-3">');
+    expect(html).toContain('href="/dashboard"');
+    expect(html).toContain('href="/auth/logout"');
+  });
 });
 
 describe("root document security", () => {
