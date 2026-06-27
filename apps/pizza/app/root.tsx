@@ -75,14 +75,22 @@ export default function App({ loaderData }: Route.ComponentProps) {
 
 function AccountHeader({ loggedIn }: { readonly loggedIn: boolean }) {
   return (
-    <header className="mx-auto flex w-full max-w-[550px] justify-end px-4 pt-8">
+    <header className="mx-auto flex w-full max-w-[550px] justify-end gap-3 px-4 pt-8">
       {loggedIn ? (
-        <a
-          href="/auth/logout"
-          className="text-sm text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
-        >
-          logout
-        </a>
+        <>
+          <a
+            href="/dashboard"
+            className="text-sm text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
+          >
+            dashboard
+          </a>
+          <a
+            href="/auth/logout"
+            className="text-sm text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
+          >
+            logout
+          </a>
+        </>
       ) : (
         <a
           href="/login"
