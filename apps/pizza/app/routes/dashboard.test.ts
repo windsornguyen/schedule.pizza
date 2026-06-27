@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  parseCreateProfileForm,
+  parseProfileForm,
   readDefaultUsernameFromEmail,
-} from "./dashboard";
+} from "@/dashboard/profile_form";
 
 describe("dashboard profile form parser", () => {
   it("normalizes valid profile setup input", () => {
@@ -12,7 +12,7 @@ describe("dashboard profile form parser", () => {
     formData.set("timezone", "America/Los_Angeles");
     formData.set("slotSizeMinutes", "30");
 
-    expect(parseCreateProfileForm(formData)).toEqual({
+    expect(parseProfileForm(formData)).toEqual({
       code: "parsed",
       username: "alice",
       timezone: "America/Los_Angeles",
@@ -26,7 +26,7 @@ describe("dashboard profile form parser", () => {
     formData.set("timezone", "America/Los_Angeles");
     formData.set("slotSizeMinutes", "17");
 
-    expect(parseCreateProfileForm(formData)).toEqual({
+    expect(parseProfileForm(formData)).toEqual({
       code: "invalid_field",
       field: "slotSizeMinutes",
     });
@@ -38,7 +38,7 @@ describe("dashboard profile form parser", () => {
     formData.set("timezone", "America/Los_Angeles");
     formData.set("slotSizeMinutes", "30abc");
 
-    expect(parseCreateProfileForm(formData)).toEqual({
+    expect(parseProfileForm(formData)).toEqual({
       code: "invalid_field",
       field: "slotSizeMinutes",
     });
@@ -50,7 +50,7 @@ describe("dashboard profile form parser", () => {
     formData.set("timezone", " America/Los_Angeles ");
     formData.set("slotSizeMinutes", "30");
 
-    expect(parseCreateProfileForm(formData)).toEqual({
+    expect(parseProfileForm(formData)).toEqual({
       code: "parsed",
       username: "alice",
       timezone: "America/Los_Angeles",

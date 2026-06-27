@@ -1,7 +1,12 @@
 import { Form, redirect } from "react-router";
 
 import { readAuthSession } from "@/auth.server";
-import { readGoogleCalendarAccess } from "@/calendar/google.server";
+import { readCalendarStatus } from "@/dashboard/calendar_status.server";
+import {
+  parseProfileForm,
+  readDefaultUsernameFromEmail,
+} from "@/dashboard/profile_form";
+import { updateExistingProfile } from "@/dashboard/profile_update.server";
 import { createDb } from "@/db/client.server";
 import {
   createBookingCode,
@@ -14,18 +19,7 @@ import {
 import { serverContext, type ServerEnv } from "@/server-context";
 import type { Route } from "./+types/dashboard";
 
-type CreateProfileForm =
-  | {
-      readonly code: "parsed";
-      readonly slotSizeMinutes: number;
-      readonly timezone: string;
-      readonly username: string;
-    }
-  | { readonly code: "invalid_field"; readonly field: string };
-
 type DashboardActionData = NonNullable<Route.ComponentProps["actionData"]> | null;
-
-const USERNAME_PATTERN = /^[a-z0-9][a-z0-9_-]{0,39}$/;
 
 export function meta() {
   return [{ title: "dashboard - schedule.pizza" }];
@@ -81,6 +75,15 @@ export async function action({ context, request }: Route.ActionArgs) {
     return createCodeForExistingProfile(db, {
       authUserId: session.user.id,
       env,
+    });
+  }
+
+  if (intent === "update_profile") {
+    return updateExistingProfile(db, {
+      authUserId: session.user.id,
+      email: session.user.email,
+      env,
+      formData,
     });
   }
 
@@ -194,6 +197,46 @@ function ProfilePanel({
           .
         </p>
       ) : null}
+      <Form method="post" className="space-y-4">
+        <input type="hidden" name="intent" value="update_profile" />
+        <label className="block space-y-2">
+          <span className="text-sm font-semibold">username</span>
+          <input
+            name="username"
+            autoComplete="off"
+            className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none focus:border-ring focus:ring-[3px] focus:ring-ring/50"
+            defaultValue={profile.username}
+          />
+        </label>
+        <label className="block space-y-2">
+          <span className="text-sm font-semibold">time zone</span>
+          <input
+            name="timezone"
+            autoComplete="off"
+            className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none focus:border-ring focus:ring-[3px] focus:ring-ring/50"
+            defaultValue={profile.timezone}
+          />
+        </label>
+        <label className="block space-y-2">
+          <span className="text-sm font-semibold">slot minutes</span>
+          <select
+            name="slotSizeMinutes"
+            className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm outline-none focus:border-ring focus:ring-[3px] focus:ring-ring/50"
+            defaultValue={String(profile.slotSizeMinutes)}
+          >
+            <option value="15">15</option>
+            <option value="30">30</option>
+            <option value="45">45</option>
+            <option value="60">60</option>
+          </select>
+        </label>
+        <button
+          type="submit"
+          className="rounded-md border px-3 py-2 text-sm transition-colors hover:bg-muted"
+        >
+          save profile
+        </button>
+      </Form>
       <Form method="post">
         <input type="hidden" name="intent" value="create_code" />
         <button
@@ -236,12 +279,24 @@ function ActionMessage({
     );
   }
 
+  if (actionData.code === "updated_profile") {
+    return <p className="text-sm text-muted-foreground">saved.</p>;
+  }
+
   if (actionData.code === "invalid_field") {
     return (
       <p className="text-sm text-destructive">
         invalid field: <span className="font-mono">{actionData.field}</span>
       </p>
     );
+  }
+
+  if (actionData.code === "username_taken") {
+    return <p className="text-sm text-destructive">username taken.</p>;
+  }
+
+  if (actionData.code === "auth_user_email_missing") {
+    return <p className="text-sm text-destructive">account email missing.</p>;
   }
 
   if (actionData.code === "calendar_authorization_required") {
@@ -270,7 +325,7 @@ async function createProfileAndCode(
     readonly formData: FormData;
   },
 ) {
-  const parsed = parseCreateProfileForm(input.formData);
+  const parsed = parseProfileForm(input.formData);
 
   if (parsed.code !== "parsed") {
     return parsed;
@@ -354,101 +409,4 @@ async function createCodeForExistingProfile(
     bookingCode: bookingCode.code,
     username: profile.username,
   };
-}
-
-async function readCalendarStatus(
-  db: ReturnType<typeof createDb>,
-  env: Parameters<typeof readGoogleCalendarAccess>[1]["env"],
-  authUserId: string,
-  now = new Date(),
-) {
-  const availability = await readGoogleCalendarAccess(db, {
-    authUserId,
-    capability: "availability",
-    env,
-    now,
-  });
-
-  if (availability.code !== "authorized") {
-    return "reconnect_required" as const;
-  }
-
-  const eventWrite = await readGoogleCalendarAccess(db, {
-    authUserId,
-    capability: "event_write",
-    env,
-    now,
-  });
-
-  return eventWrite.code === "authorized"
-    ? "connected" as const
-    : "reconnect_required" as const;
-}
-
-export function parseCreateProfileForm(formData: FormData): CreateProfileForm {
-  const username = readNormalizedUsername(formData);
-  if (username === null) return { code: "invalid_field", field: "username" };
-
-  const timezone = readValidTimeZone(formData);
-  if (timezone === null) return { code: "invalid_field", field: "timezone" };
-
-  const slotSizeMinutes = readSlotSizeMinutes(formData);
-  if (slotSizeMinutes === null) return { code: "invalid_field", field: "slotSizeMinutes" };
-
-  return { code: "parsed", username, timezone, slotSizeMinutes };
-}
-
-function readNormalizedUsername(formData: FormData) {
-  const value = formData.get("username");
-
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const username = value.trim().toLowerCase();
-
-  return USERNAME_PATTERN.test(username) ? username : null;
-}
-
-function readValidTimeZone(formData: FormData) {
-  const value = formData.get("timezone");
-
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const timeZone = value.trim();
-
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone });
-    return timeZone;
-  } catch {
-    return null;
-  }
-}
-
-function readSlotSizeMinutes(formData: FormData) {
-  const value = formData.get("slotSizeMinutes");
-
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  if (!/^\d+$/u.test(value.trim())) {
-    return null;
-  }
-
-  const slotSizeMinutes = Number.parseInt(value.trim(), 10);
-
-  return [15, 30, 45, 60].includes(slotSizeMinutes) ? slotSizeMinutes : null;
-}
-
-export function readDefaultUsernameFromEmail(email: string) {
-  const localPart = email.split("@")[0]?.toLowerCase() ?? "";
-  const candidate = localPart
-    .replace(/[^a-z0-9_-]+/gu, "-")
-    .replace(/^[^a-z0-9]+/u, "")
-    .slice(0, 40);
-
-  return USERNAME_PATTERN.test(candidate) ? candidate : "";
 }
