@@ -325,7 +325,7 @@ function BookingCodeForm({
         type="submit"
         className="rounded-md border px-3 py-2 text-sm transition-colors hover:bg-muted"
       >
-        {hasActiveBookingCode ? "rotate booking code" : "create booking code"}
+        {readBookingCodeActionLabel(hasActiveBookingCode)}
       </button>
     </Form>
   );
@@ -616,8 +616,12 @@ export function readActiveBookingCodeNotice(input: {
   }
 
   return input.hasActiveBookingCode
-    ? "active booking code exists. rotate to reveal a new link and revoke the hidden one."
+    ? "active booking code exists. create a new share link to reveal it and revoke the hidden one."
     : "no active booking code. create one to reveal a share link.";
+}
+
+export function readBookingCodeActionLabel(hasActiveBookingCode: boolean) {
+  return hasActiveBookingCode ? "show new share link" : "create share link";
 }
 
 function hasDashboardBookingUrl(

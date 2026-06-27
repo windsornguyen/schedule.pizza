@@ -7,6 +7,7 @@ import {
 import {
   formatDashboardBookingUrl,
   readActiveBookingCodeNotice,
+  readBookingCodeActionLabel,
 } from "./dashboard";
 
 describe("dashboard profile form parser", () => {
@@ -93,7 +94,7 @@ describe("dashboard profile form parser", () => {
       calendarStatus: "connected",
       hasActiveBookingCode: true,
     })).toBe(
-      "active booking code exists. rotate to reveal a new link and revoke the hidden one.",
+      "active booking code exists. create a new share link to reveal it and revoke the hidden one.",
     );
   });
 
@@ -104,5 +105,10 @@ describe("dashboard profile form parser", () => {
     })).toBe(
       "active booking code exists. reconnect google calendar before people or agents can see times.",
     );
+  });
+
+  it("names booking-code actions by the host outcome", () => {
+    expect(readBookingCodeActionLabel(false)).toBe("create share link");
+    expect(readBookingCodeActionLabel(true)).toBe("show new share link");
   });
 });
