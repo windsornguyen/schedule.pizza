@@ -1,0 +1,19 @@
+{
+  "name": "schedule.pizza",
+  "short_name": "schedule.pizza",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#F5E6D0",
+  "background_color": "#F8F5EF",
+  "display": "minimal-ui"
+}

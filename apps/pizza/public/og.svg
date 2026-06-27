@@ -4,7 +4,7 @@
 
   <g transform="translate(60, 58)">
     <rect x="0" y="0" width="46" height="46" rx="5" fill="#F1C34B" stroke="#171512" stroke-width="3"/>
-    <text x="23" y="32" text-anchor="middle" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="26" font-weight="850" fill="#171512">p</text>
+    <path transform="scale(1.4375)" fill="#171512" d="M10.8 25V8.2h4.1v1.5c.9-1.2 2.2-1.8 3.9-1.8 4 0 6.7 3 6.7 7.1s-2.8 7.1-6.8 7.1c-1.6 0-2.9-.5-3.8-1.6V25h-4.1Zm7.3-6.4c1.9 0 3.1-1.4 3.1-3.6s-1.2-3.6-3.1-3.6c-1.9 0-3.2 1.4-3.2 3.6s1.3 3.6 3.2 3.6Z"/>
   </g>
 
   <text x="126" y="91" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="28" font-weight="800" fill="#171512">schedule.pizza</text>

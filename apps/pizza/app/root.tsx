@@ -8,12 +8,15 @@ import {
 } from "react-router";
 
 import { readAuthSession } from "./auth.server";
+import { LogoMark } from "./components/logo_mark";
 import type { Route } from "./+types/root";
 import { serverContext } from "./server-context";
 import "./app.css";
 
 export const links: Route.LinksFunction = () => [
   { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+  { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
+  { rel: "manifest", href: "/site.webmanifest" },
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   {
     rel: "preconnect",
@@ -86,12 +89,7 @@ export function AccountHeader({ loggedIn }: { readonly loggedIn: boolean }) {
         aria-label="schedule.pizza home"
         className="flex items-center gap-2 text-sm font-semibold text-foreground"
       >
-        <span
-          aria-hidden="true"
-          className="grid size-6 place-items-center rounded-[4px] border-2 border-foreground bg-[#F1C34B] font-semibold leading-none text-foreground"
-        >
-          p
-        </span>
+        <LogoMark className="size-6 shrink-0 text-foreground" />
         <span>schedule.pizza</span>
       </a>
       {loggedIn ? (
