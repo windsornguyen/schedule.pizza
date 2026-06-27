@@ -17,6 +17,10 @@ pnpm install
 pnpm --filter @schedule.pizza/web dev
 ```
 
+The local dev server must run on port `5173`, matching
+`apps/pizza/.dev.vars.example`'s `BETTER_AUTH_URL`. If the port is occupied,
+stop that process instead of letting the app move to another port.
+
 Run checks before opening a pull request:
 
 ```bash
