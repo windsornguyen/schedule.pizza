@@ -2,6 +2,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import faviconSvg from "../public/favicon.svg?raw";
+import logoSvg from "../public/logo.svg?raw";
+import logoMarkSvg from "../public/logo-mark.svg?raw";
 import ogSvg from "../public/og.svg?raw";
 import siteManifest from "../public/site.webmanifest?raw";
 import { LOGO_MARK_PATH } from "./components/logo_mark";
@@ -56,7 +58,11 @@ describe("root browser chrome", () => {
   });
 
   it("uses the same mark in static brand assets", () => {
+    expect(logoMarkSvg).toBe(faviconSvg);
     expect(faviconSvg).toContain(LOGO_MARK_PATH);
+    expect(logoMarkSvg).toContain(LOGO_MARK_PATH);
+    expect(logoSvg).toContain(LOGO_MARK_PATH);
+    expect(logoSvg).toContain("schedule.pizza");
     expect(ogSvg).toContain(LOGO_MARK_PATH);
     expect(JSON.parse(siteManifest)).toMatchObject({
       icons: [

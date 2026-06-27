@@ -46,6 +46,12 @@ await checkText("/og.svg", "open graph image", [
   "schedule.pizza",
   "easiest way to find a",
 ]);
+await checkText("/logo.svg", "logo wordmark", [
+  "#F1C34B",
+  "#171512",
+  "schedule.pizza",
+]);
+await checkText("/logo-mark.svg", "logo mark", ["#F1C34B", "#171512"]);
 await checkText("/favicon.svg", "favicon svg", ["#F1C34B", "#171512"]);
 await checkAsset("/favicon.ico", "favicon ico", [
   "image/x-icon",

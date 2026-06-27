@@ -23,6 +23,8 @@ Rounded-square yellow mark. Black lowercase **p**. Black border.
 
 - Favicon: the same **p** mark, no alternate mascot
 - Product surfaces: **p** mark next to `schedule.pizza`
+- Static logo assets: `/logo.svg` for the wordmark, `/logo-mark.svg` for the
+  mark alone
 - Browser install surfaces: same mark via `favicon.svg`, `favicon.ico`,
   `favicon-32x32.png`, `apple-touch-icon.png`, `icon-192.png`,
   `icon-512.png`, and `site.webmanifest`
