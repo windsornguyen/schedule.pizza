@@ -47,10 +47,12 @@ describe("docs page examples", () => {
     expect(html).toContain("kind: &quot;alternatives&quot;");
   });
 
-  it("teaches agents to call availability with a booking link", () => {
+  it("keeps availability examples readable while documenting booking links", () => {
     const html = renderToStaticMarkup(<Docs />);
 
-    expect(html).toContain("/api/v1/availability?url=");
-    expect(html).not.toContain("/api/v1/availability?user=");
+    expect(html).toContain("/api/v1/availability?user=alice&amp;code=moon-tiger-seven");
+    expect(html).toContain("You can pass the shared link as");
+    expect(html).toContain("url");
+    expect(html).not.toContain("https%3A%2F%2Fschedule.pizza");
   });
 });

@@ -42,9 +42,9 @@ export default function Docs() {
           You can pass the shared link as{" "}
           <code className="font-mono">url</code> instead of splitting it.
         </p>
-        <pre className="whitespace-pre-wrap break-words rounded-md border bg-muted p-3 font-mono text-sm">
+        <pre className={CODE_BLOCK_CLASS}>
           <code>
-            GET /api/v1/availability?url=https%3A%2F%2Fschedule.pizza%2Falice%3Fcode%3Dmoon-tiger-seven
+            GET /api/v1/availability?user=alice&code=moon-tiger-seven
           </code>
         </pre>
       </section>
@@ -60,10 +60,11 @@ export default function Docs() {
           <code className="font-mono">user</code> and{" "}
           <code className="font-mono">code</code>.
         </p>
-        <pre className="whitespace-pre-wrap break-words rounded-md border bg-muted p-3 font-mono text-sm">
+        <pre className={CODE_BLOCK_CLASS}>
           <code>{`POST /api/v1/book
 {
-  "url": "https://schedule.pizza/alice?code=moon-tiger-seven",
+  "user": "alice",
+  "code": "moon-tiger-seven",
   "slot": "2030-01-07T17:00:00.000Z",
   "name": "Ada",
   "email": "ada@example.com",
@@ -100,12 +101,12 @@ export default function Docs() {
           and paste one schedule.pizza link per line. For agents, call the API
           directly.
         </p>
-        <pre className="whitespace-pre-wrap break-words rounded-md border bg-muted p-3 font-mono text-sm">
+        <pre className={CODE_BLOCK_CLASS}>
           <code>{`POST /api/v1/schedule
 {
   "participants": [
-    { "url": "https://schedule.pizza/alice?code=moon-tiger-seven" },
-    { "url": "https://schedule.pizza/bob?code=river-lime-harbor" }
+    { "user": "alice", "code": "moon-tiger-seven" },
+    { "user": "bob", "code": "river-lime-harbor" }
   ],
   "durationMinutes": 30,
   "granularityMinutes": 15,
@@ -122,12 +123,12 @@ export default function Docs() {
           To book an exact group slot returned by the scheduler, send the same
           scheduling body with the selected slot and booker identity.
         </p>
-        <pre className="whitespace-pre-wrap break-words rounded-md border bg-muted p-3 font-mono text-sm">
+        <pre className={CODE_BLOCK_CLASS}>
           <code>{`POST /api/v1/book-group
 {
   "participants": [
-    { "url": "https://schedule.pizza/alice?code=moon-tiger-seven" },
-    { "url": "https://schedule.pizza/bob?code=river-lime-harbor" }
+    { "user": "alice", "code": "moon-tiger-seven" },
+    { "user": "bob", "code": "river-lime-harbor" }
   ],
   "durationMinutes": 30,
   "granularityMinutes": 15,
@@ -188,7 +189,7 @@ export default function Docs() {
           Ask the group organizer to cancel the shared event from Google
           Calendar.
         </p>
-        <pre className="whitespace-pre-wrap break-words rounded-md border bg-muted p-3 font-mono text-sm">
+        <pre className={CODE_BLOCK_CLASS}>
           <code>{`Account mutation header:
 Origin: https://schedule.pizza
 
@@ -243,3 +244,6 @@ POST /api/v1/account/bookings/booking_123/cancel`}</code>
     </main>
   );
 }
+
+const CODE_BLOCK_CLASS =
+  "overflow-x-auto whitespace-pre rounded-md border bg-muted p-3 font-mono text-sm leading-6";
