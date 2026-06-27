@@ -165,16 +165,15 @@ export async function bookHostSlot(
   });
 
   if (confirmed === null) {
-    const deleted = await deleteGoogleCalendarEvent({
+    const rolledBack = await rollBackConfirmedGoogleEvent(db, {
       accessToken: googleAccess.accessToken,
       calendarId,
       eventId: calendarEvent.eventId,
-      notifyGuests: true,
+      failedAt: input.now,
+      pendingBookingId: pending.id,
     });
 
-    return deleted.code === "deleted"
-      ? { code: "booking_confirmation_failed" }
-      : deleted;
+    return rolledBack;
   }
 
   await markBookingCodeUsed(db, {
@@ -207,4 +206,34 @@ async function failPendingBooking(
   }
 
   return { code };
+}
+
+async function rollBackConfirmedGoogleEvent(
+  db: Database,
+  input: {
+    readonly accessToken: string;
+    readonly calendarId: string;
+    readonly eventId: string;
+    readonly failedAt: Date;
+    readonly pendingBookingId: string;
+  },
+): Promise<BookSlotResult> {
+  const deleted = await deleteGoogleCalendarEvent({
+    accessToken: input.accessToken,
+    calendarId: input.calendarId,
+    eventId: input.eventId,
+    notifyGuests: true,
+  });
+  const failed = await markCalendarBookingFailed(db, {
+    bookingId: input.pendingBookingId,
+    failedAt: input.failedAt,
+  });
+
+  if (failed === null) {
+    return { code: "booking_failure_record_failed" };
+  }
+
+  return deleted.code === "deleted"
+    ? { code: "booking_confirmation_failed" }
+    : deleted;
 }

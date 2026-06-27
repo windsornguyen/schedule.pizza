@@ -134,6 +134,10 @@ describe("bookHostSlot", () => {
       eventId: "google_event_1",
       notifyGuests: true,
     });
+    expect(mocks.markCalendarBookingFailed).toHaveBeenCalledWith(db, {
+      bookingId: "booking_1",
+      failedAt: now,
+    });
     expect(mocks.markBookingCodeUsed).not.toHaveBeenCalled();
   });
 
@@ -145,6 +149,20 @@ describe("bookHostSlot", () => {
 
     await expect(bookHostSlot(db, createInput())).resolves.toEqual({
       code: "google_event_delete_failed",
+    });
+    expect(mocks.markCalendarBookingFailed).toHaveBeenCalledWith(db, {
+      bookingId: "booking_1",
+      failedAt: now,
+    });
+    expect(mocks.markBookingCodeUsed).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a typed error when failed confirmation cannot be recorded", async () => {
+    mocks.confirmCalendarBooking.mockResolvedValueOnce(null);
+    mocks.markCalendarBookingFailed.mockResolvedValueOnce(null);
+
+    await expect(bookHostSlot(db, createInput())).resolves.toEqual({
+      code: "booking_failure_record_failed",
     });
     expect(mocks.markBookingCodeUsed).not.toHaveBeenCalled();
   });

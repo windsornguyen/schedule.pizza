@@ -172,6 +172,19 @@ describe("bookGroupSlot", () => {
       eventId: "google_event_1",
       notifyGuests: true,
     });
+    expect(mocks.markCalendarBookingsFailed).toHaveBeenCalledWith(d1, {
+      bookingIds: ["booking_1", "booking_2"],
+      failedAt: now,
+    });
+  });
+
+  it("surfaces a typed error when failed group confirmation cannot be recorded", async () => {
+    mocks.confirmCalendarBookings.mockResolvedValueOnce(null);
+    mocks.markCalendarBookingsFailed.mockResolvedValueOnce(null);
+
+    await expect(bookGroupSlot(db, createInput())).resolves.toEqual({
+      code: "booking_failure_record_failed",
+    });
   });
 });
 

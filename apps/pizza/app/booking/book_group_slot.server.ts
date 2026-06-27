@@ -190,16 +190,15 @@ export async function bookGroupSlot(
   });
 
   if (confirmedBookingIds === null) {
-    const deleted = await deleteGoogleCalendarEvent({
+    const rolledBack = await rollBackConfirmedGroupGoogleEvent(input.env.DB, {
       accessToken: googleAccess.accessToken,
       calendarId,
       eventId: calendarEvent.eventId,
-      notifyGuests: true,
+      failedAt: input.now,
+      pendingBookingIds,
     });
 
-    return deleted.code === "deleted"
-      ? { code: "booking_confirmation_failed" }
-      : deleted;
+    return rolledBack;
   }
 
   await Promise.all(
@@ -277,4 +276,34 @@ async function failPendingGroupBooking(
   }
 
   return { code };
+}
+
+async function rollBackConfirmedGroupGoogleEvent(
+  database: D1Database,
+  input: {
+    readonly accessToken: string;
+    readonly calendarId: string;
+    readonly eventId: string;
+    readonly failedAt: Date;
+    readonly pendingBookingIds: readonly string[];
+  },
+): Promise<BookGroupSlotResult> {
+  const deleted = await deleteGoogleCalendarEvent({
+    accessToken: input.accessToken,
+    calendarId: input.calendarId,
+    eventId: input.eventId,
+    notifyGuests: true,
+  });
+  const failed = await markCalendarBookingsFailed(database, {
+    bookingIds: input.pendingBookingIds,
+    failedAt: input.failedAt,
+  });
+
+  if (failed === null) {
+    return { code: "booking_failure_record_failed" };
+  }
+
+  return deleted.code === "deleted"
+    ? { code: "booking_confirmation_failed" }
+    : deleted;
 }
