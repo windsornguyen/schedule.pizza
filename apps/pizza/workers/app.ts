@@ -5,11 +5,17 @@ import {
   type ServerBuild,
 } from "react-router";
 import { api } from "../app/api";
+import { setSecurityHeaders } from "../app/http/security_headers.server";
 import { serverContext, type ServerEnv } from "../app/server-context";
 
 type Bindings = ServerEnv;
 
 const app = new Hono<{ Bindings: Bindings }>();
+
+app.use("*", async (c, next) => {
+  await next();
+  setSecurityHeaders(c.res.headers);
+});
 
 app.route("/api", api);
 

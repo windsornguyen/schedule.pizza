@@ -45,6 +45,7 @@ export function Layout({
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <DocumentSecurityMeta />
         <meta name="theme-color" content="#F5E6D0" />
         <meta property="og:site_name" content="schedule.pizza" />
         <meta property="og:type" content="website" />
@@ -62,6 +63,10 @@ export function Layout({
       </body>
     </html>
   );
+}
+
+export function DocumentSecurityMeta() {
+  return <meta name="referrer" content="no-referrer" />;
 }
 
 export default function App({ loaderData }: Route.ComponentProps) {
