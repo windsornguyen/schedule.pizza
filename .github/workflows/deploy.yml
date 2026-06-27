@@ -36,10 +36,9 @@ jobs:
         run: pnpm build
       - name: Apply D1 migrations
         run: pnpm exec wrangler d1 migrations apply DB --remote
-      - uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd
-        with:
-          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: apps/pizza
+      - name: Upload Worker version
+        run: pnpm exec wrangler versions upload --tag "${GITHUB_SHA}" --message "${GITHUB_SHA}"
+      - name: Deploy Worker version
+        run: pnpm exec wrangler versions deploy --version-tag "${GITHUB_SHA}" --message "${GITHUB_SHA}" --yes
       - name: Smoke live deployment
         run: SCHEDULE_PIZZA_URL=https://schedule.pizza pnpm --workspace-root smoke
