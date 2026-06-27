@@ -681,6 +681,23 @@ describe("v1 health API", () => {
     expect(response.status).toBe(200);
   });
 
+  it("normalizes the Google redirect URI when auth URL has a trailing slash", async () => {
+    mocks.createDb.mockReturnValueOnce(healthyDb());
+
+    const response = await v1.request("https://schedule.pizza/health", {}, {
+      ...env,
+      BETTER_AUTH_URL: "https://schedule.pizza/",
+    });
+
+    await expect(response.json()).resolves.toMatchObject({
+      ok: true,
+      auth: {
+        googleRedirectUri: "https://schedule.pizza/api/auth/callback/google",
+      },
+    });
+    expect(response.status).toBe(200);
+  });
+
   it("fails closed before touching D1 when runtime secrets are missing", async () => {
     const response = await v1.request("https://schedule.pizza/health", {}, {
       ...env,
@@ -702,6 +719,23 @@ describe("v1 health API", () => {
     const response = await v1.request("https://schedule.pizza/health", {}, {
       ...env,
       BETTER_AUTH_URL: "not a url",
+    });
+
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      error: {
+        code: "runtime_secret_missing",
+        message: "BETTER_AUTH_URL is invalid",
+      },
+    });
+    expect(response.status).toBe(503);
+    expect(mocks.createDb).not.toHaveBeenCalled();
+  });
+
+  it("rejects non-http auth URLs before claiming Google redirect health", async () => {
+    const response = await v1.request("https://schedule.pizza/health", {}, {
+      ...env,
+      BETTER_AUTH_URL: "ftp://schedule.pizza",
     });
 
     await expect(response.json()).resolves.toEqual({

@@ -478,7 +478,10 @@ v1.get("/health", async (c) => {
     ok: true,
     auth: {
       googleClientId: c.env.GOOGLE_CLIENT_ID,
-      googleRedirectUri: `${c.env.BETTER_AUTH_URL}/api/auth/callback/google`,
+      googleRedirectUri: new URL(
+        "/api/auth/callback/google",
+        runtime.authBaseUrl,
+      ).toString(),
     },
     checks: {
       database: "healthy",
@@ -1471,7 +1474,7 @@ async function readConnectedCalendarStatus(
 }
 
 function readRuntimeHealth(env: ServerEnv):
-  | { readonly code: "healthy" }
+  | { readonly authBaseUrl: URL; readonly code: "healthy" }
   | { readonly code: "runtime_secret_missing"; readonly message: string } {
   if (isMissingRuntimeString(env.BETTER_AUTH_SECRET ?? null)) {
     return { code: "runtime_secret_missing", message: "BETTER_AUTH_SECRET is missing" };
@@ -1481,7 +1484,9 @@ function readRuntimeHealth(env: ServerEnv):
     return { code: "runtime_secret_missing", message: "BETTER_AUTH_URL is missing" };
   }
 
-  if (readRuntimeOrigin(env.BETTER_AUTH_URL ?? null) === null) {
+  const authBaseUrl = readRuntimeUrl(env.BETTER_AUTH_URL ?? null);
+
+  if (authBaseUrl === null) {
     return { code: "runtime_secret_missing", message: "BETTER_AUTH_URL is invalid" };
   }
 
@@ -1493,20 +1498,22 @@ function readRuntimeHealth(env: ServerEnv):
     return { code: "runtime_secret_missing", message: "GOOGLE_CLIENT_SECRET is missing" };
   }
 
-  return { code: "healthy" };
+  return { code: "healthy", authBaseUrl };
 }
 
 function isMissingRuntimeString(value: string | null) {
   return value === null || value.trim() === "";
 }
 
-function readRuntimeOrigin(value: string | null) {
+function readRuntimeUrl(value: string | null) {
   if (value === null) {
     return null;
   }
 
   try {
-    return new URL(value).origin;
+    const url = new URL(value);
+
+    return url.protocol === "http:" || url.protocol === "https:" ? url : null;
   } catch {
     return null;
   }
