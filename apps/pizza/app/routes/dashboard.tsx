@@ -523,7 +523,11 @@ function ActionMessage({
     return <p className="text-sm text-destructive">{cancellationError}</p>;
   }
 
-  return <p className="text-sm text-destructive">{actionData.code}</p>;
+  const errorMessage = readDashboardActionErrorMessage(actionData.code);
+
+  return errorMessage === null
+    ? null
+    : <p className="text-sm text-destructive">{errorMessage}</p>;
 }
 
 async function canCancelDashboardBooking(
@@ -559,6 +563,65 @@ function readCancellationErrorMessage(code: DashboardActionCode) {
   }
 
   return null;
+}
+
+export function readDashboardActionErrorMessage(code: DashboardActionCode) {
+  if (
+    code === "created_code" ||
+    code === "created_profile" ||
+    code === "updated_profile" ||
+    code === "cancelled" ||
+    code === "invalid_field" ||
+    code === "username_taken" ||
+    code === "auth_user_email_missing" ||
+    code === "calendar_authorization_required" ||
+    code === "booking_missing" ||
+    code === "booking_calendar_missing" ||
+    code === "booking_cancel_failed" ||
+    code === "group_booking_cancel_unsupported" ||
+    code === "google_event_delete_failed"
+  ) {
+    return null;
+  }
+
+  if (code === "profile_exists") {
+    return "profile already exists.";
+  }
+
+  if (code === "profile_conflict") {
+    return "username taken.";
+  }
+
+  if (code === "profile_missing") {
+    return "profile missing. refresh and try again.";
+  }
+
+  if (code === "invalid_intent") {
+    return "invalid dashboard action.";
+  }
+
+  if (
+    code === "google_account_missing" ||
+    code === "google_access_token_missing" ||
+    code === "google_calendar_scope_missing" ||
+    code === "google_refresh_token_missing"
+  ) {
+    return "reconnect google calendar.";
+  }
+
+  if (
+    code === "google_event_insert_failed" ||
+    code === "google_event_insert_response_invalid" ||
+    code === "google_freebusy_failed" ||
+    code === "google_freebusy_response_invalid" ||
+    code === "google_token_refresh_failed" ||
+    code === "google_token_response_invalid"
+  ) {
+    return "google calendar unavailable.";
+  }
+
+  const unhandledCode: never = code;
+  return unhandledCode;
 }
 
 async function cancelExistingBooking(

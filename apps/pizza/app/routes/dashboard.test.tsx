@@ -11,6 +11,7 @@ import {
   formatDashboardBookingUrl,
   readActiveBookingCodeNotice,
   readBookingCodeActionLabel,
+  readDashboardActionErrorMessage,
 } from "./dashboard";
 
 describe("dashboard profile form parser", () => {
@@ -152,6 +153,28 @@ describe("dashboard profile form parser", () => {
 
     expect(html.indexOf("moon-tiger-seven")).toBeLessThan(
       html.indexOf("upcoming"),
+    );
+  });
+
+  it("renders host-facing messages instead of raw action codes", () => {
+    const Stub = createRoutesStub([{
+      Component: () => <DashboardContent
+        actionData={{ code: "profile_conflict" }}
+        loaderData={{ email: "alice@example.com", profile: null }}
+      />,
+      path: "/dashboard",
+    }]);
+    const html = renderToStaticMarkup(
+      <Stub initialEntries={["/dashboard"]} />,
+    );
+
+    expect(html).toContain("username taken.");
+    expect(html).not.toContain("profile_conflict");
+    expect(readDashboardActionErrorMessage("invalid_intent")).toBe(
+      "invalid dashboard action.",
+    );
+    expect(readDashboardActionErrorMessage("google_token_refresh_failed")).toBe(
+      "google calendar unavailable.",
     );
   });
 });
