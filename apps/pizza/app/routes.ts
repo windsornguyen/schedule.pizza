@@ -9,6 +9,8 @@ export default [
   route("docs", "routes/docs.tsx"),
   route("group", "routes/group.tsx"),
   route("login", "routes/login.tsx"),
+  route("privacy", "routes/privacy.tsx"),
   route("search", "routes/search.ts"),
+  route("terms", "routes/terms.tsx"),
   route(":username", "routes/profile.tsx"),
 ] satisfies RouteConfig;

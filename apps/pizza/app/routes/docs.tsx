@@ -21,6 +21,15 @@ export default function Docs() {
       </p>
 
       <section className="mt-10 space-y-3">
+        <h2 className="text-sm font-semibold">host setup</h2>
+        <p className="text-sm leading-6 text-muted-foreground">
+          Sign in with Google, choose a username, and share the generated link.
+          The code in the link is the capability: without it, schedule.pizza
+          should not expose availability.
+        </p>
+      </section>
+
+      <section className="mt-10 space-y-3">
         <h2 className="text-sm font-semibold">availability</h2>
         <p className="text-sm leading-6 text-muted-foreground">
           Use this when you already know whose calendar you want. The code is
@@ -126,6 +135,8 @@ export default function Docs() {
       <section className="mt-10 space-y-3">
         <h2 className="text-sm font-semibold">recommendations</h2>
         <p className="text-sm leading-6 text-muted-foreground">
+          <code className="font-mono">POST /api/v1/recommend</code> accepts the
+          same body as <code className="font-mono">/api/v1/schedule</code>.{" "}
           A response with <code className="font-mono">kind: "exact"</code>{" "}
           means every participant is free for that interval. A response with{" "}
           <code className="font-mono">kind: "alternatives"</code> is a ranked
