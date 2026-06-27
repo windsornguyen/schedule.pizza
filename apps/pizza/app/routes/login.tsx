@@ -40,6 +40,16 @@ export default function Login() {
         google may show an app verification screen while launch access is under
         review.
       </p>
+      <p className="mt-4 text-sm leading-6 text-muted-foreground">
+        Read the{" "}
+        <a
+          href="/privacy"
+          className="underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
+        >
+          privacy policy
+        </a>{" "}
+        before connecting calendar access.
+      </p>
 
       <p className="mt-8">
         <a

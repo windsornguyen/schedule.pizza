@@ -38,6 +38,7 @@ describe("login page", () => {
     expect(html).toContain("free/busy access");
     expect(html).toContain("event access");
     expect(html).toContain("app verification screen");
+    expect(html).toContain("privacy policy");
   });
 
   it("renders for guests", async () => {

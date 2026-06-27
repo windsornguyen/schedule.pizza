@@ -11,5 +11,9 @@ describe("privacy page", () => {
     expect(html).toContain("OAuth tokens");
     expect(html).toContain("Event details are not shown to bookers");
     expect(html).toContain("does not sell Google user data");
+    expect(html).toContain("Google API Services User Data Policy");
+    expect(html).toContain("Limited Use requirements");
+    expect(html).toContain("revoke Google access");
+    expect(html).toContain("request deletion");
   });
 });
