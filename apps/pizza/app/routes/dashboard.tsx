@@ -444,7 +444,7 @@ function readCancellationErrorMessage(code: DashboardActionCode) {
   }
 
   if (code === "group_booking_cancel_unsupported") {
-    return "group booking cancellation is not supported yet.";
+    return "group bookings stay on each host's calendar.";
   }
 
   if (

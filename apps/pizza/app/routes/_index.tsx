@@ -2,6 +2,11 @@ import { readAuthSession } from "@/auth.server";
 import { serverContext } from "@/server-context";
 import type { Route } from "./+types/_index";
 
+type HostCta = {
+  readonly href: "/dashboard" | "/login";
+  readonly text: "dashboard" | "sign in with google";
+};
+
 export function meta() {
   return [
     { title: "schedule.pizza" },
@@ -35,6 +40,8 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 export default function Home({
   loaderData,
 }: Route.ComponentProps) {
+  const hostCta = readHostCta(loaderData.loggedIn);
+
   return (
     <main className="mx-auto w-full max-w-[550px] px-4 pt-20 pb-24 antialiased">
       <h1 className="text-sm font-semibold">schedule.pizza</h1>
@@ -54,19 +61,17 @@ export default function Home({
         />
       </form>
 
-      {loaderData.loggedIn && (
-        <div className="mt-8 space-y-2">
-          <p className="text-sm text-muted-foreground">
-            create your username and booking code.
-          </p>
-          <a
-            href="/dashboard"
-            className="underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
-          >
-            dashboard
-          </a>
-        </div>
-      )}
+      <div className="mt-8 space-y-2">
+        <p className="text-sm text-muted-foreground">
+          create your username and booking code.
+        </p>
+        <a
+          href={hostCta.href}
+          className="underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
+        >
+          {hostCta.text}
+        </a>
+      </div>
 
       <nav className="mt-10 flex items-center gap-3 text-sm text-muted-foreground">
         <a
@@ -96,4 +101,10 @@ export default function Home({
       </nav>
     </main>
   );
+}
+
+export function readHostCta(loggedIn: boolean): HostCta {
+  return loggedIn
+    ? { href: "/dashboard", text: "dashboard" }
+    : { href: "/login", text: "sign in with google" };
 }

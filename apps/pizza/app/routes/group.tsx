@@ -182,7 +182,7 @@ function GroupScheduleForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block space-y-2">
-          <span className="text-sm font-semibold">minutes</span>
+          <span className="text-sm font-semibold">meeting length</span>
           <input
             name="durationMinutes"
             inputMode="numeric"
@@ -191,7 +191,7 @@ function GroupScheduleForm({
           />
         </label>
         <label className="block space-y-2">
-          <span className="text-sm font-semibold">grain</span>
+          <span className="text-sm font-semibold">time spacing</span>
           <input
             name="granularityMinutes"
             inputMode="numeric"

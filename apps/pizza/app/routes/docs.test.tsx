@@ -16,4 +16,11 @@ describe("docs page examples", () => {
       timestamps.every((timestamp) => Date.parse(timestamp) > LAUNCH_BASELINE_MS),
     ).toBe(true);
   });
+
+  it("keeps launch docs free of roadmap disclaimers", () => {
+    const html = renderToStaticMarkup(<Docs />);
+
+    expect(html).not.toContain("not exposed yet");
+    expect(html).not.toContain("not supported yet");
+  });
 });

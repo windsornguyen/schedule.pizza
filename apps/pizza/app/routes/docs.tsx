@@ -26,7 +26,7 @@ export default function Docs() {
           Sign in with Google, choose a username, and share the generated link.
           The code in the link is the capability: without it, schedule.pizza
           should not expose availability. Confirmed bookings appear in the
-          dashboard, where hosts can cancel upcoming one-on-one bookings.
+          dashboard, where hosts can cancel upcoming individual bookings.
         </p>
       </section>
 
@@ -154,11 +154,11 @@ export default function Docs() {
           <code className="font-mono">GET /api/v1/account</code>. Upcoming
           bookings are available at{" "}
           <code className="font-mono">GET /api/v1/account/bookings</code>.
-          To cancel an upcoming one-on-one booking, call{" "}
+          To cancel an upcoming individual booking, call{" "}
           <code className="font-mono">
             POST /api/v1/account/bookings/:bookingId/cancel
           </code>
-          . Group booking cancellation is intentionally not exposed yet.
+          . Group bookings stay visible in each host's dashboard.
         </p>
       </section>
 
