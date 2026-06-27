@@ -7,6 +7,7 @@ if (isCliEntrypoint()) {
 export async function main(env) {
   const baseUrl = readRequiredUrl(env["SCHEDULE_PIZZA_URL"]);
   const target = readSmokeTarget(env);
+  const accountConfig = readAccountSmokeConfig(env);
   const writeConfig = readWriteSmokeConfig(env);
   const requestBody = readScheduleRequestBody(target.participant);
 
@@ -27,6 +28,12 @@ export async function main(env) {
     `schedule=${schedule.kind}:${schedule.slotCount}`,
     `recommend=${recommend.kind}:${recommend.slotCount}`,
   ];
+
+  if (accountConfig.enabled && !writeConfig.enabled) {
+    const account = await checkSmokeAccountSession(baseUrl, target, accountConfig, "account smoke");
+
+    output.push(`account=${account.username}`);
+  }
 
   if (writeConfig.enabled) {
     const writeResult = await bookAndCancelSmoke(baseUrl, target.book, availability, writeConfig);
@@ -118,6 +125,20 @@ export function readWriteSmokeConfig(env) {
       "SCHEDULE_PIZZA_SMOKE_TIMEZONE",
     ),
   };
+}
+
+export function readAccountSmokeConfig(env) {
+  const sessionCookie = readOptionalEnvValue(env["SCHEDULE_PIZZA_SMOKE_SESSION_COOKIE"]);
+
+  return sessionCookie === null
+    ? { enabled: false }
+    : {
+        enabled: true,
+        sessionCookie: readHeaderValue(
+          sessionCookie,
+          "SCHEDULE_PIZZA_SMOKE_SESSION_COOKIE",
+        ),
+      };
 }
 
 function readOptionalEnvValue(value) {
@@ -250,7 +271,7 @@ export function readScheduleLikeSummary(responseBody, label) {
 }
 
 async function bookAndCancelSmoke(baseUrl, target, availability, config) {
-  await checkWriteSmokeSession(baseUrl, target, config);
+  await checkSmokeAccountSession(baseUrl, target, config, "write smoke");
 
   const slotStart = readFirstAvailabilitySlotStart(availability, "availability");
   const booked = await postJson(baseUrl, "/api/v1/book", "book smoke slot", {
@@ -278,15 +299,17 @@ async function bookAndCancelSmoke(baseUrl, target, availability, config) {
   return { status: "booked_cancelled" };
 }
 
-async function checkWriteSmokeSession(baseUrl, target, config) {
-  const account = await checkJson(baseUrl, "/api/v1/account", "write smoke account", {
+async function checkSmokeAccountSession(baseUrl, target, config, label) {
+  const account = await checkJson(baseUrl, "/api/v1/account", `${label} account`, {
     Cookie: config.sessionCookie,
   });
-  const username = readAccountHostUsername(account, "write smoke account");
+  const username = readAccountHostUsername(account, `${label} account`);
 
   if (username !== target.username) {
-    throw new Error(`write smoke account expected ${target.username}, got ${username}`);
+    throw new Error(`${label} account expected ${target.username}, got ${username}`);
   }
+
+  return { username };
 }
 
 export function readAccountHostUsername(responseBody, label) {

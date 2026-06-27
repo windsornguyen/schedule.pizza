@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   readAccountHostUsername,
+  readAccountSmokeConfig,
   readBookedBookingId,
   readFirstAvailabilitySlotStart,
   readScheduleLikeSummary,
@@ -62,6 +63,24 @@ describe("authorized smoke write config", () => {
       sessionCookie: "better-auth.session_token=abc",
       timeZone: "America/New_York",
     });
+  });
+});
+
+describe("authorized smoke account config", () => {
+  it("keeps account smoke disabled without a session cookie", () => {
+    assert.deepEqual(readAccountSmokeConfig({}), { enabled: false });
+  });
+
+  it("accepts a session cookie without enabling write smoke", () => {
+    assert.deepEqual(readAccountSmokeConfig({
+      SCHEDULE_PIZZA_SMOKE_SESSION_COOKIE: "better-auth.session_token=abc",
+    }), {
+      enabled: true,
+      sessionCookie: "better-auth.session_token=abc",
+    });
+    assert.deepEqual(readWriteSmokeConfig({
+      SCHEDULE_PIZZA_SMOKE_SESSION_COOKIE: "better-auth.session_token=abc",
+    }), { enabled: false });
   });
 });
 
