@@ -53,16 +53,32 @@ describe("group booking reservations", () => {
     )).resolves.toBeNull();
   });
 
-  it("reserves pending calendar bookings with one D1 batch", async () => {
-    const { database, statements } = createD1Recorder();
+  it("returns null when D1 rejects one conflicting reservation", async () => {
+    const { database } = createD1Recorder({
+      error: new Error(
+        "D1_ERROR: UNIQUE constraint failed: booking.hostId, booking.slotStartAt, booking.slotEndAt",
+      ),
+    });
+
+    await expect(createPendingCalendarBooking(
+      database,
+      pendingBooking("booking_1", "host_alice"),
+    )).resolves.toBeNull();
+  });
+
+  it("reserves grouped bookings with one conditional insert", async () => {
+    const { database, statements } = createD1Recorder({ changes: [2] });
 
     await expect(createPendingCalendarBookings(database, [
       pendingBooking("booking_1", "host_alice"),
       pendingBooking("booking_2", "host_bob"),
     ])).resolves.toEqual(["booking_1", "booking_2"]);
-    expect(statements).toHaveLength(2);
-    expect(compactSql(statements[0]?.sql ?? "")).toBe(
-      "insert into booking ( id, hostId, hostUsername, bookingCodeId, guestName, guestEmail, guestEmailNormalized, guestTimezone, slotStartAt, slotEndAt, status, source, calendarProvider, calendarEventId, cancelledAt, createdAt, updatedAt ) select ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, null, null, ?, ? where not exists ( select 1 from booking where hostId = ? and status in ('pending_calendar', 'confirmed') and slotStartAt < ? and slotEndAt > ? )",
+    expect(statements).toHaveLength(1);
+    expect(compactSql(statements[0]?.sql ?? "")).toContain(
+      "with requested ( id, hostId, hostUsername, bookingCodeId",
+    );
+    expect(compactSql(statements[0]?.sql ?? "")).toContain(
+      "where not exists ( select 1 from requested join booking",
     );
     expect(statements[0]?.params).toEqual([
       "booking_1",
@@ -79,22 +95,34 @@ describe("group booking reservations", () => {
       "api",
       1_782_486_000,
       1_782_486_000,
-      "host_alice",
-      1_782_491_400,
+      "booking_2",
+      "host_bob",
+      "bob",
+      "code_bob",
+      "Ada",
+      "ada@example.com",
+      "ada@example.com",
+      "America/Los_Angeles",
       1_782_489_600,
+      1_782_491_400,
+      "pending_calendar",
+      "api",
+      1_782_486_000,
+      1_782_486_000,
     ]);
   });
 
-  it("returns null when one batched reservation overlaps", async () => {
-    const { database } = createD1Recorder({ changes: [1, 0] });
+  it("returns null without partial inserts when any grouped booking overlaps", async () => {
+    const { database, statements } = createD1Recorder({ changes: [0] });
 
     await expect(createPendingCalendarBookings(database, [
       pendingBooking("booking_1", "host_alice"),
       pendingBooking("booking_2", "host_bob"),
     ])).resolves.toBeNull();
+    expect(statements).toHaveLength(1);
   });
 
-  it("returns null when D1 rejects a conflicting reservation batch", async () => {
+  it("returns null when D1 rejects a conflicting reservation", async () => {
     const { database } = createD1Recorder({
       error: new Error(
         "D1_ERROR: UNIQUE constraint failed: booking.hostId, booking.slotStartAt, booking.slotEndAt",
@@ -138,31 +166,14 @@ function createD1Recorder(input?: {
   const statements: CapturedStatement[] = [];
   let runCount = 0;
   const database = {
-    async batch(batchStatements: D1PreparedStatement[]) {
-      if (input?.error !== undefined) {
-        throw input.error;
-      }
-
-      for (const statement of batchStatements) {
-        const capturedStatement = captured.get(statement);
-
-        if (capturedStatement === undefined) {
-          throw new Error("uncaptured D1 statement");
-        }
-
-        statements.push(capturedStatement);
-      }
-
-      return batchStatements.map((_statement, index) => ({
-        meta: { changes: input?.changes?.[index] ?? 1 },
-        results: [],
-        success: true,
-      }));
-    },
     prepare(sql: string) {
       return createPreparedStatement({
         captured,
         onRun: (statement) => {
+          if (input?.error !== undefined) {
+            throw input.error;
+          }
+
           const capturedStatement = captured.get(statement);
 
           if (capturedStatement === undefined) {
@@ -181,8 +192,7 @@ function createD1Recorder(input?: {
     },
   };
 
-  // D1 is a platform object; this fake implements only the prepare/batch
-  // boundary used by createPendingCalendarBookings.
+  // D1 is a platform object; this fake implements only the prepare boundary.
   return { database: database as unknown as D1Database, statements };
 }
 

@@ -74,25 +74,10 @@ export async function createPendingCalendarBooking(
   database: D1ReservationDatabase,
   input: PendingCalendarBookingInsert
 ) {
-  const result = await preparePendingCalendarBooking(database, input).run();
-
-  return result.meta.changes === 1 ? { id: input.id } : null;
-}
-
-export async function createPendingCalendarBookings(
-  database: D1BatchDatabase,
-  inputs: readonly PendingCalendarBookingInsert[],
-) {
   try {
-    const results = await database.batch(inputs.map((input) =>
-      preparePendingCalendarBooking(database, input)
-    ));
+    const result = await preparePendingCalendarBooking(database, input).run();
 
-    if (!results.every((result) => result.meta.changes === 1)) {
-      return null;
-    }
-
-    return inputs.map((input) => input.id);
+    return result.meta.changes === 1 ? { id: input.id } : null;
   } catch (error: unknown) {
     if (isBookingReservationConflict(error)) {
       return null;
@@ -100,6 +85,86 @@ export async function createPendingCalendarBookings(
 
     throw error;
   }
+}
+
+export async function createPendingCalendarBookings(
+  database: D1ReservationDatabase,
+  inputs: readonly PendingCalendarBookingInsert[],
+) {
+  try {
+    const result = await preparePendingCalendarBookings(database, inputs).run();
+
+    return result.meta.changes === inputs.length
+      ? inputs.map((input) => input.id)
+      : null;
+  } catch (error: unknown) {
+    if (isBookingReservationConflict(error)) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
+function preparePendingCalendarBookings(
+  database: D1ReservationDatabase,
+  inputs: readonly PendingCalendarBookingInsert[],
+) {
+  if (inputs.length === 0) {
+    throw new Error("cannot reserve empty booking batch");
+  }
+
+  const placeholders = inputs.map(() =>
+    "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+  ).join(", ");
+  const params = inputs.flatMap((input) => [
+    input.id,
+    input.hostId,
+    input.hostUsername,
+    input.bookingCodeId,
+    input.guestName,
+    input.guestEmail,
+    input.guestEmailNormalized,
+    input.guestTimezone,
+    toUnixSeconds(input.slotStartAt),
+    toUnixSeconds(input.slotEndAt),
+    "pending_calendar",
+    input.source,
+    toUnixSeconds(input.createdAt),
+    toUnixSeconds(input.createdAt),
+  ]);
+
+  return database
+    .prepare(
+      `with requested (
+        id, hostId, hostUsername, bookingCodeId, guestName, guestEmail,
+        guestEmailNormalized, guestTimezone, slotStartAt, slotEndAt,
+        status, source, createdAt, updatedAt
+      ) as (
+        values ${placeholders}
+      )
+      insert into booking (
+        id, hostId, hostUsername, bookingCodeId, guestName, guestEmail,
+        guestEmailNormalized, guestTimezone, slotStartAt, slotEndAt,
+        status, source, calendarProvider, calendarEventId, cancelledAt,
+        createdAt, updatedAt
+      )
+      select
+        id, hostId, hostUsername, bookingCodeId, guestName, guestEmail,
+        guestEmailNormalized, guestTimezone, slotStartAt, slotEndAt,
+        status, source, null, null, null, createdAt, updatedAt
+      from requested
+      where not exists (
+        select 1
+        from requested
+        join booking
+          on booking.hostId = requested.hostId
+          and booking.status in ('pending_calendar', 'confirmed')
+          and booking.slotStartAt < requested.slotEndAt
+          and booking.slotEndAt > requested.slotStartAt
+      )`,
+    )
+    .bind(...params);
 }
 
 function preparePendingCalendarBooking(
