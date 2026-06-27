@@ -2,6 +2,7 @@ const baseUrl = readBaseUrl(process.env["SCHEDULE_PIZZA_URL"]);
 
 await checkHtml("/", "schedule.pizza", ["easiest way to find a time."]);
 await checkHtml("/docs", "docs", ["group scheduling", "recommendations", "bookingUrl"]);
+await checkText("/robots.txt", "robots", ["Allow: /api/v1", "Disallow: /api/"]);
 await checkJson("/api/v1", "api descriptor", (body) => {
   assertRecord(body, "api descriptor");
   assertEqual(body["name"], "schedule.pizza", "api descriptor name");
@@ -39,6 +40,16 @@ function readBaseUrl(value) {
 async function checkHtml(path, label, requiredText) {
   const text = await fetchText(path, label);
 
+  assertTextIncludes(text, label, requiredText);
+}
+
+async function checkText(path, label, requiredText) {
+  const text = await fetchText(path, label);
+
+  assertTextIncludes(text, label, requiredText);
+}
+
+function assertTextIncludes(text, label, requiredText) {
   for (const textFragment of requiredText) {
     if (!text.includes(textFragment)) {
       throw new Error(`${label} is missing ${textFragment}`);
