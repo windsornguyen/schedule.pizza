@@ -14,7 +14,7 @@ type SchedulePizzaSqlite<RunResult> = BaseSQLiteDatabase<
 >;
 type BookingCodeReader<RunResult> = Pick<SchedulePizzaSqlite<RunResult>, "select">;
 type BookingCodeWriter<RunResult> = Pick<SchedulePizzaSqlite<RunResult>, "insert" | "update">;
-type BookingCodeRotator<RunResult> = Pick<SchedulePizzaSqlite<RunResult>, "transaction">;
+type D1BatchDatabase = Pick<D1Database, "batch" | "prepare">;
 
 export function generateBookingCode(wordCount: number): string {
   if (wordCount < 1) {
@@ -53,8 +53,8 @@ export async function createBookingCode<RunResult>(
   return { code, codeHash };
 }
 
-export async function rotateBookingCode<RunResult>(
-  db: BookingCodeRotator<RunResult>,
+export async function rotateBookingCode(
+  database: D1BatchDatabase,
   input: {
     hostId: string;
     hostUsername: string;
@@ -63,14 +63,45 @@ export async function rotateBookingCode<RunResult>(
     now: Date;
   },
 ) {
-  return db.transaction(async (tx) => {
-    await revokeActiveBookingCodesForHost(tx, {
-      hostId: input.hostId,
-      revokedAt: input.now,
-    });
+  const code = generateBookingCode(input.wordCount);
+  const codeHash = await hashNormalizedBookingCode(code);
 
-    return createBookingCode(tx, input);
-  });
+  await database.batch([
+    database
+      .prepare(
+        `update booking_code
+          set revokedAt = ?, updatedAt = ?
+          where hostId = ?
+            and revokedAt is null
+            and (expiresAt is null or expiresAt > ?)`,
+      )
+      .bind(
+        toUnixSeconds(input.now),
+        toUnixSeconds(input.now),
+        input.hostId,
+        toUnixSeconds(input.now),
+      ),
+    database
+      .prepare(
+        `insert into booking_code (
+          id, hostId, hostUsername, label, codeHash, codeHashVersion, wordCount,
+          lastUsedAt, expiresAt, revokedAt, createdAt, updatedAt
+        ) values (?, ?, ?, ?, ?, ?, ?, null, null, null, ?, ?)`,
+      )
+      .bind(
+        crypto.randomUUID(),
+        input.hostId,
+        input.hostUsername,
+        input.label,
+        codeHash,
+        1,
+        input.wordCount,
+        toUnixSeconds(input.now),
+        toUnixSeconds(input.now),
+      ),
+  ]);
+
+  return { code, codeHash };
 }
 
 interface ActiveBookingCodeLookup {
@@ -158,21 +189,6 @@ export async function markBookingCodeUsed<RunResult>(
     .where(eq(bookingCode.id, input.bookingCodeId));
 }
 
-async function revokeActiveBookingCodesForHost<RunResult>(
-  db: BookingCodeWriter<RunResult>,
-  input: { hostId: string; revokedAt: Date },
-) {
-  await db
-    .update(bookingCode)
-    .set({ revokedAt: input.revokedAt, updatedAt: input.revokedAt })
-    .where(
-      and(
-        eq(bookingCode.hostId, input.hostId),
-        isNull(bookingCode.revokedAt),
-        or(
-          isNull(bookingCode.expiresAt),
-          gt(bookingCode.expiresAt, input.revokedAt),
-        ),
-      ),
-    );
+function toUnixSeconds(date: Date) {
+  return Math.floor(date.getTime() / 1_000);
 }

@@ -25,18 +25,7 @@ export type PendingCalendarBookingInsert = {
   slotStartAt: Date;
   source: "api" | "web";
 };
-
-class BookingTransactionAbort extends Error {
-  constructor(
-    readonly code:
-      | "booking_confirmation_missing"
-      | "booking_failure_missing"
-      | "booking_reservation_conflict",
-  ) {
-    super(code);
-    this.name = "BookingTransactionAbort";
-  }
-}
+type D1BatchDatabase = Pick<D1Database, "batch" | "prepare">;
 
 export async function findBlockingBookingsForHost(
   db: Database,
@@ -84,28 +73,41 @@ export async function createPendingCalendarBooking(
 }
 
 export async function createPendingCalendarBookings(
-  db: Database,
+  database: D1BatchDatabase,
   inputs: readonly PendingCalendarBookingInsert[],
 ) {
   try {
-    return await db.transaction(async (tx) => {
-      const bookingIds: string[] = [];
+    await database.batch(inputs.map((input) =>
+      database
+        .prepare(
+          `insert into booking (
+            id, hostId, hostUsername, bookingCodeId, guestName, guestEmail,
+            guestEmailNormalized, guestTimezone, slotStartAt, slotEndAt,
+            status, source, calendarProvider, calendarEventId, cancelledAt,
+            createdAt, updatedAt
+          ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, null, null, ?, ?)`,
+        )
+        .bind(
+          input.id,
+          input.hostId,
+          input.hostUsername,
+          input.bookingCodeId,
+          input.guestName,
+          input.guestEmail,
+          input.guestEmailNormalized,
+          input.guestTimezone,
+          toUnixSeconds(input.slotStartAt),
+          toUnixSeconds(input.slotEndAt),
+          "pending_calendar",
+          input.source,
+          toUnixSeconds(input.createdAt),
+          toUnixSeconds(input.createdAt),
+        ),
+    ));
 
-      for (const input of inputs) {
-        const rows = await insertPendingCalendarBooking(tx, input);
-        const row = rows[0];
-
-        if (row === undefined) {
-          throw new BookingTransactionAbort("booking_reservation_conflict");
-        }
-
-        bookingIds.push(row.id);
-      }
-
-      return bookingIds;
-    });
+    return inputs.map((input) => input.id);
   } catch (error: unknown) {
-    if (error instanceof BookingTransactionAbort) {
+    if (isBookingReservationConflict(error)) {
       return null;
     }
 
@@ -170,7 +172,7 @@ export async function confirmCalendarBooking(
 }
 
 export async function confirmCalendarBookings(
-  db: Database,
+  database: D1BatchDatabase,
   input: {
     bookingIds: readonly string[];
     calendarEventId: string;
@@ -178,44 +180,28 @@ export async function confirmCalendarBookings(
     provider: "google";
   },
 ) {
-  try {
-    return await db.transaction(async (tx) => {
-      const confirmedBookingIds: string[] = [];
+  const results = await database.batch(input.bookingIds.map((bookingId) =>
+    database
+      .prepare(
+        `update booking
+          set calendarProvider = ?, calendarEventId = ?, status = ?, updatedAt = ?
+          where id = ? and status = ?`,
+      )
+      .bind(
+        input.provider,
+        input.calendarEventId,
+        "confirmed",
+        toUnixSeconds(input.confirmedAt),
+        bookingId,
+        "pending_calendar",
+      ),
+  ));
 
-      for (const bookingId of input.bookingIds) {
-        const rows = await tx
-          .update(booking)
-          .set({
-            calendarProvider: input.provider,
-            calendarEventId: input.calendarEventId,
-            status: "confirmed",
-            updatedAt: input.confirmedAt,
-          })
-          .where(
-            and(
-              eq(booking.id, bookingId),
-              eq(booking.status, "pending_calendar"),
-            ),
-          )
-          .returning({ id: booking.id });
-        const row = rows[0];
-
-        if (row === undefined) {
-          throw new BookingTransactionAbort("booking_confirmation_missing");
-        }
-
-        confirmedBookingIds.push(row.id);
-      }
-
-      return confirmedBookingIds;
-    });
-  } catch (error: unknown) {
-    if (error instanceof BookingTransactionAbort) {
-      return null;
-    }
-
-    throw error;
+  if (!results.every((result) => result.meta.changes === 1)) {
+    return null;
   }
+
+  return [...input.bookingIds];
 }
 
 export async function markCalendarBookingFailed(
@@ -240,69 +226,37 @@ export async function markCalendarBookingFailed(
 }
 
 export async function markCalendarBookingsFailed(
-  db: Database,
+  database: D1BatchDatabase,
   input: { bookingIds: readonly string[]; failedAt: Date },
 ) {
-  try {
-    return await db.transaction(async (tx) => {
-      const failedBookingIds: string[] = [];
+  const results = await database.batch(input.bookingIds.map((bookingId) =>
+    database
+      .prepare(
+        `update booking
+          set status = ?, updatedAt = ?
+          where id = ? and status = ?`,
+      )
+      .bind(
+        "calendar_failed",
+        toUnixSeconds(input.failedAt),
+        bookingId,
+        "pending_calendar",
+      ),
+  ));
 
-      for (const bookingId of input.bookingIds) {
-        const rows = await tx
-          .update(booking)
-          .set({
-            status: "calendar_failed",
-            updatedAt: input.failedAt,
-          })
-          .where(
-            and(
-              eq(booking.id, bookingId),
-              eq(booking.status, "pending_calendar"),
-            ),
-          )
-          .returning({ id: booking.id });
-        const row = rows[0];
-
-        if (row === undefined) {
-          throw new BookingTransactionAbort("booking_failure_missing");
-        }
-
-        failedBookingIds.push(row.id);
-      }
-
-      return failedBookingIds;
-    });
-  } catch (error: unknown) {
-    if (error instanceof BookingTransactionAbort) {
-      return null;
-    }
-
-    throw error;
+  if (!results.every((result) => result.meta.changes === 1)) {
+    return null;
   }
+
+  return [...input.bookingIds];
 }
 
-function insertPendingCalendarBooking(
-  db: Pick<Database, "insert">,
-  input: PendingCalendarBookingInsert,
-) {
-  return db
-    .insert(booking)
-    .values({
-      id: input.id,
-      hostId: input.hostId,
-      hostUsername: input.hostUsername,
-      bookingCodeId: input.bookingCodeId,
-      guestName: input.guestName,
-      guestEmail: input.guestEmail,
-      guestEmailNormalized: input.guestEmailNormalized,
-      guestTimezone: input.guestTimezone,
-      slotStartAt: input.slotStartAt,
-      slotEndAt: input.slotEndAt,
-      status: "pending_calendar",
-      source: input.source,
-      createdAt: input.createdAt,
-      updatedAt: input.createdAt,
-    })
-    .onConflictDoNothing()
-    .returning({ id: booking.id });
+function isBookingReservationConflict(error: unknown) {
+  return error instanceof Error &&
+    error.message.includes("UNIQUE constraint failed") &&
+    error.message.includes("booking");
+}
+
+function toUnixSeconds(date: Date) {
+  return Math.floor(date.getTime() / 1_000);
 }

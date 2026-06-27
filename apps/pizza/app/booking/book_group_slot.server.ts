@@ -126,7 +126,7 @@ export async function bookGroupSlot(
   }
 
   const pendingBookingIds = await createPendingCalendarBookings(
-    db,
+    input.env.DB,
     exactAvailability.authorizedParticipants.map(
       (participant): PendingCalendarBookingInsert => ({
         id: crypto.randomUUID(),
@@ -152,7 +152,7 @@ export async function bookGroupSlot(
   const organizer = exactAvailability.authorizedParticipants[0];
 
   if (organizer === undefined) {
-    return failPendingGroupBooking(db, pendingBookingIds, input.now, "slot_unavailable");
+    return failPendingGroupBooking(input.env.DB, pendingBookingIds, input.now, "slot_unavailable");
   }
 
   const googleAccess = await readGoogleCalendarAccess(db, {
@@ -163,7 +163,7 @@ export async function bookGroupSlot(
   });
 
   if (googleAccess.code !== "authorized") {
-    return failPendingGroupBooking(db, pendingBookingIds, input.now, googleAccess.code);
+    return failPendingGroupBooking(input.env.DB, pendingBookingIds, input.now, googleAccess.code);
   }
 
   const calendarId = readGoogleCalendarId(organizer.calendarId);
@@ -179,10 +179,10 @@ export async function bookGroupSlot(
   });
 
   if (calendarEvent.code !== "created") {
-    return failPendingGroupBooking(db, pendingBookingIds, input.now, calendarEvent.code);
+    return failPendingGroupBooking(input.env.DB, pendingBookingIds, input.now, calendarEvent.code);
   }
 
-  const confirmedBookingIds = await confirmCalendarBookings(db, {
+  const confirmedBookingIds = await confirmCalendarBookings(input.env.DB, {
     bookingIds: pendingBookingIds,
     calendarEventId: calendarEvent.eventId,
     confirmedAt: input.now,
@@ -265,12 +265,12 @@ function getBookingRateLimitWindowStart(now: Date) {
 }
 
 async function failPendingGroupBooking(
-  db: Database,
+  database: D1Database,
   bookingIds: readonly string[],
   failedAt: Date,
   code: Exclude<BookGroupSlotErrorCode, "booking_confirmation_failed">,
 ): Promise<BookGroupSlotResult> {
-  const failed = await markCalendarBookingsFailed(db, { bookingIds, failedAt });
+  const failed = await markCalendarBookingsFailed(database, { bookingIds, failedAt });
 
   if (failed === null) {
     return { code: "booking_failure_record_failed" };

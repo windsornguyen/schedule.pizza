@@ -11,7 +11,7 @@ import {
   createHostProfile,
   findHostProfileByAuthUserId,
 } from "@/db/functions/host_profiles.server";
-import { serverContext } from "@/server-context";
+import { serverContext, type ServerEnv } from "@/server-context";
 import type { Route } from "./+types/dashboard";
 
 type CreateProfileForm =
@@ -256,7 +256,7 @@ async function createProfileAndCode(
   input: {
     readonly authUserId: string;
     readonly email: string;
-    readonly env: Parameters<typeof readCalendarStatus>[1];
+    readonly env: ServerEnv;
     readonly formData: FormData;
   },
 ) {
@@ -315,7 +315,7 @@ async function createCodeForExistingProfile(
   db: ReturnType<typeof createDb>,
   input: {
     readonly authUserId: string;
-    readonly env: Parameters<typeof readCalendarStatus>[1];
+    readonly env: ServerEnv;
   },
 ) {
   const profile = await findHostProfileByAuthUserId(db, input.authUserId);
@@ -331,7 +331,7 @@ async function createCodeForExistingProfile(
     return { code: "calendar_authorization_required" as const };
   }
 
-  const bookingCode = await rotateBookingCode(db, {
+  const bookingCode = await rotateBookingCode(input.env.DB, {
     hostId: profile.id,
     hostUsername: profile.username,
     wordCount: 3,

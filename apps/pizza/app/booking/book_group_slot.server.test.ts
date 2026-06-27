@@ -56,6 +56,7 @@ const slot = {
   endAt: new Date("2026-06-26T16:30:00.000Z"),
 };
 const db = {} as Parameters<typeof bookGroupSlot>[0];
+const d1 = {} as D1Database;
 
 describe("bookGroupSlot", () => {
   beforeEach(() => {
@@ -90,7 +91,7 @@ describe("bookGroupSlot", () => {
       calendarEventId: "google_event_1",
       slot,
     });
-    expect(mocks.createPendingCalendarBookings).toHaveBeenCalledWith(db, [
+    expect(mocks.createPendingCalendarBookings).toHaveBeenCalledWith(d1, [
       expect.objectContaining({
         hostId: "host_alice",
         bookingCodeId: "code_alice",
@@ -114,7 +115,7 @@ describe("bookGroupSlot", () => {
       startAt: slot.startAt,
       timeZone: "America/Los_Angeles",
     });
-    expect(mocks.confirmCalendarBookings).toHaveBeenCalledWith(db, {
+    expect(mocks.confirmCalendarBookings).toHaveBeenCalledWith(d1, {
       bookingIds: ["booking_1", "booking_2"],
       calendarEventId: "google_event_1",
       confirmedAt: now,
@@ -152,7 +153,7 @@ describe("bookGroupSlot", () => {
     await expect(bookGroupSlot(db, createInput())).resolves.toEqual({
       code: "google_event_insert_failed",
     });
-    expect(mocks.markCalendarBookingsFailed).toHaveBeenCalledWith(db, {
+    expect(mocks.markCalendarBookingsFailed).toHaveBeenCalledWith(d1, {
       bookingIds: ["booking_1", "booking_2"],
       failedAt: now,
     });
@@ -178,6 +179,7 @@ function createInput(): Parameters<typeof bookGroupSlot>[1] {
   return {
     body: scheduleBody,
     env: {
+      DB: d1,
       GOOGLE_CLIENT_ID: "google_client_id",
       GOOGLE_CLIENT_SECRET: "google_client_secret",
     } as Parameters<typeof bookGroupSlot>[1]["env"],

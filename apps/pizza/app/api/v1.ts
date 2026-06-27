@@ -466,7 +466,7 @@ v1.post("/me/booking-code", async (c) => {
   }
 
   const now = new Date();
-  const code = await rotateBookingCode(db, {
+  const code = await rotateBookingCode(c.env.DB, {
     hostId: profile.id,
     hostUsername: profile.username,
     wordCount: 3,
