@@ -10,4 +10,13 @@ describe("Worker security headers", () => {
 
     expect(headers.get("Referrer-Policy")).toBe("no-referrer");
   });
+
+  it("sets baseline browser hardening headers", () => {
+    const headers = new Headers();
+
+    setSecurityHeaders(headers);
+
+    expect(headers.get("X-Content-Type-Options")).toBe("nosniff");
+    expect(headers.get("X-Frame-Options")).toBe("DENY");
+  });
 });

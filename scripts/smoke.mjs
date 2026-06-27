@@ -1,6 +1,7 @@
 const baseUrl = readBaseUrl(process.env["SCHEDULE_PIZZA_URL"]);
 
 await checkHtml("/", "schedule.pizza", ["easiest way to find a time."]);
+await checkSecurityHeaders("/", "homepage security headers");
 await checkHtml("/", "homepage metadata", [
   "https://schedule.pizza/og.svg",
   "summary_large_image",
@@ -84,6 +85,7 @@ await checkJson("/api/v1", "api descriptor", (body) => {
   assertField(body, ["endpoints", "recommend", "response", "alternatives"]);
   assertField(body, ["endpoints", "bookGroup", "body", "slot"]);
 });
+await checkSecurityHeaders("/api/v1", "api security headers");
 await checkJsonStatus("/api/v1/availability?user=alice", "availability without code", 400, (body) => {
   assertRecord(body, "availability without code");
   assertField(body, ["error", "code"]);
@@ -127,6 +129,14 @@ async function checkAsset(path, label, expectedContentType) {
   if (!contentType.includes(expectedContentType)) {
     throw new Error(`${label} returned ${contentType || "no content type"}`);
   }
+}
+
+async function checkSecurityHeaders(path, label) {
+  const response = await fetchResponse(path, label);
+
+  assertHeader(response.headers, "Referrer-Policy", "no-referrer", label);
+  assertHeader(response.headers, "X-Content-Type-Options", "nosniff", label);
+  assertHeader(response.headers, "X-Frame-Options", "DENY", label);
 }
 
 function assertTextIncludes(text, label, requiredText) {
@@ -199,6 +209,14 @@ async function fetchResponse(path, label) {
 function assertRecord(value, label) {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new Error(`${label} must be a JSON object`);
+  }
+}
+
+function assertHeader(headers, name, expected, label) {
+  const actual = headers.get(name);
+
+  if (actual !== expected) {
+    throw new Error(`${label} expected ${name}: ${expected}, got ${actual ?? "missing"}`);
   }
 }
 
