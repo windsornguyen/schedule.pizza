@@ -104,6 +104,16 @@ describe("group scheduling page", () => {
 
     expect(html).toContain("too many booking-code checks. try again later.");
   });
+
+  it("renders typed group booking failures without calendar reconnect copy", () => {
+    const html = renderGroup({
+      code: "booking_unavailable",
+      values: groupValues(),
+    });
+
+    expect(html).toContain("booking unavailable. try another time.");
+    expect(html).not.toContain("ask the host to reconnect google calendar");
+  });
 });
 
 function renderGroup(

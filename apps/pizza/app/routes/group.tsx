@@ -47,6 +47,7 @@ type GroupActionData =
         | "booking_code_invalid"
         | "booking_code_rate_limited"
         | "booking_rate_limited"
+        | "booking_unavailable"
         | "calendar_unavailable"
         | "client_ip_unavailable"
         | "invalid_field"
@@ -426,32 +427,48 @@ function groupActionDataFromBookResult(
     readonly values: GroupScheduleFormValues;
   },
 ): GroupActionData {
-  if (booked.code === "booked") {
-    return {
-      code: "booked",
-      slot: {
-        start: booked.slot.startAt.toISOString(),
-        end: booked.slot.endAt.toISOString(),
-      },
-      timeZone: input.timeZone,
-      values: input.values,
-    };
-  }
+  switch (booked.code) {
+    case "booked":
+      return {
+        code: "booked",
+        slot: {
+          start: booked.slot.startAt.toISOString(),
+          end: booked.slot.endAt.toISOString(),
+        },
+        timeZone: input.timeZone,
+        values: input.values,
+      };
 
-  if (
-    booked.code === "booking_code_invalid" ||
-    booked.code === "booking_code_rate_limited" ||
-    booked.code === "booking_rate_limited" ||
-    booked.code === "participant_email_missing"
-  ) {
-    return { code: booked.code, values: input.values };
-  }
+    case "booking_code_invalid":
+    case "booking_code_rate_limited":
+    case "booking_rate_limited":
+    case "participant_email_missing":
+      return { code: booked.code, values: input.values };
 
-  if (booked.code === "invalid_slot" || booked.code === "slot_unavailable") {
-    return { code: "slot_unavailable", values: input.values };
-  }
+    case "invalid_slot":
+    case "slot_unavailable":
+      return { code: "slot_unavailable", values: input.values };
 
-  return { code: "calendar_unavailable", values: input.values };
+    case "booking_confirmation_failed":
+    case "booking_failure_record_failed":
+      return { code: "booking_unavailable", values: input.values };
+
+    case "google_account_missing":
+    case "google_access_token_missing":
+    case "google_calendar_scope_missing":
+    case "google_event_delete_failed":
+    case "google_event_insert_failed":
+    case "google_event_insert_response_invalid":
+    case "google_freebusy_failed":
+    case "google_freebusy_response_invalid":
+    case "google_refresh_token_missing":
+    case "google_token_refresh_failed":
+    case "google_token_response_invalid":
+      return { code: "calendar_unavailable", values: input.values };
+
+    default:
+      return assertUnreachableBookGroupSlotResult(booked);
+  }
 }
 
 function parseGroupBookingFields(formData: FormData):
@@ -532,6 +549,10 @@ function readErrorMessage(actionData: Exclude<GroupActionData, { code: "booked" 
     return "too many bookings for one of these codes. ask for a new code.";
   }
 
+  if (actionData.code === "booking_unavailable") {
+    return "booking unavailable. try another time.";
+  }
+
   if (actionData.code === "client_ip_unavailable") {
     return "cloudflare did not provide a client ip header.";
   }
@@ -549,4 +570,10 @@ function readErrorMessage(actionData: Exclude<GroupActionData, { code: "booked" 
   }
 
   return "calendar unavailable. ask the host to reconnect google calendar.";
+}
+
+function assertUnreachableBookGroupSlotResult(result: never): never {
+  throw new Response(`unhandled group booking result: ${JSON.stringify(result)}`, {
+    status: 500,
+  });
 }
