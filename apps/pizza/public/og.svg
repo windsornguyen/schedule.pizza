@@ -1,31 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
-  <rect width="1200" height="630" fill="#F5E6D0"/>
+  <rect width="1200" height="630" fill="#F8F5EF"/>
+  <path d="M60 118 H1140" stroke="#171512" stroke-opacity="0.14" stroke-width="3"/>
 
-  <!-- pizza - rounder, warmer, more obviously a pizza -->
-  <g opacity="0.12" transform="translate(700, 100)">
-    <!-- cheese/sauce base - fan shape -->
-    <path d="M200 0 C320 30, 420 180, 400 400 L0 400 C-20 180, 80 30, 200 0Z" fill="#D32F2F"/>
-    <!-- cheese layer -->
-    <path d="M200 30 C300 55, 390 190, 370 380 L30 380 C10 190, 100 55, 200 30Z" fill="#F5A623"/>
-    <!-- pepperoni -->
-    <circle cx="160" cy="180" r="30" fill="#D32F2F"/>
-    <circle cx="250" cy="250" r="25" fill="#D32F2F"/>
-    <circle cx="170" cy="320" r="28" fill="#D32F2F"/>
-    <circle cx="280" cy="160" r="22" fill="#D32F2F"/>
-    <!-- crust edge -->
-    <path d="M0 400 Q200 370 400 400" fill="none" stroke="#C4A87A" stroke-width="18" stroke-linecap="round"/>
+  <g transform="translate(60, 58)">
+    <rect x="0" y="0" width="46" height="46" rx="5" fill="#F1C34B" stroke="#171512" stroke-width="3"/>
+    <text x="23" y="32" text-anchor="middle" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="26" font-weight="850" fill="#171512">p</text>
   </g>
 
-  <!-- logo -->
-  <g transform="translate(60, 45)">
-    <rect x="0" y="0" width="58" height="58" rx="13" fill="#D32F2F"/>
-    <text x="29" y="39" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="25" font-weight="800" fill="#FFFFFF">67</text>
-  </g>
+  <text x="126" y="91" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="28" font-weight="800" fill="#171512">schedule.pizza</text>
 
-  <!-- headline -->
-  <text x="60" y="270" font-family="system-ui, -apple-system, sans-serif" font-size="58" font-weight="600" fill="#1A1A1A">easiest way</text>
-  <text x="60" y="345" font-family="system-ui, -apple-system, sans-serif" font-size="58" font-weight="600" fill="#1A1A1A">to find a time</text>
+  <text x="60" y="290" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="72" font-weight="820" fill="#171512">easiest way to find a</text>
+  <text x="60" y="374" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="72" font-weight="820" fill="#171512">time</text>
 
-  <!-- byline -->
-  <text x="60" y="400" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="400" fill="#8B7355">schedule.pizza</text>
+  <text x="60" y="454" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="28" font-weight="430" fill="#403B33">Hosts share one booking link. People and agents pick a time.</text>
+  <rect x="60" y="514" width="1080" height="6" fill="#8F3D2B"/>
 </svg>

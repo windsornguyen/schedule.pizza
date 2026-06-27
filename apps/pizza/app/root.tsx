@@ -73,9 +73,22 @@ export default function App({ loaderData }: Route.ComponentProps) {
   );
 }
 
-function AccountHeader({ loggedIn }: { readonly loggedIn: boolean }) {
+export function AccountHeader({ loggedIn }: { readonly loggedIn: boolean }) {
   return (
-    <header className="mx-auto flex w-full max-w-[550px] justify-end gap-3 px-4 pt-8">
+    <header className="mx-auto flex w-full max-w-[550px] items-center justify-between gap-3 px-4 pt-8">
+      <a
+        href="/"
+        aria-label="schedule.pizza home"
+        className="flex items-center gap-2 text-sm font-semibold text-foreground"
+      >
+        <span
+          aria-hidden="true"
+          className="grid size-6 place-items-center rounded-[4px] border-2 border-foreground bg-[#F1C34B] font-semibold leading-none text-foreground"
+        >
+          p
+        </span>
+        <span>schedule.pizza</span>
+      </a>
       {loggedIn ? (
         <>
           <a
