@@ -1,15 +1,18 @@
 schedule.pizza
 ==============
 
-The easiest way to find some time. Designed for agents, built for humans.
+The easiest way to find a time. Designed for agents, built for humans.
 
 API
 ---
 
 ::
 
-    GET  /api/v1/availability?user={username}
+    GET  /api/v1/availability?user={username}&code={booking_code}
+    POST /api/v1/schedule
+    POST /api/v1/recommend
     POST /api/v1/book
+    POST /api/v1/book-group
     GET  /api/v1
 
 Development

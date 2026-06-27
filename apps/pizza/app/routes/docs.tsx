@@ -54,7 +54,7 @@ export default function Docs() {
 {
   "user": "alice",
   "code": "moon-tiger-seven",
-  "slot": "2026-06-26T16:00:00.000Z",
+  "slot": "2030-01-07T17:00:00.000Z",
   "name": "Ada",
   "email": "ada@example.com",
   "timezone": "America/Los_Angeles"
@@ -100,8 +100,8 @@ export default function Docs() {
   "maxAlternativeSlotCount": 5,
   "timeZone": "America/Los_Angeles",
   "window": {
-    "start": "2026-06-26T16:00:00.000Z",
-    "end": "2026-06-27T01:00:00.000Z"
+    "start": "2030-01-07T17:00:00.000Z",
+    "end": "2030-01-08T01:00:00.000Z"
   }
 }`}</code>
         </pre>
@@ -122,10 +122,10 @@ export default function Docs() {
   "maxAlternativeSlotCount": 5,
   "timeZone": "America/Los_Angeles",
   "window": {
-    "start": "2026-06-26T16:00:00.000Z",
-    "end": "2026-06-27T01:00:00.000Z"
+    "start": "2030-01-07T17:00:00.000Z",
+    "end": "2030-01-08T01:00:00.000Z"
   },
-  "slot": "2026-06-26T17:00:00.000Z",
+  "slot": "2030-01-07T18:00:00.000Z",
   "name": "Ada",
   "email": "ada@example.com",
   "timezone": "America/Los_Angeles"

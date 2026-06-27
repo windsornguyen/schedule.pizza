@@ -99,6 +99,28 @@ describe("v1 API CORS", () => {
     expect(body["name"]).toBe("schedule.pizza");
     expect(body["apiVersion"]).toBe("v1");
     expect(body["version"]).toBeUndefined();
+    expect(body["endpoints"]).toMatchObject({
+      availability: {
+        method: "GET",
+        path: "/api/v1/availability",
+        params: {
+          user: expect.stringContaining("required"),
+          code: expect.stringContaining("booking code"),
+        },
+      },
+      bookGroup: {
+        method: "POST",
+        path: "/api/v1/book-group",
+      },
+      recommend: {
+        method: "POST",
+        path: "/api/v1/recommend",
+      },
+      schedule: {
+        method: "POST",
+        path: "/api/v1/schedule",
+      },
+    });
   });
 
   it("allows browser-hosted agents to read the API descriptor", async () => {
