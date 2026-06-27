@@ -21,6 +21,18 @@ test("Product Hunt launch copy respects field limits", async () => {
   assert.ok(description.length <= 500);
 });
 
+test("Product Hunt launch kit documents launch preflight gates", async () => {
+  const markdown = await readFile(launchKitPath, "utf8");
+
+  assert.match(markdown, /pnpm check/u);
+  assert.match(markdown, /SCHEDULE_PIZZA_URL=https:\/\/schedule\.pizza pnpm smoke/u);
+  assert.match(markdown, /SCHEDULE_PIZZA_LIVE_SMOKE=1/u);
+  assert.match(markdown, /pnpm smoke-live/u);
+  assert.match(markdown, /Google Calendar write path/u);
+  assert.match(markdown, /temporary-code revocation/u);
+  assert.match(markdown, /GitHub Actions intentionally does not create production calendar events/u);
+});
+
 test("Product Hunt launch images use expected dimensions", async () => {
   await assertLaunchImageSize(thumbnailPath);
   assert.deepEqual(await readPngDimensions(thumbnailPath), {

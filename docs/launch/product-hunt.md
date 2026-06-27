@@ -3,6 +3,25 @@
 Operator notes for the schedule.pizza Product Hunt listing. This is not product
 documentation; the public docs remain focused on using the app and API.
 
+## Preflight
+
+Run these before posting:
+
+```sh
+pnpm check
+SCHEDULE_PIZZA_URL=https://schedule.pizza pnpm smoke
+SCHEDULE_PIZZA_LIVE_SMOKE=1 \
+  SCHEDULE_PIZZA_URL=https://schedule.pizza \
+  SCHEDULE_PIZZA_LIVE_SMOKE_USER=nguyenxminhtri \
+  SCHEDULE_PIZZA_LIVE_SMOKE_BOOKER_EMAIL=nguyenxminhtri@gmail.com \
+  pnpm smoke-live
+```
+
+`pnpm smoke` proves the deployed public surface. `pnpm smoke-live` proves the
+real Google Calendar write path, D1 booking row, Google event cleanup,
+cancelled-row audit, and temporary-code revocation. Run the live smoke manually;
+GitHub Actions intentionally does not create production calendar events.
+
 ## Listing
 
 - URL: `https://schedule.pizza`
