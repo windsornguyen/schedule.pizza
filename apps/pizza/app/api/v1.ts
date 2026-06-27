@@ -2,6 +2,7 @@ import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
 
 import { AuthConfigError, readAuthSession } from "@/auth.server";
+import { cancelHostBooking } from "@/booking/cancel_host_booking.server";
 import {
   readGoogleCalendarAccess,
   type GoogleCalendarErrorCode,
@@ -18,6 +19,10 @@ import {
   normalizeBookingCode,
   rotateBookingCode,
 } from "@/db/functions/booking_codes.server";
+import {
+  countConfirmedBookingsForCalendarEvent,
+  listUpcomingConfirmedBookingsForHost,
+} from "@/db/functions/bookings.server";
 import {
   createHostProfile,
   findHostProfileByAuthUserId,
@@ -91,6 +96,12 @@ type AccountProfileBodyParseResult =
   | { readonly code: "invalid_field" | "missing_field"; readonly field: string };
 
 export const v1 = new Hono<{ Bindings: Bindings }>();
+
+v1.use("*", async (c, next) => {
+  await next();
+  c.header("Cache-Control", "no-store");
+  c.header("Pragma", "no-cache");
+});
 
 v1.use("*", cors({
   allowHeaders: ["Content-Type"],
@@ -184,6 +195,16 @@ v1.get("/", (c) => {
         path: "/api/v1/account",
         auth: "Better Auth session cookie",
       },
+      accountBookings: {
+        method: "GET",
+        path: "/api/v1/account/bookings",
+        auth: "Better Auth session cookie",
+      },
+      cancelBooking: {
+        method: "POST",
+        path: "/api/v1/account/bookings/:bookingId/cancel",
+        auth: "Better Auth session cookie",
+      },
       bootstrap: {
         method: "POST",
         path: "/api/v1/me/bootstrap",
@@ -224,8 +245,10 @@ v1.get("/", (c) => {
         "invalid_schedule_request",
       ],
       401: ["unauthenticated"],
-      404: ["booking_code_invalid"],
+      404: ["booking_code_invalid", "booking_missing"],
       409: [
+        "booking_calendar_missing",
+        "group_booking_cancel_unsupported",
         "host_profile_exists",
         "host_profile_missing",
         "slot_unavailable",
@@ -241,6 +264,7 @@ v1.get("/", (c) => {
       429: ["booking_code_rate_limited", "booking_rate_limited"],
       500: [
         "booking_confirmation_failed",
+        "booking_cancel_failed",
         "booking_failure_record_failed",
         "auth_user_email_missing",
         "client_ip_unavailable",
@@ -304,6 +328,82 @@ v1.get("/me", async (c) => {
 
 v1.get("/account", async (c) => {
   return handleAccountRead(c);
+});
+
+v1.get("/account/bookings", async (c) => {
+  const session = await readApiSession(c);
+
+  if (session.code !== "authenticated") {
+    return apiSessionError(c, session.code);
+  }
+
+  const db = createDb(c.env.DB);
+  const now = new Date();
+  const profile = await findHostProfileByAuthUserId(db, session.session.user.id);
+
+  if (profile === null) {
+    return c.json({ error: { code: "host_profile_missing", message: "Host profile is missing" } }, 409);
+  }
+
+  return c.json(await buildHostBookingsPayload(db, {
+    hostId: profile.id,
+    limit: 20,
+    now,
+  }));
+});
+
+v1.post("/account/bookings/:bookingId/cancel", async (c) => {
+  const session = await readApiSession(c);
+
+  if (session.code !== "authenticated") {
+    return apiSessionError(c, session.code);
+  }
+
+  const bookingId = readRouteParam(c.req.param("bookingId"));
+
+  if (bookingId === null) {
+    return c.json({ error: { code: "invalid_field", message: "bookingId is invalid" } }, 400);
+  }
+
+  const db = createDb(c.env.DB);
+  const profile = await findHostProfileByAuthUserId(db, session.session.user.id);
+
+  if (profile === null) {
+    return c.json({ error: { code: "host_profile_missing", message: "Host profile is missing" } }, 409);
+  }
+
+  const cancelled = await cancelHostBooking(db, {
+    authUserId: session.session.user.id,
+    bookingId,
+    calendarId: profile.calendarId,
+    env: c.env,
+    hostId: profile.id,
+    now: new Date(),
+  });
+
+  if (cancelled.code === "cancelled") {
+    return c.json({
+      ok: true,
+      booking: { id: cancelled.bookingId, status: "cancelled" },
+    });
+  }
+
+  if (cancelled.code === "booking_missing") {
+    return c.json({ error: { code: "booking_missing", message: "Booking not found" } }, 404);
+  }
+
+  if (
+    cancelled.code === "booking_calendar_missing" ||
+    cancelled.code === "group_booking_cancel_unsupported"
+  ) {
+    return c.json({ error: { code: cancelled.code, message: "Booking is not cancellable" } }, 409);
+  }
+
+  if (cancelled.code === "booking_cancel_failed") {
+    return c.json({ error: { code: cancelled.code, message: "Booking cancellation failed" } }, 500);
+  }
+
+  return calendarError(c, cancelled.code);
 });
 
 v1.post("/me/bootstrap", async (c) => {
@@ -913,6 +1013,49 @@ async function handleAccountRead(c: V1Context) {
   ));
 }
 
+async function buildHostBookingsPayload(
+  db: ReturnType<typeof createDb>,
+  input: {
+    readonly hostId: string;
+    readonly limit: number;
+    readonly now: Date;
+  },
+) {
+  const bookings = await listUpcomingConfirmedBookingsForHost(db, input);
+  const serializedBookings = await Promise.all(
+    bookings.map(async (booking) => ({
+      canCancel: await canCancelHostBooking(db, booking.calendarEventId),
+      guest: {
+        email: booking.guestEmail,
+        name: booking.guestName,
+      },
+      id: booking.id,
+      slot: {
+        start: booking.slotStartAt.toISOString(),
+        end: booking.slotEndAt.toISOString(),
+      },
+      status: "confirmed" as const,
+    })),
+  );
+
+  return { ok: true, bookings: serializedBookings };
+}
+
+async function canCancelHostBooking(
+  db: ReturnType<typeof createDb>,
+  calendarEventId: string | null,
+) {
+  if (calendarEventId === null) {
+    return false;
+  }
+
+  const bookingCount = await countConfirmedBookingsForCalendarEvent(db, {
+    calendarEventId,
+  });
+
+  return bookingCount === 1;
+}
+
 async function readApiSession(c: V1Context):
   Promise<
     | { readonly code: "authenticated"; readonly session: ApiSession }
@@ -1092,6 +1235,12 @@ function invalidParsedField(
       message: `${parsed.field} is ${parsed.code === "missing_field" ? "required" : "invalid"}`,
     },
   }, 400);
+}
+
+function readRouteParam(value: string) {
+  const trimmedValue = value.trim();
+
+  return trimmedValue === "" ? null : trimmedValue;
 }
 
 type RequiredParsedValue<T> =

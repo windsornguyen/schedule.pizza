@@ -148,6 +148,21 @@ export default function Docs() {
       </section>
 
       <section className="mt-10 space-y-3">
+        <h2 className="text-sm font-semibold">host agents</h2>
+        <p className="text-sm leading-6 text-muted-foreground">
+          A signed-in host can read account state at{" "}
+          <code className="font-mono">GET /api/v1/account</code>. Upcoming
+          bookings are available at{" "}
+          <code className="font-mono">GET /api/v1/account/bookings</code>.
+          To cancel an upcoming one-on-one booking, call{" "}
+          <code className="font-mono">
+            POST /api/v1/account/bookings/:bookingId/cancel
+          </code>
+          . Group booking cancellation is intentionally not exposed yet.
+        </p>
+      </section>
+
+      <section className="mt-10 space-y-3">
         <h2 className="text-sm font-semibold">calendar errors</h2>
         <p className="text-sm leading-6 text-muted-foreground">
           If a host has not granted calendar access, API calls fail with a typed

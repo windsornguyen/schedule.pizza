@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as AuthServerModule from "@/auth.server";
+import type * as CancelHostBookingModule from "@/booking/cancel_host_booking.server";
 import type * as BookingCodesModule from "@/db/functions/booking_codes.server";
+import type * as BookingsModule from "@/db/functions/bookings.server";
 import type * as HostProfilesModule from "@/db/functions/host_profiles.server";
 import { timeInterval } from "@/scheduling/engine";
 
@@ -16,10 +18,13 @@ type AsyncMock = (...args: unknown[]) => Promise<unknown>;
 type SyncMock = (...args: unknown[]) => unknown;
 
 const mocks = vi.hoisted(() => ({
+  cancelHostBooking: vi.fn<AsyncMock>(),
   createDb: vi.fn<SyncMock>(),
+  countConfirmedBookingsForCalendarEvent: vi.fn<AsyncMock>(),
   findActiveBookingCodeForHost: vi.fn<AsyncMock>(),
   findHostProfileByAuthUserId: vi.fn<AsyncMock>(),
   findHostProfileByUsername: vi.fn<AsyncMock>(),
+  listUpcomingConfirmedBookingsForHost: vi.fn<AsyncMock>(),
   readAuthSession: vi.fn<AsyncMock>(),
   readGoogleCalendarAccess: vi.fn<AsyncMock>(),
   rotateBookingCode: vi.fn<AsyncMock>(),
@@ -39,6 +44,15 @@ vi.mock("@/calendar/google.server", () => ({
   readGoogleCalendarAccess: mocks.readGoogleCalendarAccess,
 }));
 
+vi.mock("@/booking/cancel_host_booking.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof CancelHostBookingModule>();
+
+  return {
+    ...actual,
+    cancelHostBooking: mocks.cancelHostBooking,
+  };
+});
+
 vi.mock("@/db/client.server", () => ({
   createDb: mocks.createDb,
 }));
@@ -50,6 +64,17 @@ vi.mock("@/db/functions/booking_codes.server", async (importOriginal) => {
     ...actual,
     findActiveBookingCodeForHost: mocks.findActiveBookingCodeForHost,
     rotateBookingCode: mocks.rotateBookingCode,
+  };
+});
+
+vi.mock("@/db/functions/bookings.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof BookingsModule>();
+
+  return {
+    ...actual,
+    countConfirmedBookingsForCalendarEvent:
+      mocks.countConfirmedBookingsForCalendarEvent,
+    listUpcomingConfirmedBookingsForHost: mocks.listUpcomingConfirmedBookingsForHost,
   };
 });
 
@@ -76,7 +101,13 @@ const env = {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.createDb.mockReturnValue(db);
+  mocks.cancelHostBooking.mockResolvedValue({
+    code: "cancelled",
+    bookingId: "booking_1",
+  });
+  mocks.countConfirmedBookingsForCalendarEvent.mockResolvedValue(1);
   mocks.findActiveBookingCodeForHost.mockResolvedValue(null);
+  mocks.listUpcomingConfirmedBookingsForHost.mockResolvedValue([]);
   mocks.readAuthSession.mockResolvedValue({
     session: { id: "session_1", userId: "auth_user_1" },
     user: { id: "auth_user_1", email: "alice@example.com" },
@@ -112,6 +143,14 @@ describe("v1 API CORS", () => {
         method: "POST",
         path: "/api/v1/book-group",
       },
+      accountBookings: {
+        method: "GET",
+        path: "/api/v1/account/bookings",
+      },
+      cancelBooking: {
+        method: "POST",
+        path: "/api/v1/account/bookings/:bookingId/cancel",
+      },
       recommend: {
         method: "POST",
         path: "/api/v1/recommend",
@@ -129,6 +168,13 @@ describe("v1 API CORS", () => {
     });
 
     expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+  });
+
+  it("marks API responses as non-cacheable", async () => {
+    const response = await v1.request("https://schedule.pizza/");
+
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(response.headers.get("Pragma")).toBe("no-cache");
   });
 
   it("allows browser-hosted agents to preflight JSON schedule requests", async () => {
@@ -149,6 +195,92 @@ describe("v1 API CORS", () => {
     expect(response.headers.get("Access-Control-Allow-Headers")).toBe(
       "Content-Type",
     );
+  });
+});
+
+describe("account bookings API", () => {
+  it("lists upcoming host bookings without leaking calendar event ids", async () => {
+    mocks.findHostProfileByAuthUserId.mockResolvedValue({
+      authUserId: "auth_user_1",
+      calendarId: "primary",
+      id: "host_1",
+      username: "alice",
+    });
+    mocks.listUpcomingConfirmedBookingsForHost.mockResolvedValue([
+      {
+        calendarEventId: "google_event_1",
+        guestEmail: "ada@example.com",
+        guestName: "Ada",
+        id: "booking_1",
+        slotEndAt: new Date("2026-06-26T16:30:00.000Z"),
+        slotStartAt: new Date("2026-06-26T16:00:00.000Z"),
+      },
+    ]);
+
+    const response = await v1.request(
+      "https://schedule.pizza/account/bookings",
+      {},
+      env,
+    );
+    const body = await response.json() as Record<string, unknown>;
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual({
+      ok: true,
+      bookings: [
+        {
+          canCancel: true,
+          guest: {
+            email: "ada@example.com",
+            name: "Ada",
+          },
+          id: "booking_1",
+          slot: {
+            start: "2026-06-26T16:00:00.000Z",
+            end: "2026-06-26T16:30:00.000Z",
+          },
+          status: "confirmed",
+        },
+      ],
+    });
+    expect(JSON.stringify(body)).not.toContain("google_event_1");
+    expect(mocks.listUpcomingConfirmedBookingsForHost).toHaveBeenCalledWith(db, {
+      hostId: "host_1",
+      limit: 20,
+      now: expect.any(Date) as Date,
+    });
+  });
+
+  it("cancels a host-owned booking through the cancellation domain helper", async () => {
+    mocks.findHostProfileByAuthUserId.mockResolvedValue({
+      authUserId: "auth_user_1",
+      calendarId: "primary",
+      id: "host_1",
+      username: "alice",
+    });
+
+    const response = await v1.request(
+      "https://schedule.pizza/account/bookings/booking_1/cancel",
+      { method: "POST" },
+      env,
+    );
+
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      booking: {
+        id: "booking_1",
+        status: "cancelled",
+      },
+    });
+    expect(response.status).toBe(200);
+    expect(mocks.cancelHostBooking).toHaveBeenCalledWith(db, {
+      authUserId: "auth_user_1",
+      bookingId: "booking_1",
+      calendarId: "primary",
+      env,
+      hostId: "host_1",
+      now: expect.any(Date) as Date,
+    });
   });
 });
 
