@@ -1,6 +1,11 @@
 const baseUrl = readBaseUrl(process.env["SCHEDULE_PIZZA_URL"]);
 
 await checkHtml("/", "schedule.pizza", ["easiest way to find a time."]);
+await checkRedirect(
+  "/search?q=schedule.pizza%2Falice%3Fcode%3Dmoon-tiger-seven",
+  "booking link search",
+  "/alice?code=moon-tiger-seven",
+);
 await checkHtml("/docs", "docs", ["group scheduling", "recommendations", "bookingUrl"]);
 await checkHtml("/group", "group scheduling", ["schedule.pizza link", "closest times"]);
 await checkHtml("/login", "login", ["free/busy access", "privacy policy"]);
@@ -103,6 +108,19 @@ async function checkJsonStatus(path, label, expectedStatus, validate) {
   }
 
   validate(await response.json());
+}
+
+async function checkRedirect(path, label, expectedLocation) {
+  const response = await fetch(new URL(path, baseUrl), { redirect: "manual" });
+  const location = response.headers.get("location");
+
+  if (response.status < 300 || response.status > 399) {
+    throw new Error(`${label} expected redirect, got HTTP ${response.status}`);
+  }
+
+  if (location !== expectedLocation) {
+    throw new Error(`${label} expected ${expectedLocation}, got ${location ?? "no location"}`);
+  }
 }
 
 async function fetchText(path, label) {
