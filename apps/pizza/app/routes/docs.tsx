@@ -37,10 +37,12 @@ export default function Docs() {
           Use this when you already know whose calendar you want. The code is
           required; username guesses do not expose availability. Slots exclude
           schedule.pizza bookings and the host's Google Calendar busy times.
+          You can pass the shared link as{" "}
+          <code className="font-mono">url</code> instead of splitting it.
         </p>
         <pre className="whitespace-pre-wrap break-words rounded-md border bg-muted p-3 font-mono text-sm">
           <code>
-            GET /api/v1/availability?url=https%3A%2F%2Fschedule.pizza%2Falice%3Fcode%3Dmoon-tiger-seven
+            GET /api/v1/availability?user=alice&code=moon-tiger-seven
           </code>
         </pre>
       </section>
@@ -168,8 +170,7 @@ export default function Docs() {
           To cancel an upcoming individual booking, call{" "}
           <code className="font-mono">
             POST /api/v1/account/bookings/:bookingId/cancel
-          </code>
-          . Group bookings stay visible in each host's dashboard.
+          </code>. Group bookings stay visible in each host's dashboard.
         </p>
       </section>
 
