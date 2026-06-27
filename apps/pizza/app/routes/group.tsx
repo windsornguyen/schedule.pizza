@@ -324,7 +324,6 @@ function BookExactSlotForm({
       <input type="hidden" name="durationMinutes" value={values.durationMinutes} />
       <input type="hidden" name="granularityMinutes" value={values.granularityMinutes} />
       <input type="hidden" name="timeZone" value={values.timeZone} />
-      <input type="hidden" name="timezone" value={timeZone} />
       <div className="space-y-2">
         {slots.map((slot) => (
           <label key={slot.start} className="flex items-center gap-2 text-sm">

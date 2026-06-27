@@ -21,6 +21,7 @@ describe("group scheduling page", () => {
 
     expect(html.match(/Mon, Jan 7, 9:00 AM - 9:30 AM PST/gu)).toHaveLength(1);
     expect(html).toContain("book group");
+    expect(html).not.toContain('name="timezone"');
   });
 
   it("renders alternatives with conflicts but no booking form", () => {
