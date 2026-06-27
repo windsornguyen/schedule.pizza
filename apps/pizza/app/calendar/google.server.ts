@@ -343,9 +343,13 @@ export async function deleteGoogleCalendarEvent(input: {
     method: "DELETE",
   }).catch((): null => null);
 
-  return response !== null && response.ok
+  return response !== null && isDeletedGoogleEventResponse(response)
     ? { code: "deleted" }
     : { code: "google_event_delete_failed" };
+}
+
+function isDeletedGoogleEventResponse(response: Response) {
+  return response.ok || response.status === 404 || response.status === 410;
 }
 
 export function hasGoogleCalendarScope(

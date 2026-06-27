@@ -167,6 +167,18 @@ describe("deleteGoogleCalendarEvent", () => {
 
     expect(result).toEqual({ code: "deleted" });
   });
+
+  it("treats already-deleted Google events as deleted", async () => {
+    const result = await deleteGoogleCalendarEvent({
+      accessToken: "access_token",
+      calendarId: "primary",
+      eventId: "google_event_1",
+      notifyGuests: true,
+      fetcher: async () => new Response(null, { status: 404 }),
+    });
+
+    expect(result).toEqual({ code: "deleted" });
+  });
 });
 
 function interval(start: string, end: string) {
