@@ -10,6 +10,7 @@ import {
   readD1Rows,
   readFirstAvailabilitySlotStart,
   readLiveSmokeConfig,
+  readScheduleRequestBody,
   readScheduleLikeSummary,
   sqlString,
 } from "./smoke-live.mjs";
@@ -84,8 +85,15 @@ describe("live smoke response parsing", () => {
   it("reads group booking ids without Google event ids", () => {
     assert.deepEqual(readBookedBookingIds({
       ok: true,
+      booking: { ids: ["booking_1", "booking_2"], status: "confirmed" },
+    }, "book group", 2), ["booking_1", "booking_2"]);
+  });
+
+  it("rejects group smoke responses that do not prove every participant was booked", () => {
+    assert.throws(() => readBookedBookingIds({
+      ok: true,
       booking: { ids: ["booking_1"], status: "confirmed" },
-    }, "book group"), ["booking_1"]);
+    }, "book group", 2), /book group expected 2 booking ids/u);
   });
 
   it("rejects public booking responses that expose Google event ids", () => {
@@ -96,6 +104,22 @@ describe("live smoke response parsing", () => {
         id: "booking_1",
       },
     }, "book"), /must not expose calendarEventId/u);
+  });
+});
+
+describe("live smoke schedule body", () => {
+  it("keeps group smoke multi-party", () => {
+    const body = readScheduleRequestBody({
+      timeZone: "America/Los_Angeles",
+    }, [
+      { code: "moon-tiger-seven", username: "alice" },
+      { code: "river-lime-harbor", username: "bob" },
+    ]);
+
+    assert.deepEqual(body.participants, [
+      { code: "moon-tiger-seven", user: "alice" },
+      { code: "river-lime-harbor", user: "bob" },
+    ]);
   });
 });
 

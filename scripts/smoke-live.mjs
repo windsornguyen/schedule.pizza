@@ -16,36 +16,57 @@ export async function main(env) {
   const config = readLiveSmokeConfig(env);
   const bookingIds = new Set();
   const cleanedBookingIds = new Set();
-  const code = `smoke-${randomBytes(16).toString("hex")}`;
-  const codeId = randomUUID();
+  const primaryParticipant = {
+    code: `smoke-${randomBytes(16).toString("hex")}`,
+    codeId: randomUUID(),
+    username: config.username,
+  };
+  let temporaryParticipant = null;
 
   try {
     const host = await readHost(config);
-    await createTemporaryCode(config, { code, codeId, host });
+    await createTemporaryCode(config, {
+      code: primaryParticipant.code,
+      codeId: primaryParticipant.codeId,
+      host,
+    });
+    temporaryParticipant = await createTemporaryGroupParticipant(config, host);
 
     const availability = await getJson(
       config.baseUrl,
-      `/api/v1/availability?user=${encodeURIComponent(config.username)}&code=${encodeURIComponent(code)}`,
+      `/api/v1/availability?user=${encodeURIComponent(config.username)}&code=${encodeURIComponent(primaryParticipant.code)}`,
       "availability",
     );
     const individualSlot = readAvailabilitySlotStart(availability, "availability", 0);
     const groupSlot = readAvailabilitySlotStart(availability, "availability", 1);
-    const scheduleBody = readScheduleRequestBody(config, code);
+    const participants = [primaryParticipant, temporaryParticipant];
+    const scheduleBody = readScheduleRequestBody(config, participants);
     const schedule = await postJson(config.baseUrl, "/api/v1/schedule", "schedule", scheduleBody);
     const recommend = await postJson(config.baseUrl, "/api/v1/recommend", "recommend", scheduleBody);
     const scheduleSummary = readScheduleLikeSummary(schedule, "schedule");
     const recommendSummary = readScheduleLikeSummary(recommend, "recommend");
-    const individualBookingId = await bookIndividual(config, code, individualSlot, bookingIds);
+    const individualBookingId = await bookIndividual(
+      config,
+      primaryParticipant.code,
+      individualSlot,
+      bookingIds,
+    );
 
     await cleanupBookings(config, [individualBookingId]);
     cleanedBookingIds.add(individualBookingId);
 
-    const groupBookingIds = await bookGroup(config, code, groupSlot, bookingIds);
+    const groupBookingIds = await bookGroup(
+      config,
+      participants,
+      groupSlot,
+      bookingIds,
+    );
     await cleanupBookings(config, groupBookingIds);
     for (const bookingId of groupBookingIds) cleanedBookingIds.add(bookingId);
 
-    await revokeTemporaryCode(config, codeId);
-    await assertTemporaryCodeRevoked(config, codeId);
+    await revokeTemporaryCode(config, primaryParticipant.codeId);
+    await assertTemporaryCodeRevoked(config, primaryParticipant.codeId);
+    await deleteTemporaryGroupParticipant(config, temporaryParticipant);
 
     console.log([
       `live smoke ok: ${config.baseUrl.origin}`,
@@ -60,7 +81,8 @@ export async function main(env) {
     await cleanupAfterFailure(config, {
       bookingIds: Array.from(bookingIds),
       cleanedBookingIds: Array.from(cleanedBookingIds),
-      codeId,
+      codeId: primaryParticipant.codeId,
+      temporaryParticipant,
     }).catch((cleanupError) => {
       throw new Error(
         `${readErrorMessage(error)}; cleanup failed: ${readErrorMessage(cleanupError)}`,
@@ -108,7 +130,18 @@ export function readLiveSmokeConfig(env) {
 async function readHost(config) {
   const rows = await runD1(config.databaseName, `
     select
+      account.accessToken as accessToken,
+      account.accessTokenExpiresAt as accessTokenExpiresAt,
+      account.accountId as accountId,
+      account.idToken as idToken,
+      account.refreshToken as refreshToken,
+      account.refreshTokenExpiresAt as refreshTokenExpiresAt,
+      account.scope as scope,
+      host_profile.calendarAccountEmail as calendarAccountEmail,
+      host_profile.calendarId as calendarId,
       host_profile.id as hostId,
+      host_profile.slotSizeMinutes as slotSizeMinutes,
+      host_profile.timezone as timezone,
       host_profile.username as username
     from host_profile
     inner join account
@@ -121,9 +154,31 @@ async function readHost(config) {
 
   assertString(row["hostId"], "host profile hostId");
   assertEqual(row["username"], config.username, "host profile username");
+  assertString(row["accountId"], "host profile accountId");
+  assertString(row["scope"], "host profile scope");
 
   return {
+    accessToken: readNullableString(row["accessToken"], "host profile accessToken"),
+    accessTokenExpiresAt: readNullableNumber(
+      row["accessTokenExpiresAt"],
+      "host profile accessTokenExpiresAt",
+    ),
+    accountId: row["accountId"],
+    calendarAccountEmail: readNullableString(
+      row["calendarAccountEmail"],
+      "host profile calendarAccountEmail",
+    ),
+    calendarId: readNullableString(row["calendarId"], "host profile calendarId"),
     id: row["hostId"],
+    idToken: readNullableString(row["idToken"], "host profile idToken"),
+    refreshToken: readNullableString(row["refreshToken"], "host profile refreshToken"),
+    refreshTokenExpiresAt: readNullableNumber(
+      row["refreshTokenExpiresAt"],
+      "host profile refreshTokenExpiresAt",
+    ),
+    scope: row["scope"],
+    slotSizeMinutes: readNumber(row["slotSizeMinutes"], "host profile slotSizeMinutes"),
+    timezone: readString(row["timezone"], "host profile timezone"),
     username: row["username"],
   };
 }
@@ -154,6 +209,89 @@ async function createTemporaryCode(config, input) {
   `, "create temporary booking code");
 }
 
+async function createTemporaryGroupParticipant(config, sourceHost) {
+  const now = new Date();
+  const suffix = randomBytes(6).toString("hex");
+  const participant = {
+    accountId: randomUUID(),
+    code: `smoke-${randomBytes(16).toString("hex")}`,
+    codeId: randomUUID(),
+    hostId: randomUUID(),
+    userId: randomUUID(),
+    username: `smoke-${suffix}`,
+  };
+  const email = `${participant.username}@schedule.pizza.invalid`;
+  const attendeeEmail = readSyntheticAttendeeEmail(config.bookerEmail);
+
+  await runD1(config.databaseName, `
+    insert into user (
+      id, name, email, emailVerified, image, role, banned, banReason,
+      banExpires, createdAt, updatedAt
+    ) values (
+      ${sqlString(participant.userId)},
+      ${sqlString(participant.username)},
+      ${sqlString(email)},
+      1,
+      null,
+      null,
+      0,
+      null,
+      null,
+      ${toUnixSeconds(now)},
+      ${toUnixSeconds(now)}
+    )
+  `, "create temporary group user");
+
+  await runD1(config.databaseName, `
+    insert into account (
+      id, accountId, providerId, userId, accessToken, refreshToken, idToken,
+      accessTokenExpiresAt, refreshTokenExpiresAt, scope, password, createdAt,
+      updatedAt
+    ) values (
+      ${sqlString(participant.accountId)},
+      ${sqlString(sourceHost.accountId)},
+      'google',
+      ${sqlString(participant.userId)},
+      ${sqlNullableString(sourceHost.accessToken)},
+      ${sqlNullableString(sourceHost.refreshToken)},
+      ${sqlNullableString(sourceHost.idToken)},
+      ${sqlNullableNumber(sourceHost.accessTokenExpiresAt)},
+      ${sqlNullableNumber(sourceHost.refreshTokenExpiresAt)},
+      ${sqlString(sourceHost.scope)},
+      null,
+      ${toUnixSeconds(now)},
+      ${toUnixSeconds(now)}
+    )
+  `, "create temporary group account");
+
+  await runD1(config.databaseName, `
+    insert into host_profile (
+      id, authUserId, username, displayName, timezone, slotSizeMinutes,
+      calendarProvider, calendarAccountEmail, calendarId, createdAt, updatedAt
+    ) values (
+      ${sqlString(participant.hostId)},
+      ${sqlString(participant.userId)},
+      ${sqlString(participant.username)},
+      ${sqlString(participant.username)},
+      ${sqlString(sourceHost.timezone)},
+      ${sourceHost.slotSizeMinutes},
+      'google',
+      ${sqlString(attendeeEmail)},
+      ${sqlNullableString(sourceHost.calendarId)},
+      ${toUnixSeconds(now)},
+      ${toUnixSeconds(now)}
+    )
+  `, "create temporary group host");
+
+  await createTemporaryCode(config, {
+    code: participant.code,
+    codeId: participant.codeId,
+    host: { id: participant.hostId, username: participant.username },
+  });
+
+  return participant;
+}
+
 async function bookIndividual(config, code, slot, bookingIds) {
   const body = await postJson(config.baseUrl, "/api/v1/book", "book smoke slot", {
     code,
@@ -170,15 +308,19 @@ async function bookIndividual(config, code, slot, bookingIds) {
   return bookingId;
 }
 
-async function bookGroup(config, code, slot, bookingIds) {
+async function bookGroup(config, participants, slot, bookingIds) {
   const body = await postJson(config.baseUrl, "/api/v1/book-group", "book group smoke slot", {
-    ...readScheduleRequestBody(config, code),
+    ...readScheduleRequestBody(config, participants),
     email: config.bookerEmail,
     name: config.bookerName,
     slot,
     timezone: config.timeZone,
   });
-  const bookedIds = readRawBookedBookingIds(body, "book group smoke slot");
+  const bookedIds = readRawBookedBookingIds(
+    body,
+    "book group smoke slot",
+    participants.length,
+  );
 
   for (const bookingId of bookedIds) bookingIds.add(bookingId);
   assertNoCalendarEventLeak(body["booking"], "book group smoke slot");
@@ -200,6 +342,12 @@ async function cleanupAfterFailure(config, input) {
   await revokeTemporaryCode(config, input.codeId).catch((error) => {
     errors.push(`code cleanup failed: ${readErrorMessage(error)}`);
   });
+
+  if (input.temporaryParticipant !== null) {
+    await deleteTemporaryGroupParticipant(config, input.temporaryParticipant).catch((error) => {
+      errors.push(`temporary participant cleanup failed: ${readErrorMessage(error)}`);
+    });
+  }
 
   if (errors.length > 0) {
     throw new Error(errors.join("; "));
@@ -226,11 +374,17 @@ async function cleanupBookings(config, bookingIds, options = { allowCancelled: f
     where booking.id in (${bookingIds.map(sqlString).join(", ")})
   `, "booking cleanup rows");
   const cleanupRows = readCleanupRows(rows, bookingIds, options);
+  const deletedEvents = new Set();
 
   for (const row of cleanupRows) {
     if (row["status"] === "cancelled") continue;
 
-    await deleteGoogleEvent(row);
+    const eventKey = `${readCalendarId(row["calendarId"])}\0${row["calendarEventId"]}`;
+    if (!deletedEvents.has(eventKey)) {
+      await deleteGoogleEvent(row);
+      deletedEvents.add(eventKey);
+    }
+
     await cancelBookingRecord(config, row["id"]);
     await assertBookingCancelled(config, row["id"]);
   }
@@ -298,7 +452,31 @@ async function assertTemporaryCodeRevoked(config, codeId) {
   assertNumber(row["revokedAt"], "temporary booking code revokedAt");
 }
 
-function readScheduleRequestBody(config, code) {
+async function deleteTemporaryGroupParticipant(config, participant) {
+  await runD1Statement(config.databaseName, `
+    delete from booking_code_attempt
+    where hostId = ${sqlString(participant.hostId)}
+      or username = ${sqlString(participant.username)}
+  `, "delete temporary group booking attempts");
+  await runD1Statement(config.databaseName, `
+    delete from booking_code
+    where id = ${sqlString(participant.codeId)}
+  `, "delete temporary group booking code");
+  await runD1Statement(config.databaseName, `
+    delete from host_profile
+    where id = ${sqlString(participant.hostId)}
+  `, "delete temporary group host");
+  await runD1Statement(config.databaseName, `
+    delete from account
+    where id = ${sqlString(participant.accountId)}
+  `, "delete temporary group account");
+  await runD1Statement(config.databaseName, `
+    delete from user
+    where id = ${sqlString(participant.userId)}
+  `, "delete temporary group user");
+}
+
+export function readScheduleRequestBody(config, participants) {
   const now = new Date();
   const windowEnd = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1_000);
 
@@ -307,7 +485,10 @@ function readScheduleRequestBody(config, code) {
     granularityMinutes: 15,
     maxAlternativeSlotCount: 5,
     maxExactSlotCount: 10,
-    participants: [{ code, user: config.username }],
+    participants: participants.map((participant) => ({
+      code: participant.code,
+      user: participant.username,
+    })),
     timeZone: config.timeZone,
     window: { start: now.toISOString(), end: windowEnd.toISOString() },
   };
@@ -366,18 +547,24 @@ function readRawBookedBookingId(responseBody, label) {
   return bookingId;
 }
 
-export function readBookedBookingIds(responseBody, label) {
-  const bookingIds = readRawBookedBookingIds(responseBody, label);
+export function readBookedBookingIds(responseBody, label, expectedCount) {
+  const bookingIds = readRawBookedBookingIds(responseBody, label, expectedCount);
 
   assertNoCalendarEventLeak(responseBody["booking"], label);
   return bookingIds;
 }
 
-function readRawBookedBookingIds(responseBody, label) {
+function readRawBookedBookingIds(responseBody, label, expectedCount) {
   assertRecord(responseBody, label);
   assertEqual(responseBody["ok"], true, `${label} ok`);
   assertRecord(responseBody["booking"], `${label} booking`);
   assertNonEmptyArray(responseBody["booking"]["ids"], `${label} booking ids`);
+
+  if (responseBody["booking"]["ids"].length !== expectedCount) {
+    throw new Error(
+      `${label} expected ${expectedCount} booking ids, got ${responseBody["booking"]["ids"].length}`,
+    );
+  }
 
   return responseBody["booking"]["ids"].map((bookingId, index) => {
     if (typeof bookingId !== "string" || bookingId.trim() === "") {
@@ -443,6 +630,24 @@ export function readD1Result(stdout, label) {
 
 export function sqlString(value) {
   return `'${String(value).replaceAll("'", "''")}'`;
+}
+
+function sqlNullableString(value) {
+  return value === null ? "null" : sqlString(value);
+}
+
+function sqlNullableNumber(value) {
+  return value === null ? "null" : String(value);
+}
+
+function readSyntheticAttendeeEmail(bookerEmail) {
+  const [localPart, domain] = bookerEmail.split("@");
+
+  if (localPart === undefined || domain === undefined || localPart === "" || domain === "") {
+    throw new Error("booker email cannot produce synthetic attendee email");
+  }
+
+  return `${localPart}+schedule-pizza-smoke@${domain}`;
 }
 
 async function hashNormalizedBookingCode(code) {
@@ -579,6 +784,38 @@ function readCalendarId(value) {
   return typeof value === "string" && value.trim() !== ""
     ? value.trim()
     : "primary";
+}
+
+function readString(value, label) {
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new Error(`${label} must be a string`);
+  }
+
+  return value.trim();
+}
+
+function readNullableString(value, label) {
+  if (value === null) {
+    return null;
+  }
+
+  return readString(value, label);
+}
+
+function readNumber(value, label) {
+  if (typeof value !== "number") {
+    throw new Error(`${label} must be a number`);
+  }
+
+  return value;
+}
+
+function readNullableNumber(value, label) {
+  if (value === null) {
+    return null;
+  }
+
+  return readNumber(value, label);
 }
 
 function readSingleRow(rows, label) {
