@@ -23,4 +23,11 @@ describe("docs page examples", () => {
     expect(html).not.toContain("not exposed yet");
     expect(html).not.toContain("not supported yet");
   });
+
+  it("documents host agent access to generated booking urls", () => {
+    const html = renderToStaticMarkup(<Docs />);
+
+    expect(html).toContain("/api/v1/account");
+    expect(html).toContain("bookingUrl");
+  });
 });

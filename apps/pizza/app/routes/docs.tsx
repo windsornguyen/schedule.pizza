@@ -16,7 +16,8 @@ export default function Docs() {
         schedule.pizza gives each host a booking code. If you have the code,
         you can ask for times, book a time, or ask the scheduler to find a time
         across several people. When a host rotates their code, previous codes
-        stop working. Times are UTC ISO strings ending in{" "}
+        stop working. The shared link is the capability. Times are UTC ISO
+        strings ending in{" "}
         <code className="font-mono">Z</code>.
       </p>
 
@@ -161,6 +162,9 @@ export default function Docs() {
           <code className="font-mono">GET /api/v1/account</code>. Upcoming
           bookings are available at{" "}
           <code className="font-mono">GET /api/v1/account/bookings</code>.
+          When a host creates or rotates a booking code, account responses
+          include the absolute <code className="font-mono">bookingUrl</code>{" "}
+          that can be handed to people or agents.
           To cancel an upcoming individual booking, call{" "}
           <code className="font-mono">
             POST /api/v1/account/bookings/:bookingId/cancel
