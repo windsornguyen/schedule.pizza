@@ -979,6 +979,42 @@ describe("account profile API", () => {
     });
   });
 
+  it("returns public booking urls when auth runs on localhost", async () => {
+    mocks.findHostProfileByAuthUserId
+      .mockResolvedValueOnce({
+        authUserId: "auth_user_1",
+        id: "host_1",
+        username: "alice",
+      })
+      .mockResolvedValueOnce({
+        authUserId: "auth_user_1",
+        displayName: "Alice",
+        id: "host_1",
+        slotSizeMinutes: 30,
+        timezone: "America/Los_Angeles",
+        username: "alice",
+      });
+
+    const response = await v1.request("http://localhost:5173/me/booking-code", {
+      method: "POST",
+      headers: { Origin: "http://localhost:5173" },
+    }, {
+      ...env,
+      BETTER_AUTH_URL: "http://localhost:5173",
+    });
+    const body = await response.json() as Record<string, unknown>;
+
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      ok: true,
+      account: {
+        bookingCode: "sun-river-ten",
+        bookingPath: "/alice?code=sun-river-ten",
+        bookingUrl: "https://schedule.pizza/alice?code=sun-river-ten",
+      },
+    });
+  });
+
   it("rotates and returns a fresh booking code when the username changes", async () => {
     mocks.findHostProfileByAuthUserId
       .mockResolvedValueOnce({

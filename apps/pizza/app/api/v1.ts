@@ -108,6 +108,7 @@ type AccountProfileBodyParseResult =
   | { readonly code: "invalid_field" | "missing_field"; readonly field: string };
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
+const PUBLIC_BOOKING_ORIGIN = "https://schedule.pizza";
 
 export const v1 = new Hono<{ Bindings: Bindings }>();
 
@@ -1439,12 +1440,16 @@ async function buildAccountPayload(
         : `/${profile.username}?code=${input.bookingCode}`,
       bookingUrl: input.bookingCode === undefined
         ? null
-        : new URL(
-            `/${profile.username}?code=${input.bookingCode}`,
-            env.BETTER_AUTH_URL,
-          ).toString(),
+        : formatPublicBookingUrl(profile.username, input.bookingCode),
     },
   };
+}
+
+function formatPublicBookingUrl(username: string, bookingCode: string) {
+  return new URL(
+    `/${username}?code=${bookingCode}`,
+    PUBLIC_BOOKING_ORIGIN,
+  ).toString();
 }
 
 async function readConnectedCalendarStatus(
