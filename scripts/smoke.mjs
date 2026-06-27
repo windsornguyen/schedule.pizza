@@ -44,7 +44,10 @@ await checkText("/og.svg", "open graph image", [
   "easiest way to find a",
 ]);
 await checkText("/favicon.svg", "favicon svg", ["#F1C34B", "#171512"]);
-await checkAsset("/favicon.ico", "favicon ico", "image/x-icon");
+await checkAsset("/favicon.ico", "favicon ico", [
+  "image/x-icon",
+  "image/vnd.microsoft.icon",
+]);
 await checkAsset("/favicon-32x32.png", "favicon png", "image/png");
 await checkAsset("/apple-touch-icon.png", "apple touch icon", "image/png");
 await checkAsset("/icon-192.png", "web app icon 192", "image/png");
@@ -122,11 +125,14 @@ async function checkText(path, label, requiredText) {
   assertTextIncludes(text, label, requiredText);
 }
 
-async function checkAsset(path, label, expectedContentType) {
+async function checkAsset(path, label, expectedContentTypes) {
   const response = await fetchResponse(path, label);
   const contentType = response.headers.get("content-type") ?? "";
+  const expectedTypes = Array.isArray(expectedContentTypes)
+    ? expectedContentTypes
+    : [expectedContentTypes];
 
-  if (!contentType.includes(expectedContentType)) {
+  if (!expectedTypes.some((expectedContentType) => contentType.includes(expectedContentType))) {
     throw new Error(`${label} returned ${contentType || "no content type"}`);
   }
 }
