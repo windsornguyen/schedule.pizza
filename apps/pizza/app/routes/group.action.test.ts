@@ -41,6 +41,25 @@ describe("group scheduling action", () => {
     });
   });
 
+  it("passes the selected schedule timezone into group bookings", async () => {
+    mocks.bookGroupSlot.mockResolvedValueOnce({
+      code: "booked",
+      slot: {
+        startAt: new Date("2030-01-07T17:00:00.000Z"),
+        endAt: new Date("2030-01-07T17:30:00.000Z"),
+      },
+    });
+
+    await expect(action(createActionArgs(groupBookingRequest()))).resolves.toMatchObject({
+      code: "booked",
+      timeZone: "America/Los_Angeles",
+    });
+    expect(mocks.bookGroupSlot).toHaveBeenCalledWith(db, expect.objectContaining({
+      guestTimezone: "America/Los_Angeles",
+      source: "web",
+    }));
+  });
+
   it("maps booking state transition failures to booking unavailable", async () => {
     mocks.bookGroupSlot.mockResolvedValueOnce({
       code: "booking_confirmation_failed",
@@ -81,6 +100,7 @@ function groupBookingRequest() {
   formData.set("durationMinutes", "30");
   formData.set("granularityMinutes", "15");
   formData.set("timeZone", "America/Los_Angeles");
+  formData.set("timezone", "America/Los_Angeles");
   formData.set("slot", "2030-01-07T17:00:00.000Z");
   formData.set("name", "Ada");
   formData.set("email", "ada@example.com");
