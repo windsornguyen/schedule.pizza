@@ -9,7 +9,7 @@ const availability = await checkJson(
 );
 assertRecord(availability, "availability");
 assertEqual(availability["user"], user, "availability user");
-assertArray(availability["slots"], "availability slots");
+assertNonEmptyArray(availability["slots"], "availability slots");
 
 const schedule = await checkScheduleLike("/api/v1/schedule", "schedule", requestBody);
 const recommend = await checkScheduleLike("/api/v1/recommend", "recommend", requestBody);
@@ -17,8 +17,8 @@ const recommend = await checkScheduleLike("/api/v1/recommend", "recommend", requ
 console.log([
   `authorized smoke ok: ${baseUrl.origin}`,
   `availabilitySlots=${availability["slots"].length}`,
-  `schedule=${schedule.kind}`,
-  `recommend=${recommend.kind}`,
+  `schedule=${schedule.kind}:${schedule.slotCount}`,
+  `recommend=${recommend.kind}:${recommend.slotCount}`,
 ].join(" "));
 
 function readRequiredUrl(value) {
@@ -66,25 +66,13 @@ async function checkScheduleLike(path, label, body) {
 
   assertRecord(responseBody, label);
 
-  if (
-    responseBody["kind"] !== "exact" &&
-    responseBody["kind"] !== "alternatives" &&
-    responseBody["kind"] !== "none"
-  ) {
+  if (responseBody["kind"] !== "exact" && responseBody["kind"] !== "alternatives") {
     throw new Error(`${label} returned invalid kind`);
   }
 
-  if (responseBody["kind"] === "none") {
-    if (typeof responseBody["reason"] !== "string") {
-      throw new Error(`${label} none result is missing reason`);
-    }
+  assertNonEmptyArray(responseBody["slots"], `${label} slots`);
 
-    return { kind: responseBody["kind"] };
-  }
-
-  assertArray(responseBody["slots"], `${label} slots`);
-
-  return { kind: responseBody["kind"] };
+  return { kind: responseBody["kind"], slotCount: responseBody["slots"].length };
 }
 
 async function checkJson(path, label) {
@@ -132,6 +120,14 @@ function assertRecord(value, label) {
 function assertArray(value, label) {
   if (!Array.isArray(value)) {
     throw new Error(`${label} must be an array`);
+  }
+}
+
+function assertNonEmptyArray(value, label) {
+  assertArray(value, label);
+
+  if (value.length === 0) {
+    throw new Error(`${label} must not be empty`);
   }
 }
 
