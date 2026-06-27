@@ -75,6 +75,23 @@ describe("schedule API body parser", () => {
     });
   });
 
+  it("rejects non-http schedule links", () => {
+    expect(parseScheduleBody({
+      participants: [
+        { url: "ftp://schedule.pizza/alice?code=moon-tiger-seven" },
+      ],
+      durationMinutes: 30,
+      granularityMinutes: 15,
+      maxExactSlotCount: 10,
+      maxAlternativeSlotCount: 5,
+      timeZone: "America/Los_Angeles",
+      window: {
+        start: "2026-06-26T16:00:00.000Z",
+        end: "2026-06-26T18:00:00.000Z",
+      },
+    })).toEqual({ code: "invalid_field", field: "participants" });
+  });
+
   it("rejects ambiguous participant capability fields", () => {
     expect(parseScheduleBody({
       participants: [

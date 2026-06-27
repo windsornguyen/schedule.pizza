@@ -460,8 +460,9 @@ function parseScheduleUrl(value: string): URL | null {
         : `https://${trimmedValue}`,
     );
 
-    return parsedUrl.hostname === "schedule.pizza" ||
-      parsedUrl.hostname === "www.schedule.pizza"
+    return (parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:") &&
+      (parsedUrl.hostname === "schedule.pizza" ||
+        parsedUrl.hostname === "www.schedule.pizza")
       ? parsedUrl
       : null;
   } catch {

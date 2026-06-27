@@ -8,6 +8,7 @@
 
 import {
   parseScheduleBody,
+  parseScheduleParticipantLink,
   type ParsedScheduleBody,
 } from "@/api/v1_schedule";
 import { normalizeBookingCode } from "@/db/functions/booking_codes.server";
@@ -90,7 +91,14 @@ export function parseGroupScheduleForm(
 export function parseGroupScheduleParticipant(
   value: string,
 ): ScheduleParticipantInput | null {
-  return parseScheduleLink(value) ?? parseParticipantLine(value);
+  const linkedParticipant = parseScheduleParticipantLink(value);
+
+  return linkedParticipant === null
+    ? parseParticipantLine(value)
+    : {
+        code: linkedParticipant.bookingCode,
+        user: linkedParticipant.username,
+      };
 }
 
 function readGroupScheduleFormValues(
@@ -129,46 +137,6 @@ function parseGroupScheduleParticipants(
   }
 
   return { code: "parsed", participants };
-}
-
-function parseScheduleLink(value: string): ScheduleParticipantInput | null {
-  const parsedUrl = parseScheduleUrl(value);
-
-  if (parsedUrl === null) {
-    return null;
-  }
-
-  const pathParts = parsedUrl.pathname.split("/").filter((part) => part !== "");
-  const rawUser = pathParts[0];
-  const rawCode = parsedUrl.searchParams.get("code");
-
-  if (rawUser === undefined || pathParts.length !== 1 || rawCode === null) {
-    return null;
-  }
-
-  const user = normalizeUsername(rawUser);
-  const code = normalizeBookingCode(rawCode);
-
-  return user === null || code === null ? null : { user, code };
-}
-
-function parseScheduleUrl(value: string): URL | null {
-  const normalizedValue = value.trim();
-
-  try {
-    const url = new URL(
-      /^[a-z][a-z0-9+.-]*:/iu.test(normalizedValue)
-        ? normalizedValue
-        : `https://${normalizedValue}`,
-    );
-
-    return url.hostname === "schedule.pizza" ||
-      url.hostname === "www.schedule.pizza"
-      ? url
-      : null;
-  } catch {
-    return null;
-  }
 }
 
 function parseParticipantLine(value: string): ScheduleParticipantInput | null {

@@ -33,6 +33,14 @@ describe("group schedule form parsing", () => {
     ).toBeNull();
   });
 
+  it("rejects non-http links", () => {
+    expect(
+      parseGroupScheduleParticipant(
+        "ftp://schedule.pizza/alice?code=moon-tiger-seven",
+      ),
+    ).toBeNull();
+  });
+
   it("reports malformed participant lines as invalid", () => {
     const formData = new FormData();
     formData.set("participants", "https://example.com/alice?code=moon-tiger-seven");
