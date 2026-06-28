@@ -2,3 +2,8 @@ cloudflare_api_token  = ""
 cloudflare_account_id = "461c3e3410e2e50b0fdd218f9ae04957"
 cloudflare_zone_id    = "19b97d95b8348c6d37a3f4d2f1b0b3ca"
 owner_email           = ""
+inbox_addresses       = ["security@schedule.pizza", "support@schedule.pizza"]
+
+# Keep disabled until the upstream Worker is deployed and the mailboxes exist.
+enable_inbox_address_rules = false
+enable_inbox_catch_all     = false
