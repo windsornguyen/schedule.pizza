@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.2.0](https://github.com/windsornguyen/schedule.pizza/compare/v0.1.0...v0.2.0) (2026-06-28)
+
+
+### Features
+
+* **auth:** add better auth user backend ([#27](https://github.com/windsornguyen/schedule.pizza/issues/27)) ([58d72d6](https://github.com/windsornguyen/schedule.pizza/commit/58d72d6ef42c3a2017fb98d7c7e34be500611506))
+* **scheduling:** define backend engine contract ([47b6eba](https://github.com/windsornguyen/schedule.pizza/commit/47b6eba0d757182e7ad72e34f343c982d11f24d3))
+
+
+### Bug Fixes
+
+* **deploy:** declare cloudflare publish target ([cebe429](https://github.com/windsornguyen/schedule.pizza/commit/cebe429e8c9816e8f9ff9d135290b861e3ccca08))
+* **deploy:** update wrangler action pin ([0fb16d1](https://github.com/windsornguyen/schedule.pizza/commit/0fb16d1bcd9bc3e7b5133d31c9c4f74aceb77370))
+* pre-bundle bip39 wordlist for cloudflare workers ([2d52b9e](https://github.com/windsornguyen/schedule.pizza/commit/2d52b9ed193f6f5a4eee6cfc91ff6e77253038a3))
+* **security:** avoid secret-shaped skill examples ([5e24a3f](https://github.com/windsornguyen/schedule.pizza/commit/5e24a3f2c0c7b23a0a35ff822507275117e9fdf2))
+
+
+### Refactors
+
+* **inbox:** harden cloudflare terraform ([654544e](https://github.com/windsornguyen/schedule.pizza/commit/654544eded2a6ad60ba4557945c598d61454faa3))
+* **ui:** simplify frontend layout ([a2e3bd2](https://github.com/windsornguyen/schedule.pizza/commit/a2e3bd2b9c9820c820547927476e203a9d077b1e))
+
 ## [0.1.0](https://github.com/windsornguyen/schedule.pizza/compare/v0.0.1...v0.1.0) (2026-06-26)
 
 
