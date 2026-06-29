@@ -31,7 +31,7 @@
     "tailwind-merge": "^3.3.0"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "^1.0.0",
+    "@cloudflare/vite-plugin": "^1.42.3",
     "@cloudflare/workers-types": "^4.20250617.0",
     "@react-router/dev": "8.0.1",
     "@rolldown/plugin-babel": "^0.2.3",
