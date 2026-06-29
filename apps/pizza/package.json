@@ -15,7 +15,7 @@
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
-    "@better-auth/drizzle-adapter": "^1.6.20",
+    "@better-auth/drizzle-adapter": "^1.6.22",
     "@react-router/cloudflare": "8.0.1",
     "@scure/bip39": "^2.2.0",
     "better-auth": "1.6.20",
