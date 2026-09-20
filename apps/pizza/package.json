@@ -18,7 +18,7 @@
     "@better-auth/drizzle-adapter": "^1.6.20",
     "@react-router/cloudflare": "8.0.1",
     "@scure/bip39": "^2.2.0",
-    "better-auth": "1.6.20",
+    "better-auth": "1.6.22",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.2",
@@ -45,7 +45,7 @@
     "tailwindcss": "^4.1.0",
     "typescript": "7.0.1-rc",
     "vite": "^8.1.0",
-    "vitest": "^4.0.0",
+    "vitest": "^4.1.10",
     "wrangler": "^4.19.0"
   }
 }
