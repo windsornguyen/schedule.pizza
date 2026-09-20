@@ -5,6 +5,9 @@ served at `/privacy` and `/terms` without requiring sign-in. Update the effectiv
 date when changing disclosures. These describe the hosted service, not independent
 deployments of the open-source code.
 
+Provider identities and processing roles live at `/subprocessors`; public policy
+pages omit template attribution. The CC0 source reference remains here.
+
 ## Sources
 
 - [General Legal templates](https://github.com/General-Legal/legal-templates/tree/0f7c7bfabf1be77a2bf52eef80815e24c93a190a), CC0: privacy policy and terms of use.

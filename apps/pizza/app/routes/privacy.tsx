@@ -22,14 +22,14 @@ const sections = [
     title: "sharing",
     paragraphs: [
       "People who have your booking code can see your scheduling profile and available times. Booking information is shared with the host and invited participants so they can attend and manage the meeting. Invitations sent through Google Calendar may expose participants' names and email addresses to other invitees, according to Google's event settings. Your unrelated calendar event details are not shown to bookers.",
-      "Cloudflare provides hosting, Cloudflare D1 database storage, network security, diagnostics, and our support email infrastructure. It processes the information needed to provide those services. Google processes sign-in, calendar authorization, events, and invitation delivery. The site also loads Google Fonts, which sends Google your IP address and browser request metadata. These providers' own privacy policies govern their independent services.",
+      "We use service providers for hosting, database storage, network security, and diagnostics. They process account, booking, and technical information needed to operate the service. Google processes sign-in, calendar authorization, events, and invitation delivery. The site also loads externally hosted fonts, which transmit IP addresses and browser request metadata. Our service providers page identifies these providers, the personal information they process, and their roles.",
       "We may disclose information with your permission, when necessary to investigate security incidents or abuse, or when legally required. Transfers of Google user data are limited by Google's Limited Use requirements. Humans may access that data only with your affirmative agreement to view specific data, when necessary for security or legal compliance, or as aggregated data for internal operations consistent with applicable law.",
     ],
   },
   {
     title: "storage and security",
     paragraphs: [
-      "The hosted app stores account, calendar-connection, and booking records in Cloudflare D1. D1 data is encrypted at rest by Cloudflare. Connections to our production website and Google APIs use HTTPS, and Cloudflare encrypts traffic between Workers and D1. Server-side authentication and authorization restrict access to account data. Booking codes are stored as hashes, not as readable codes.",
+      "Account, calendar-connection, and booking records are stored in a managed database, encrypted at rest by our infrastructure provider. Connections to our production website, Google APIs, and the database are encrypted in transit. Server-side authentication and authorization restrict access to account data. Booking codes are stored as hashes, not as readable codes.",
       "Authorized service operators and infrastructure providers have access needed to run and secure the service, subject to the Google data restrictions above. No internet service can guarantee absolute security. Providers may process data in the United States and other countries, where privacy laws may differ from those where you live.",
     ],
   },
@@ -96,11 +96,8 @@ export default function Privacy() {
           <a href="https://myaccount.google.com/connections">Manage or revoke Google access</a>.
         </p>
       </section>
-      <p className="mt-10 text-xs leading-5 text-muted-foreground">
-        Adapted from <a href="https://github.com/General-Legal/legal-templates">General Legal's public templates</a>
-        {" "}(CC0). General Legal has not reviewed or endorsed this adaptation.
-      </p>
-      <nav className="mt-10 flex gap-3 text-sm text-muted-foreground">
+      <nav className="mt-10 flex flex-wrap gap-3 text-sm text-muted-foreground">
+        <a href="/subprocessors">service providers</a>
         <a href="/terms">terms</a>
         <a href="/">home</a>
       </nav>
