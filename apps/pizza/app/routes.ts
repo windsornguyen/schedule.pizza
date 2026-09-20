@@ -11,6 +11,7 @@ export default [
   route("login", "routes/login.tsx"),
   route("privacy", "routes/privacy.tsx"),
   route("search", "routes/search.ts"),
+  route("subprocessors", "routes/subprocessors.tsx"),
   route("terms", "routes/terms.tsx"),
   route(":username", "routes/profile.tsx"),
 ] satisfies RouteConfig;
