@@ -14,7 +14,7 @@ allowBuilds:
   workerd: true
 
 # Supply-chain: reject packages published < 7 days ago.
-minimumReleaseAge: 7d
+minimumReleaseAge: 10080
 
 minimumReleaseAgeExclude:
   - vite@8.1.0
