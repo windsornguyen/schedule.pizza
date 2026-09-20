@@ -3,9 +3,11 @@ version: 2
 
 updates:
   - package-ecosystem: "npm"
-    directories:
-      - "/"
-      - "/apps/pizza"
+    # pnpm owns one lockfile at the workspace root.
+    directory: "/"
+    exclude-paths:
+      - ".agents/**"
+      - ".claude/**"
     target-branch: "main"
     schedule:
       interval: "weekly"
