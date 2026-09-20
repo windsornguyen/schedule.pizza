@@ -16,7 +16,6 @@
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.6.20",
-    "@react-router/cloudflare": "8.0.1",
     "@scure/bip39": "^2.2.0",
     "better-auth": "1.6.20",
     "class-variance-authority": "^0.7.1",
@@ -31,8 +30,8 @@
     "tailwind-merge": "^3.3.0"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "^1.42.3",
-    "@cloudflare/workers-types": "^4.20250617.0",
+    "@cloudflare/vite-plugin": "1.54.8",
+    "@cloudflare/workers-types": "5.20260911.1",
     "@react-router/dev": "8.0.1",
     "@rolldown/plugin-babel": "^0.2.3",
     "@tailwindcss/vite": "^4.1.0",
@@ -46,6 +45,6 @@
     "typescript": "7.0.1-rc",
     "vite": "^8.1.0",
     "vitest": "^4.0.0",
-    "wrangler": "^4.19.0"
+    "wrangler": "4.131.1"
   }
 }
