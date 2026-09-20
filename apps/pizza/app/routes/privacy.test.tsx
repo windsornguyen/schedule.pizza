@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import Privacy from "./privacy";
 import Terms from "./terms";
+import Subprocessors from "./subprocessors";
 
 describe("privacy page", () => {
   it("discloses the complete Google data lifecycle in the public page", () => {
@@ -16,7 +17,7 @@ describe("privacy page", () => {
     expect(html).toContain("general-purpose AI");
     expect(html).toContain("Google API Services User Data Policy");
     expect(html).toContain("Limited Use requirements");
-    expect(html).toContain("Cloudflare D1");
+    expect(html).toContain('href="/subprocessors"');
     expect(html).toContain("encrypted at rest");
     expect(html).toContain("not automatically deleted");
     expect(html).toContain("30 days");
@@ -24,6 +25,17 @@ describe("privacy page", () => {
     expect(html).toContain("mailto:security@schedule.pizza");
     expect(html).toContain("https://myaccount.google.com/connections");
     expect(html).toContain("https://developers.google.com/terms/api-services-user-data-policy");
+  });
+
+  it("keeps provider details separate from the privacy policy", () => {
+    const privacy = renderToStaticMarkup(<Privacy />);
+    const providers = renderToStaticMarkup(<Subprocessors />);
+    expect(privacy).not.toContain("General Legal");
+    expect(privacy).not.toContain("Cloudflare D1");
+    expect(providers).toContain("Cloudflare");
+    expect(providers).toContain("Google");
+    expect(providers).toContain("email addresses");
+    expect(providers).toContain('href="/privacy"');
   });
 
   it("publishes every review category without template placeholders", () => {
