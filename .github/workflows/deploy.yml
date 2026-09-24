@@ -18,11 +18,10 @@ jobs:
     defaults:
       run:
         working-directory: apps/pizza
-    env:
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
       - uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2
         with:
           version: "10"
@@ -34,11 +33,19 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Build
         run: pnpm build
-      - name: Apply D1 migrations
-        run: pnpm exec wrangler d1 migrations apply DB --remote
+      - name: Apply Postgres migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: pnpm db migrate
       - name: Upload Worker version
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: pnpm exec wrangler versions upload --tag "${GITHUB_SHA}" --message "${GITHUB_SHA}"
       - name: Deploy Worker version
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: pnpm exec wrangler versions deploy --version-tag "${GITHUB_SHA}" --message "${GITHUB_SHA}" --yes
       - name: Smoke live deployment
         run: SCHEDULE_PIZZA_URL=https://schedule.pizza pnpm --workspace-root smoke
