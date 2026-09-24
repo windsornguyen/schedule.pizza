@@ -26,10 +26,10 @@ test("Product Hunt launch kit documents launch preflight gates", async () => {
 
   assert.match(markdown, /pnpm check/u);
   assert.match(markdown, /SCHEDULE_PIZZA_URL=https:\/\/schedule\.pizza pnpm smoke/u);
-  assert.match(markdown, /SCHEDULE_PIZZA_LIVE_SMOKE=1/u);
-  assert.match(markdown, /pnpm smoke-live/u);
-  assert.match(markdown, /Google Calendar write path/u);
-  assert.match(markdown, /temporary-code revocation/u);
+  assert.match(markdown, /SCHEDULE_PIZZA_SMOKE_WRITE=1/u);
+  assert.match(markdown, /pnpm smoke-authorized/u);
+  assert.match(markdown, /booking and cancellation/u);
+  assert.match(markdown, /SCHEDULE_PIZZA_SMOKE_SESSION_COOKIE/u);
   assert.match(markdown, /GitHub Actions intentionally does not create production calendar events/u);
 });
 

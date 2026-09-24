@@ -10,16 +10,17 @@ Run these before posting:
 ```sh
 pnpm check
 SCHEDULE_PIZZA_URL=https://schedule.pizza pnpm smoke
-SCHEDULE_PIZZA_LIVE_SMOKE=1 \
+SCHEDULE_PIZZA_SMOKE_WRITE=1 \
   SCHEDULE_PIZZA_URL=https://schedule.pizza \
-  SCHEDULE_PIZZA_LIVE_SMOKE_USER=nguyenxminhtri \
-  SCHEDULE_PIZZA_LIVE_SMOKE_BOOKER_EMAIL=nguyenxminhtri@gmail.com \
-  pnpm smoke-live
+  SCHEDULE_PIZZA_SMOKE_URL={booking_url} \
+  SCHEDULE_PIZZA_SMOKE_SESSION_COOKIE={signed_browser_cookie} \
+  SCHEDULE_PIZZA_SMOKE_BOOKER_EMAIL={booker_email} \
+  pnpm smoke-authorized
 ```
 
-`pnpm smoke` proves the deployed public surface. `pnpm smoke-live` proves the
-real Google Calendar write path, D1 booking row, Google event cleanup,
-cancelled-row audit, and temporary-code revocation. Run the live smoke manually;
+`pnpm smoke` proves the deployed public surface. The authorized write smoke checks
+booking and cancellation through the real host APIs without database credentials
+or synthetic copies of OAuth accounts. Run the write smoke manually;
 GitHub Actions intentionally does not create production calendar events.
 
 ## Listing
