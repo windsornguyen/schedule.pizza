@@ -9,7 +9,7 @@
     "deploy": "pnpm build && wrangler deploy",
     "check": "npm run bindings && npm run lint && npm run typecheck && npm test && npm run db -- check && npm run build",
     "bindings": "wrangler types --include-runtime false --env-file .dev.vars.example --check",
-    "db": "drizzle-kit",
+    "db": "node scripts/db.mjs",
     "lint": "oxlint --config ../../.oxlintrc.json --deny-warnings --report-unused-disable-directives --import-plugin --react-plugin --react-perf-plugin --jsx-a11y-plugin --promise-plugin --vitest-plugin .",
     "typecheck": "react-router typegen && tsgo --noEmit",
     "test": "vitest run --config vitest.config.ts"
@@ -43,6 +43,7 @@
     "@typescript/native-preview": "^7.0.0-dev",
     "babel-plugin-react-compiler": "^1.0.0",
     "drizzle-kit": "^0.31.10",
+    "jiti": "2.7.0",
     "oxlint": "^1.0.0",
     "tailwindcss": "^4.1.0",
     "typescript": "7.0.1-rc",

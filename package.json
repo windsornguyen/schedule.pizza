@@ -1,13 +1,14 @@
 {
   "name": "schedule.pizza",
   "private": true,
+  "packageManager": "pnpm@10.34.5",
   "scripts": {
-    "check": "node --test scripts/*.test.mjs && pnpm --filter @schedule.pizza/web check",
+    "check": "pnpm exec hollywood check --generated --source-root gha && node --test scripts/*.test.mjs && pnpm --filter @schedule.pizza/web check",
     "dev": "pnpm --filter @schedule.pizza/web dev",
     "db": "pnpm --filter @schedule.pizza/web db",
     "build": "pnpm --filter @schedule.pizza/web build",
     "deploy": "pnpm --filter @schedule.pizza/web deploy",
-    "lint": "pnpm --filter @schedule.pizza/web lint",
+    "lint": "pnpm db check && pnpm exec hollywood check --generated --source-root gha && pnpm --filter @schedule.pizza/web lint",
     "smoke": "node scripts/smoke.mjs",
     "smoke-authorized": "node scripts/smoke-authorized.mjs",
     "typecheck": "pnpm --filter @schedule.pizza/web typecheck",
