@@ -1,8 +1,8 @@
-import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 import { hostProfile } from "./host_profile";
 
-export const bookingCode = sqliteTable(
+export const bookingCode = pgTable(
   "booking_code",
   {
     id: text("id").primaryKey(),
@@ -14,11 +14,11 @@ export const bookingCode = sqliteTable(
     codeHash: text("codeHash").notNull(),
     codeHashVersion: integer("codeHashVersion").notNull().default(1),
     wordCount: integer("wordCount").notNull().default(3),
-    lastUsedAt: integer("lastUsedAt", { mode: "timestamp" }),
-    expiresAt: integer("expiresAt", { mode: "timestamp" }),
-    revokedAt: integer("revokedAt", { mode: "timestamp" }),
-    createdAt: integer("createdAt", { mode: "timestamp" }).notNull(),
-    updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull(),
+    lastUsedAt: timestamp("lastUsedAt", { withTimezone: true, precision: 3 }),
+    expiresAt: timestamp("expiresAt", { withTimezone: true, precision: 3 }),
+    revokedAt: timestamp("revokedAt", { withTimezone: true, precision: 3 }),
+    createdAt: timestamp("createdAt", { withTimezone: true, precision: 3 }).notNull(),
+    updatedAt: timestamp("updatedAt", { withTimezone: true, precision: 3 }).notNull(),
   },
   (table) => [
     index("booking_code_hostId_idx").on(table.hostId),

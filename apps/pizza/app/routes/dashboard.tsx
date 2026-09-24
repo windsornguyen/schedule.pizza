@@ -11,7 +11,7 @@ import {
   readDefaultUsernameFromEmail,
 } from "@/dashboard/profile_form";
 import { updateExistingProfile } from "@/dashboard/profile_update.server";
-import { createDb } from "@/db/client.server";
+import type { Database } from "@/db/client.server";
 import { listUpcomingConfirmedBookingsForHost } from "@/db/functions/bookings.server";
 import {
   findActiveBookingCodeForHost,
@@ -41,7 +41,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     throw redirect("/login");
   }
 
-  const db = createDb(env.DB);
+  const db = env.database;
   const profile = await findHostProfileByAuthUserId(db, session.user.id);
 
   if (profile === null) {
@@ -111,7 +111,7 @@ export async function action({ context, request }: Route.ActionArgs) {
     throw redirect("/login");
   }
 
-  const db = createDb(env.DB);
+  const db = env.database;
   const formData = await request.formData();
   const intent = formData.get("intent");
 
@@ -642,7 +642,7 @@ export function readDashboardActionErrorMessage(code: DashboardActionCode) {
 }
 
 async function cancelExistingBooking(
-  db: ReturnType<typeof createDb>,
+  db: Database,
   input: {
     readonly authUserId: string;
     readonly env: ServerEnv;
@@ -672,7 +672,7 @@ async function cancelExistingBooking(
 }
 
 async function createProfileAndCode(
-  db: ReturnType<typeof createDb>,
+  db: Database,
   input: {
     readonly authUserId: string;
     readonly email: unknown;
@@ -705,7 +705,7 @@ async function createProfileAndCode(
     return { code: "calendar_authorization_required" as const };
   }
 
-  const created = await createHostProfileWithBookingCode(input.env.DB, {
+  const created = await createHostProfileWithBookingCode(db, {
     id: crypto.randomUUID(),
     authUserId: input.authUserId,
     calendarAccountEmail: email,
@@ -782,7 +782,7 @@ function readRequiredFormString(formData: FormData, field: string) {
 }
 
 async function createCodeForExistingProfile(
-  db: ReturnType<typeof createDb>,
+  db: Database,
   input: {
     readonly authUserId: string;
     readonly env: ServerEnv;
@@ -801,7 +801,7 @@ async function createCodeForExistingProfile(
     return { code: "calendar_authorization_required" as const };
   }
 
-  const bookingCode = await rotateBookingCode(input.env.DB, {
+  const bookingCode = await rotateBookingCode(db, {
     hostId: profile.id,
     hostUsername: profile.username,
     wordCount: 3,

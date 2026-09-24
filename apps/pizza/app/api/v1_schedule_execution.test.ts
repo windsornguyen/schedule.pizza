@@ -1,3 +1,4 @@
+import type { Database } from "@/db/client.server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as bookingFunctions from "@/db/functions/bookings.server";
@@ -93,7 +94,7 @@ describe("executeScheduleRequest", () => {
     await expect(executeScheduleRequest(db, {
       body: parsed.body,
       env: {
-        DB: {} as D1Database,
+        database: {} as Database,
         GOOGLE_CLIENT_ID: "google_client_id",
         GOOGLE_CLIENT_SECRET: "google_client_secret",
       } as Parameters<typeof executeScheduleRequest>[1]["env"],

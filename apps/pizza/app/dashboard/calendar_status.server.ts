@@ -7,11 +7,11 @@
  */
 
 import { readGoogleCalendarAccess } from "@/calendar/google.server";
-import type { createDb } from "@/db/client.server";
+import type { Database } from "@/db/client.server";
 import type { ServerEnv } from "@/server-context";
 
 export async function readCalendarStatus(
-  db: ReturnType<typeof createDb>,
+  db: Database,
   env: Parameters<typeof readGoogleCalendarAccess>[1]["env"],
   authUserId: string,
   now = new Date(),

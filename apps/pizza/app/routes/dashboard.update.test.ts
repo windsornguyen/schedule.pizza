@@ -1,3 +1,4 @@
+import type { Database } from "@/db/client.server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { updateExistingProfile } from "@/dashboard/profile_update.server";
@@ -23,7 +24,7 @@ vi.mock("@/db/functions/host_profiles.server", () => ({
 
 const db = {} as Parameters<typeof updateExistingProfile>[0];
 const env = {
-  DB: {} as D1Database,
+  database: {} as Database,
   GOOGLE_CLIENT_ID: "google_client_id",
   GOOGLE_CLIENT_SECRET: "google_client_secret",
 } as Parameters<typeof updateExistingProfile>[1]["env"];
@@ -57,7 +58,7 @@ describe("updateExistingProfile", () => {
 
     expect(mocks.findHostProfileByUsername).not.toHaveBeenCalled();
     expect(mocks.readGoogleCalendarAccess).toHaveBeenCalledTimes(2);
-    expect(mocks.updateHostProfile).toHaveBeenCalledWith(env.DB, {
+    expect(mocks.updateHostProfile).toHaveBeenCalledWith(env.database, {
       authUserId: "auth_user_1",
       calendarAccountEmail: "alice@example.com",
       calendarId: "primary",
@@ -89,7 +90,7 @@ describe("updateExistingProfile", () => {
       username: "alice-new",
     });
 
-    expect(mocks.updateHostProfile).toHaveBeenCalledWith(env.DB, {
+    expect(mocks.updateHostProfile).toHaveBeenCalledWith(env.database, {
       authUserId: "auth_user_1",
       calendarAccountEmail: "alice@example.com",
       calendarId: "primary",

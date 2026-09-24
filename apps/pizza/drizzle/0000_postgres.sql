@@ -1,0 +1,183 @@
+CREATE TABLE "account" (
+	"id" text PRIMARY KEY NOT NULL,
+	"accountId" text NOT NULL,
+	"providerId" text NOT NULL,
+	"userId" text NOT NULL,
+	"accessToken" text,
+	"refreshToken" text,
+	"idToken" text,
+	"accessTokenExpiresAt" timestamp (3) with time zone,
+	"refreshTokenExpiresAt" timestamp (3) with time zone,
+	"scope" text,
+	"password" text,
+	"createdAt" timestamp (3) with time zone NOT NULL,
+	"updatedAt" timestamp (3) with time zone NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "booking" (
+	"id" text PRIMARY KEY NOT NULL,
+	"hostId" text NOT NULL,
+	"hostUsername" text NOT NULL,
+	"bookingCodeId" text,
+	"guestName" text NOT NULL,
+	"guestEmail" text,
+	"guestEmailNormalized" text,
+	"guestTimezone" text,
+	"slotStartAt" timestamp (3) with time zone NOT NULL,
+	"slotEndAt" timestamp (3) with time zone NOT NULL,
+	"status" text NOT NULL,
+	"source" text NOT NULL,
+	"calendarProvider" text,
+	"calendarEventId" text,
+	"cancelledAt" timestamp (3) with time zone,
+	"createdAt" timestamp (3) with time zone NOT NULL,
+	"updatedAt" timestamp (3) with time zone NOT NULL,
+	CONSTRAINT "booking_slot_order_check" CHECK ("booking"."slotEndAt" > "booking"."slotStartAt"),
+	CONSTRAINT "booking_status_check" CHECK ("booking"."status" in ('pending_calendar', 'confirmed', 'calendar_failed', 'cancelled')),
+	CONSTRAINT "booking_source_check" CHECK ("booking"."source" in ('web', 'api'))
+);
+--> statement-breakpoint
+CREATE TABLE "booking_code" (
+	"id" text PRIMARY KEY NOT NULL,
+	"hostId" text NOT NULL,
+	"hostUsername" text NOT NULL,
+	"label" text,
+	"codeHash" text NOT NULL,
+	"codeHashVersion" integer DEFAULT 1 NOT NULL,
+	"wordCount" integer DEFAULT 3 NOT NULL,
+	"lastUsedAt" timestamp (3) with time zone,
+	"expiresAt" timestamp (3) with time zone,
+	"revokedAt" timestamp (3) with time zone,
+	"createdAt" timestamp (3) with time zone NOT NULL,
+	"updatedAt" timestamp (3) with time zone NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "booking_code_attempt" (
+	"id" text PRIMARY KEY NOT NULL,
+	"username" text NOT NULL,
+	"hostId" text,
+	"ipHash" text NOT NULL,
+	"success" boolean NOT NULL,
+	"failureReason" text,
+	"createdAt" timestamp (3) with time zone NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "host_profile" (
+	"id" text PRIMARY KEY NOT NULL,
+	"authUserId" text NOT NULL,
+	"username" text NOT NULL,
+	"displayName" text NOT NULL,
+	"timezone" text NOT NULL,
+	"slotSizeMinutes" integer DEFAULT 30 NOT NULL,
+	"calendarProvider" text,
+	"calendarAccountEmail" text,
+	"calendarId" text,
+	"createdAt" timestamp (3) with time zone NOT NULL,
+	"updatedAt" timestamp (3) with time zone NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "invitation" (
+	"id" text PRIMARY KEY NOT NULL,
+	"organizationId" text NOT NULL,
+	"email" text NOT NULL,
+	"role" text,
+	"status" text DEFAULT 'pending' NOT NULL,
+	"expiresAt" timestamp (3) with time zone NOT NULL,
+	"createdAt" timestamp (3) with time zone NOT NULL,
+	"inviterId" text NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "member" (
+	"id" text PRIMARY KEY NOT NULL,
+	"organizationId" text NOT NULL,
+	"userId" text NOT NULL,
+	"role" text NOT NULL,
+	"createdAt" timestamp (3) with time zone NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "organization" (
+	"id" text PRIMARY KEY NOT NULL,
+	"name" text NOT NULL,
+	"slug" text NOT NULL,
+	"logo" text,
+	"metadata" text,
+	"createdAt" timestamp (3) with time zone NOT NULL,
+	CONSTRAINT "organization_slug_unique" UNIQUE("slug")
+);
+--> statement-breakpoint
+CREATE TABLE "rateLimit" (
+	"id" text PRIMARY KEY NOT NULL,
+	"key" text NOT NULL,
+	"count" integer NOT NULL,
+	"lastRequest" bigint NOT NULL,
+	CONSTRAINT "rateLimit_key_unique" UNIQUE("key")
+);
+--> statement-breakpoint
+CREATE TABLE "session" (
+	"id" text PRIMARY KEY NOT NULL,
+	"expiresAt" timestamp (3) with time zone NOT NULL,
+	"token" text NOT NULL,
+	"createdAt" timestamp (3) with time zone NOT NULL,
+	"updatedAt" timestamp (3) with time zone NOT NULL,
+	"ipAddress" text,
+	"userAgent" text,
+	"activeOrganizationId" text,
+	"impersonatedBy" text,
+	"userId" text NOT NULL,
+	CONSTRAINT "session_token_unique" UNIQUE("token")
+);
+--> statement-breakpoint
+CREATE TABLE "user" (
+	"id" text PRIMARY KEY NOT NULL,
+	"name" text NOT NULL,
+	"email" text NOT NULL,
+	"emailVerified" boolean NOT NULL,
+	"image" text,
+	"role" text,
+	"banned" boolean DEFAULT false,
+	"banReason" text,
+	"banExpires" timestamp (3) with time zone,
+	"createdAt" timestamp (3) with time zone NOT NULL,
+	"updatedAt" timestamp (3) with time zone NOT NULL,
+	CONSTRAINT "user_email_unique" UNIQUE("email")
+);
+--> statement-breakpoint
+CREATE TABLE "verification" (
+	"id" text PRIMARY KEY NOT NULL,
+	"identifier" text NOT NULL,
+	"value" text NOT NULL,
+	"expiresAt" timestamp (3) with time zone NOT NULL,
+	"createdAt" timestamp (3) with time zone NOT NULL,
+	"updatedAt" timestamp (3) with time zone NOT NULL
+);
+--> statement-breakpoint
+ALTER TABLE "account" ADD CONSTRAINT "account_userId_user_id_fk" FOREIGN KEY ("userId") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "booking" ADD CONSTRAINT "booking_hostId_host_profile_id_fk" FOREIGN KEY ("hostId") REFERENCES "public"."host_profile"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "booking" ADD CONSTRAINT "booking_bookingCodeId_booking_code_id_fk" FOREIGN KEY ("bookingCodeId") REFERENCES "public"."booking_code"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "booking_code" ADD CONSTRAINT "booking_code_hostId_host_profile_id_fk" FOREIGN KEY ("hostId") REFERENCES "public"."host_profile"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "booking_code_attempt" ADD CONSTRAINT "booking_code_attempt_hostId_host_profile_id_fk" FOREIGN KEY ("hostId") REFERENCES "public"."host_profile"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "host_profile" ADD CONSTRAINT "host_profile_authUserId_user_id_fk" FOREIGN KEY ("authUserId") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "invitation" ADD CONSTRAINT "invitation_organizationId_organization_id_fk" FOREIGN KEY ("organizationId") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "invitation" ADD CONSTRAINT "invitation_inviterId_user_id_fk" FOREIGN KEY ("inviterId") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "member" ADD CONSTRAINT "member_organizationId_organization_id_fk" FOREIGN KEY ("organizationId") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "member" ADD CONSTRAINT "member_userId_user_id_fk" FOREIGN KEY ("userId") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "session" ADD CONSTRAINT "session_userId_user_id_fk" FOREIGN KEY ("userId") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "account_userId_idx" ON "account" USING btree ("userId");--> statement-breakpoint
+CREATE INDEX "booking_hostId_idx" ON "booking" USING btree ("hostId");--> statement-breakpoint
+CREATE INDEX "booking_hostUsername_idx" ON "booking" USING btree ("hostUsername");--> statement-breakpoint
+CREATE INDEX "booking_bookingCodeId_idx" ON "booking" USING btree ("bookingCodeId");--> statement-breakpoint
+CREATE UNIQUE INDEX "booking_confirmed_slot_unique" ON "booking" USING btree ("hostId","slotStartAt","slotEndAt") WHERE "booking"."status" in ('pending_calendar', 'confirmed');--> statement-breakpoint
+CREATE INDEX "booking_code_hostId_idx" ON "booking_code" USING btree ("hostId");--> statement-breakpoint
+CREATE INDEX "booking_code_hostUsername_idx" ON "booking_code" USING btree ("hostUsername");--> statement-breakpoint
+CREATE UNIQUE INDEX "booking_code_hostId_codeHash_unique" ON "booking_code" USING btree ("hostId","codeHash");--> statement-breakpoint
+CREATE INDEX "booking_code_attempt_username_createdAt_idx" ON "booking_code_attempt" USING btree ("username","createdAt");--> statement-breakpoint
+CREATE INDEX "booking_code_attempt_ipHash_createdAt_idx" ON "booking_code_attempt" USING btree ("ipHash","createdAt");--> statement-breakpoint
+CREATE INDEX "booking_code_attempt_hostId_createdAt_idx" ON "booking_code_attempt" USING btree ("hostId","createdAt");--> statement-breakpoint
+CREATE UNIQUE INDEX "host_profile_authUserId_unique" ON "host_profile" USING btree ("authUserId");--> statement-breakpoint
+CREATE UNIQUE INDEX "host_profile_username_unique" ON "host_profile" USING btree ("username");--> statement-breakpoint
+CREATE INDEX "invitation_organizationId_idx" ON "invitation" USING btree ("organizationId");--> statement-breakpoint
+CREATE INDEX "invitation_email_idx" ON "invitation" USING btree ("email");--> statement-breakpoint
+CREATE INDEX "member_organizationId_idx" ON "member" USING btree ("organizationId");--> statement-breakpoint
+CREATE INDEX "member_userId_idx" ON "member" USING btree ("userId");--> statement-breakpoint
+CREATE INDEX "session_userId_idx" ON "session" USING btree ("userId");--> statement-breakpoint
+CREATE INDEX "verification_identifier_idx" ON "verification" USING btree ("identifier");

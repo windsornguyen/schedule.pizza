@@ -1,26 +1,19 @@
 {
   "version": "7",
-  "dialect": "sqlite",
+  "dialect": "postgresql",
   "entries": [
     {
       "idx": 0,
-      "version": "6",
-      "when": 1782270906300,
-      "tag": "0000_volatile_may_parker",
+      "version": "7",
+      "when": 1790210737628,
+      "tag": "0000_postgres",
       "breakpoints": true
     },
     {
       "idx": 1,
-      "version": "6",
-      "when": 1782463433419,
-      "tag": "0001_flowery_edwin_jarvis",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1782510890602,
-      "tag": "0002_green_eternity",
+      "version": "7",
+      "when": 1790211441468,
+      "tag": "0001_booking_code_gate",
       "breakpoints": true
     }
   ]

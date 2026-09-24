@@ -2,7 +2,7 @@
  * Group booking writes one meeting across several schedule.pizza hosts.
  *
  * The function rechecks exact group availability immediately before writing,
- * reserves one local booking row per host through one D1 batch, creates one
+ * reserves one local booking row per host in one Postgres transaction, creates one
  * Google organizer event with all attendees, then confirms every local row.
  */
 
@@ -125,7 +125,7 @@ export async function bookGroupSlot(
   }
 
   const pendingBookingIds = await createPendingCalendarBookings(
-    input.env.DB,
+    db,
     exactAvailability.authorizedParticipants.map(
       (participant): PendingCalendarBookingInsert => ({
         id: crypto.randomUUID(),
@@ -151,7 +151,7 @@ export async function bookGroupSlot(
   const organizer = exactAvailability.authorizedParticipants[0];
 
   if (organizer === undefined) {
-    return failPendingGroupBooking(input.env.DB, pendingBookingIds, input.now, "slot_unavailable");
+    return failPendingGroupBooking(db, pendingBookingIds, input.now, "slot_unavailable");
   }
 
   const googleAccess = await readGoogleCalendarAccess(db, {
@@ -162,7 +162,7 @@ export async function bookGroupSlot(
   });
 
   if (googleAccess.code !== "authorized") {
-    return failPendingGroupBooking(input.env.DB, pendingBookingIds, input.now, googleAccess.code);
+    return failPendingGroupBooking(db, pendingBookingIds, input.now, googleAccess.code);
   }
 
   const calendarId = readGoogleCalendarId(organizer.calendarId);
@@ -178,10 +178,10 @@ export async function bookGroupSlot(
   });
 
   if (calendarEvent.code !== "created") {
-    return failPendingGroupBooking(input.env.DB, pendingBookingIds, input.now, calendarEvent.code);
+    return failPendingGroupBooking(db, pendingBookingIds, input.now, calendarEvent.code);
   }
 
-  const confirmedBookingIds = await confirmCalendarBookings(input.env.DB, {
+  const confirmedBookingIds = await confirmCalendarBookings(db, {
     bookingIds: pendingBookingIds,
     calendarEventId: calendarEvent.eventId,
     confirmedAt: input.now,
@@ -189,7 +189,7 @@ export async function bookGroupSlot(
   });
 
   if (confirmedBookingIds === null) {
-    const rolledBack = await rollBackConfirmedGroupGoogleEvent(input.env.DB, {
+    const rolledBack = await rollBackConfirmedGroupGoogleEvent(db, {
       accessToken: googleAccess.accessToken,
       calendarId,
       eventId: calendarEvent.eventId,
@@ -254,7 +254,7 @@ function getBookingRateLimitWindowStart(now: Date) {
 }
 
 async function failPendingGroupBooking(
-  database: D1Database,
+  database: Database,
   bookingIds: readonly string[],
   failedAt: Date,
   code: Exclude<BookGroupSlotErrorCode, "booking_confirmation_failed">,
@@ -269,7 +269,7 @@ async function failPendingGroupBooking(
 }
 
 async function rollBackConfirmedGroupGoogleEvent(
-  database: D1Database,
+  database: Database,
   input: {
     readonly accessToken: string;
     readonly calendarId: string;

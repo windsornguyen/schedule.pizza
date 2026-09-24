@@ -14,8 +14,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("./booking_code_attempts.server", async (importOriginal) => {
-  const original =
-    await importOriginal<typeof bookingCodeAttemptsModule>();
+  const original = await importOriginal<typeof bookingCodeAttemptsModule>();
 
   return {
     ...original,
@@ -33,13 +32,22 @@ vi.mock("./booking_codes.server", () => ({
 }));
 
 const db = {} as Parameters<typeof authorizeBookingCode>[0];
+Object.assign(db, {
+  insert: () => ({ values: () => ({ onConflictDoNothing: async () => {} }) }),
+  select: () => ({ from: () => ({ where: () => ({ for: async () => [] }) }) }),
+  transaction: async (
+    run: (tx: Parameters<typeof authorizeBookingCode>[0]) => Promise<unknown>,
+  ) => run(db),
+});
 const now = new Date("2026-06-26T16:00:00.000Z");
 
 describe("authorizeBookingCode", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.countRecentFailedBookingCodeAttemptsByIp.mockResolvedValue(0);
-    mocks.countRecentSuccessfulBookingCodeAttemptsByIpAndHost.mockResolvedValue(0);
+    mocks.countRecentSuccessfulBookingCodeAttemptsByIpAndHost.mockResolvedValue(
+      0,
+    );
     mocks.findActiveBookingCode.mockResolvedValue({
       code: { id: "code_1" },
       host: { id: "host_1" },
@@ -51,12 +59,14 @@ describe("authorizeBookingCode", () => {
   it("rate limits failed attempts before hashing or lookup", async () => {
     mocks.countRecentFailedBookingCodeAttemptsByIp.mockResolvedValueOnce(5);
 
-    await expect(authorizeBookingCode(db, {
-      bookingCode: "moon-tiger-seven",
-      ipHash: "ip_hash",
-      now,
-      username: "alice",
-    })).resolves.toEqual({ code: "booking_code_rate_limited" });
+    await expect(
+      authorizeBookingCode(db, {
+        bookingCode: "moon-tiger-seven",
+        ipHash: "ip_hash",
+        now,
+        username: "alice",
+      }),
+    ).resolves.toEqual({ code: "booking_code_rate_limited" });
     expect(mocks.hashNormalizedBookingCode).not.toHaveBeenCalled();
     expect(mocks.findActiveBookingCode).not.toHaveBeenCalled();
     expect(mocks.recordBookingCodeAttempt).toHaveBeenCalledWith(db, {
@@ -73,12 +83,14 @@ describe("authorizeBookingCode", () => {
   it("returns the same invalid result for wrong codes and missing users", async () => {
     mocks.findActiveBookingCode.mockResolvedValueOnce(null);
 
-    await expect(authorizeBookingCode(db, {
-      bookingCode: "moon-tiger-seven",
-      ipHash: "ip_hash",
-      now,
-      username: "unknown",
-    })).resolves.toEqual({ code: "booking_code_invalid" });
+    await expect(
+      authorizeBookingCode(db, {
+        bookingCode: "moon-tiger-seven",
+        ipHash: "ip_hash",
+        now,
+        username: "unknown",
+      }),
+    ).resolves.toEqual({ code: "booking_code_invalid" });
     expect(mocks.findActiveBookingCode).toHaveBeenCalledWith(db, {
       codeHash: "code_hash",
       now,
@@ -99,14 +111,18 @@ describe("authorizeBookingCode", () => {
   });
 
   it("rate limits successful code reads before recording another success", async () => {
-    mocks.countRecentSuccessfulBookingCodeAttemptsByIpAndHost.mockResolvedValueOnce(120);
+    mocks.countRecentSuccessfulBookingCodeAttemptsByIpAndHost.mockResolvedValueOnce(
+      120,
+    );
 
-    await expect(authorizeBookingCode(db, {
-      bookingCode: "moon-tiger-seven",
-      ipHash: "ip_hash",
-      now,
-      username: "alice",
-    })).resolves.toEqual({ code: "booking_code_rate_limited" });
+    await expect(
+      authorizeBookingCode(db, {
+        bookingCode: "moon-tiger-seven",
+        ipHash: "ip_hash",
+        now,
+        username: "alice",
+      }),
+    ).resolves.toEqual({ code: "booking_code_rate_limited" });
     expect(mocks.recordBookingCodeAttempt).toHaveBeenCalledWith(db, {
       id: expect.any(String) as string,
       username: "alice",

@@ -1,50 +1,12 @@
-import { eq } from "drizzle-orm";
+/** Profile creation and renaming commit together with their booking-code changes. */
+import { and, eq } from "drizzle-orm";
+import { DatabaseError } from "pg";
 
 import type { Database } from "@/db/client.server";
 import { hostProfile } from "@/db/schema";
-import {
-  generateBookingCode,
-  hashNormalizedBookingCode,
-} from "./booking_codes.server";
+import { rotateBookingCode } from "./booking_codes.server";
 
 export { normalizeUsername } from "./host_profile_values";
-
-type D1ProfileUpdateDatabase = Pick<D1Database, "batch" | "prepare">;
-type D1ProfileCreateDatabase = Pick<D1Database, "batch" | "prepare">;
-
-type HostProfileCreateResult =
-  | { readonly code: "profile_conflict" }
-  | {
-      readonly bookingCode: string;
-      readonly bookingCodeHash: string;
-      readonly code: "created_profile";
-      readonly profile: {
-        readonly id: string;
-        readonly username: string;
-      };
-    };
-
-type HostProfileUpdateResult =
-  | { readonly code: "profile_conflict" }
-  | { readonly code: "profile_missing" }
-  | {
-      readonly bookingCode: string | null;
-      readonly code: "updated_profile";
-    };
-
-type HostProfileUpdateInput = {
-  readonly authUserId: string;
-  readonly calendarAccountEmail: string;
-  readonly calendarId: string;
-  readonly calendarProvider: "google";
-  readonly currentHostId: string;
-  readonly currentUsername: string;
-  readonly displayName: string;
-  readonly now: Date;
-  readonly slotSizeMinutes: number;
-  readonly timezone: string;
-  readonly username: string;
-};
 
 type HostProfileCreateInput = {
   readonly authUserId: string;
@@ -59,248 +21,137 @@ type HostProfileCreateInput = {
   readonly username: string;
 };
 
+type HostProfileUpdateInput = Omit<HostProfileCreateInput, "id"> & {
+  readonly currentHostId: string;
+  readonly currentUsername: string;
+};
+
+type HostProfileCreateResult =
+  | { readonly code: "profile_conflict" }
+  | {
+      readonly code: "created_profile";
+      readonly bookingCode: string;
+      readonly bookingCodeHash: string;
+      readonly profile: { readonly id: string; readonly username: string };
+    };
+
+type HostProfileUpdateResult =
+  | { readonly code: "profile_conflict" }
+  | { readonly code: "profile_missing" }
+  | { readonly code: "updated_profile"; readonly bookingCode: string | null };
+
 export async function findHostProfileByUsername(
   db: Database,
-  username: string
+  username: string,
 ) {
   const rows = await db
     .select()
     .from(hostProfile)
     .where(eq(hostProfile.username, username))
     .limit(1);
-
   return rows[0] ?? null;
 }
 
 export async function findHostProfileByAuthUserId(
   db: Database,
-  authUserId: string
+  authUserId: string,
 ) {
   const rows = await db
     .select()
     .from(hostProfile)
     .where(eq(hostProfile.authUserId, authUserId))
     .limit(1);
-
   return rows[0] ?? null;
 }
 
 export async function createHostProfileWithBookingCode(
-  database: D1ProfileCreateDatabase,
+  database: Database,
   input: HostProfileCreateInput,
 ): Promise<HostProfileCreateResult> {
-  const bookingCode = generateBookingCode(3);
-  const bookingCodeHash = await hashNormalizedBookingCode(bookingCode);
-  const results = await runProfileBatch(database, [
-    database
-      .prepare(
-        `insert into host_profile (
-          id, authUserId, username, displayName, timezone, slotSizeMinutes,
-          calendarProvider, calendarAccountEmail, calendarId, createdAt, updatedAt
-        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .bind(
-        input.id,
-        input.authUserId,
-        input.username,
-        input.displayName,
-        input.timezone,
-        input.slotSizeMinutes,
-        input.calendarProvider,
-        input.calendarAccountEmail,
-        input.calendarId,
-        toUnixSeconds(input.now),
-        toUnixSeconds(input.now),
-      ),
-    database
-      .prepare(
-        `insert into booking_code (
-          id, hostId, hostUsername, label, codeHash, codeHashVersion, wordCount,
-          lastUsedAt, expiresAt, revokedAt, createdAt, updatedAt
-        ) values (?, ?, ?, null, ?, ?, ?, null, null, null, ?, ?)`,
-      )
-      .bind(
-        crypto.randomUUID(),
-        input.id,
-        input.username,
-        bookingCodeHash,
-        1,
-        3,
-        toUnixSeconds(input.now),
-        toUnixSeconds(input.now),
-      ),
-  ]);
-
-  if (results === "profile_conflict") {
-    return { code: "profile_conflict" };
-  }
-
-  const profileInsert = results[0];
-  const codeInsert = results[1];
-
-  if (
-    profileInsert === undefined ||
-    codeInsert === undefined ||
-    !hasSingleChangedRow(profileInsert) ||
-    !hasSingleChangedRow(codeInsert)
-  ) {
-    return { code: "profile_conflict" };
-  }
-
-  return {
-    code: "created_profile",
-    bookingCode,
-    bookingCodeHash,
-    profile: { id: input.id, username: input.username },
-  };
-}
-
-export async function updateHostProfile(
-  database: D1ProfileUpdateDatabase,
-  input: HostProfileUpdateInput,
-): Promise<HostProfileUpdateResult> {
-  if (input.currentUsername === input.username) {
-    const results = await runProfileBatch(database, [profileUpdateStatement(database, input)]);
-
-    if (results === "profile_conflict") {
-      return { code: "profile_conflict" };
-    }
-
-    const profileUpdate = results[0];
-
-    return profileUpdate !== undefined && hasSingleChangedRow(profileUpdate)
-      ? { code: "updated_profile", bookingCode: null }
-      : { code: "profile_missing" };
-  }
-
-  const bookingCode = generateBookingCode(3);
-  const codeHash = await hashNormalizedBookingCode(bookingCode);
-  const results = await runProfileBatch(database, [
-    profileUpdateStatement(database, input),
-    database
-      .prepare(
-        `update booking_code
-          set revokedAt = ?, updatedAt = ?
-          where hostId = ?
-            and exists (
-              select 1 from host_profile
-              where id = ? and authUserId = ? and username = ?
-            )
-            and revokedAt is null
-            and (expiresAt is null or expiresAt > ?)`,
-      )
-      .bind(
-        toUnixSeconds(input.now),
-        toUnixSeconds(input.now),
-        input.currentHostId,
-        input.currentHostId,
-        input.authUserId,
-        input.username,
-        toUnixSeconds(input.now),
-      ),
-    database
-      .prepare(
-        `insert into booking_code (
-          id, hostId, hostUsername, label, codeHash, codeHashVersion, wordCount,
-          lastUsedAt, expiresAt, revokedAt, createdAt, updatedAt
-        )
-        select ?, ?, ?, null, ?, ?, ?, null, null, null, ?, ?
-        where exists (
-          select 1 from host_profile
-          where id = ? and authUserId = ? and username = ?
-        )`,
-      )
-      .bind(
-        crypto.randomUUID(),
-        input.currentHostId,
-        input.username,
-        codeHash,
-        1,
-        3,
-        toUnixSeconds(input.now),
-        toUnixSeconds(input.now),
-        input.currentHostId,
-        input.authUserId,
-        input.username,
-      ),
-  ]);
-
-  if (results === "profile_conflict") {
-    return { code: "profile_conflict" };
-  }
-
-  const profileUpdate = results[0];
-  const codeInsert = results[2];
-
-  if (
-    profileUpdate === undefined ||
-    codeInsert === undefined ||
-    !hasSingleChangedRow(profileUpdate) ||
-    !hasSingleChangedRow(codeInsert)
-  ) {
-    return { code: "profile_missing" };
-  }
-
-  return { code: "updated_profile", bookingCode };
-}
-
-function profileUpdateStatement(
-  database: D1ProfileUpdateDatabase,
-  input: HostProfileUpdateInput,
-) {
-  return database
-    .prepare(
-      `update host_profile
-        set username = ?,
-            displayName = ?,
-            timezone = ?,
-            slotSizeMinutes = ?,
-            calendarProvider = ?,
-            calendarAccountEmail = ?,
-            calendarId = ?,
-            updatedAt = ?
-        where authUserId = ?
-          and id = ?`,
-    )
-    .bind(
-      input.username,
-      input.displayName,
-      input.timezone,
-      input.slotSizeMinutes,
-      input.calendarProvider,
-      input.calendarAccountEmail,
-      input.calendarId,
-      toUnixSeconds(input.now),
-      input.authUserId,
-      input.currentHostId,
-    );
-}
-
-function hasSingleChangedRow(result: D1Result) {
-  return result.meta.changes === 1;
-}
-
-async function runProfileBatch(
-  database: Pick<D1Database, "batch">,
-  statements: readonly D1PreparedStatement[],
-) {
   try {
-    return await database.batch([...statements]);
+    return await database.transaction(async (tx) => {
+      const { now, ...profile } = input;
+      await tx
+        .insert(hostProfile)
+        .values({ ...profile, createdAt: now, updatedAt: now });
+      const code = await rotateBookingCode(tx, {
+        hostId: input.id,
+        hostUsername: input.username,
+        wordCount: 3,
+        label: null,
+        now,
+      });
+      return {
+        code: "created_profile",
+        bookingCode: code.code,
+        bookingCodeHash: code.codeHash,
+        profile: { id: input.id, username: input.username },
+      };
+    });
   } catch (error: unknown) {
-    if (isHostProfileConflict(error)) {
-      return "profile_conflict";
-    }
-
+    if (isHostProfileConflict(error)) return { code: "profile_conflict" };
     throw error;
   }
 }
 
-function isHostProfileConflict(error: unknown) {
-  return error instanceof Error &&
-    error.message.includes("UNIQUE constraint failed") &&
-    error.message.includes("host_profile");
+export async function updateHostProfile(
+  database: Database,
+  input: HostProfileUpdateInput,
+): Promise<HostProfileUpdateResult> {
+  try {
+    return await database.transaction(async (tx) => {
+      const owner = and(
+        eq(hostProfile.id, input.currentHostId),
+        eq(hostProfile.authUserId, input.authUserId),
+      );
+      const rows = await tx
+        .select({ username: hostProfile.username })
+        .from(hostProfile)
+        .where(owner)
+        .for("update");
+      const current = rows[0];
+      if (current === undefined) return { code: "profile_missing" };
+      await tx
+        .update(hostProfile)
+        .set({
+          username: input.username,
+          displayName: input.displayName,
+          timezone: input.timezone,
+          slotSizeMinutes: input.slotSizeMinutes,
+          calendarProvider: input.calendarProvider,
+          calendarAccountEmail: input.calendarAccountEmail,
+          calendarId: input.calendarId,
+          updatedAt: input.now,
+        })
+        .where(owner);
+      if (current.username === input.username)
+        return { code: "updated_profile", bookingCode: null };
+      const code = await rotateBookingCode(tx, {
+        hostId: input.currentHostId,
+        hostUsername: input.username,
+        wordCount: 3,
+        label: null,
+        now: input.now,
+      });
+      return { code: "updated_profile", bookingCode: code.code };
+    });
+  } catch (error: unknown) {
+    if (isHostProfileConflict(error)) return { code: "profile_conflict" };
+    throw error;
+  }
 }
 
-function toUnixSeconds(date: Date) {
-  return Math.floor(date.getTime() / 1_000);
+function isHostProfileConflict(error: unknown): boolean {
+  if (error instanceof DatabaseError) {
+    return (
+      error.code === "23505" &&
+      (error.constraint === "host_profile_authUserId_unique" ||
+        error.constraint === "host_profile_username_unique")
+    );
+  }
+  return (
+    error instanceof Error &&
+    error.cause !== undefined &&
+    isHostProfileConflict(error.cause)
+  );
 }

@@ -10,7 +10,6 @@ import {
 } from "@/booking/book_group_slot.server";
 import { parseRequiredGuestEmail } from "@/booking/guest_email";
 import { parseOptionalGuestTimezone } from "@/booking/guest_timezone";
-import { createDb } from "@/db/client.server";
 import {
   parseGroupScheduleForm,
 } from "@/group/group_schedule_form.server";
@@ -94,7 +93,7 @@ export async function action({
   }
 
   const env = context.get(serverContext).env;
-  const db = createDb(env.DB);
+  const db = env.database;
 
   if (isBookingIntent) {
     const bookingFields = parseGroupBookingFields(formData);

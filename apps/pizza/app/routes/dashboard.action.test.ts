@@ -1,17 +1,15 @@
+import type { Database } from "@/db/client.server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as AuthServerModule from "@/auth.server";
-import type * as DbClientModule from "@/db/client.server";
 import type * as HostProfilesModule from "@/db/functions/host_profiles.server";
 import type * as CalendarStatusModule from "@/dashboard/calendar_status.server";
 import { serverContext } from "@/server-context";
 import { action } from "./dashboard";
 
 type AsyncMock = (...args: unknown[]) => Promise<unknown>;
-type SyncMock = (...args: unknown[]) => unknown;
 
 const mocks = vi.hoisted(() => ({
-  createDb: vi.fn<SyncMock>(),
   createHostProfileWithBookingCode: vi.fn<AsyncMock>(),
   findHostProfileByAuthUserId: vi.fn<AsyncMock>(),
   readAuthSession: vi.fn<AsyncMock>(),
@@ -36,15 +34,6 @@ vi.mock("@/dashboard/calendar_status.server", async (importOriginal) => {
   };
 });
 
-vi.mock("@/db/client.server", async (importOriginal) => {
-  const actual = await importOriginal<typeof DbClientModule>();
-
-  return {
-    ...actual,
-    createDb: mocks.createDb,
-  };
-});
-
 vi.mock("@/db/functions/host_profiles.server", async (importOriginal) => {
   const actual = await importOriginal<typeof HostProfilesModule>();
 
@@ -55,11 +44,11 @@ vi.mock("@/db/functions/host_profiles.server", async (importOriginal) => {
   };
 });
 
-const db = {};
+const db = {} as Database;
 const env = {
   BETTER_AUTH_SECRET: "better_auth_secret",
   BETTER_AUTH_URL: "https://schedule.pizza",
-  DB: {} as D1Database,
+  database: db,
   GOOGLE_CLIENT_ID: "google_client_id",
   GOOGLE_CLIENT_SECRET: "google_client_secret",
 };
@@ -67,7 +56,7 @@ const env = {
 describe("dashboard action origin checks", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.createDb.mockReturnValue(db);
+
     mocks.createHostProfileWithBookingCode.mockResolvedValue({
       code: "created_profile",
       bookingCode: "moon-tiger-seven",

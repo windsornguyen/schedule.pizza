@@ -1,3 +1,4 @@
+import type { Database } from "@/db/client.server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as AuthServerModule from "@/auth.server";
@@ -21,14 +22,12 @@ import {
 } from "./v1";
 
 type AsyncMock = (...args: unknown[]) => Promise<unknown>;
-type SyncMock = (...args: unknown[]) => unknown;
 
 const mocks = vi.hoisted(() => ({
   authorizeBookingCode: vi.fn<AsyncMock>(),
   bookGroupSlot: vi.fn<AsyncMock>(),
   bookHostSlot: vi.fn<AsyncMock>(),
   cancelHostBooking: vi.fn<AsyncMock>(),
-  createDb: vi.fn<SyncMock>(),
   createHostProfileWithBookingCode: vi.fn<AsyncMock>(),
   findActiveBookingCodeForHost: vi.fn<AsyncMock>(),
   findHostProfileByAuthUserId: vi.fn<AsyncMock>(),
@@ -88,10 +87,6 @@ vi.mock("@/booking/book_slot.server", async (importOriginal) => {
   };
 });
 
-vi.mock("@/db/client.server", () => ({
-  createDb: mocks.createDb,
-}));
-
 vi.mock("@/db/functions/booking_code_authorizations.server", async (importOriginal) => {
   const actual = await importOriginal<typeof BookingCodeAuthorizationsModule>();
 
@@ -141,18 +136,18 @@ vi.mock("@/scheduling/host_availability.server", async (importOriginal) => {
   };
 });
 
-const db = {};
+const db = {} as Database;
 const env = {
   BETTER_AUTH_SECRET: "better_auth_secret",
   BETTER_AUTH_URL: "https://schedule.pizza",
-  DB: {} as D1Database,
+  database: db,
   GOOGLE_CLIENT_ID: "google_client_id",
   GOOGLE_CLIENT_SECRET: "google_client_secret",
 };
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.createDb.mockReturnValue(db);
+
   mocks.authorizeBookingCode.mockResolvedValue({
     code: "authorized",
     access: {
@@ -773,10 +768,10 @@ describe("account bookings API", () => {
 });
 
 describe("v1 health API", () => {
-  it("reports healthy runtime configuration and D1 schema access", async () => {
-    mocks.createDb.mockReturnValueOnce(healthyDb());
-
-    const response = await v1.request("https://schedule.pizza/health", {}, env);
+  it("reports healthy runtime configuration and Postgres schema access", async () => {
+    const response = await v1.request("https://schedule.pizza/health", {}, {
+      ...env, database: Object.assign({} as Database, healthyDb()),
+    });
 
     await expect(response.json()).resolves.toEqual({
       ok: true,
@@ -793,10 +788,9 @@ describe("v1 health API", () => {
   });
 
   it("normalizes the Google redirect URI when auth URL has a trailing slash", async () => {
-    mocks.createDb.mockReturnValueOnce(healthyDb());
-
     const response = await v1.request("https://schedule.pizza/health", {}, {
       ...env,
+      database: Object.assign({} as Database, healthyDb()),
       BETTER_AUTH_URL: "https://schedule.pizza/",
     });
 
@@ -809,7 +803,7 @@ describe("v1 health API", () => {
     expect(response.status).toBe(200);
   });
 
-  it("fails closed before touching D1 when runtime secrets are missing", async () => {
+  it("fails closed before querying Postgres when runtime secrets are missing", async () => {
     const response = await v1.request("https://schedule.pizza/health", {}, {
       ...env,
       BETTER_AUTH_SECRET: "",
@@ -823,7 +817,7 @@ describe("v1 health API", () => {
       },
     });
     expect(response.status).toBe(503);
-    expect(mocks.createDb).not.toHaveBeenCalled();
+
   });
 
   it("reports invalid auth URLs before claiming Google redirect health", async () => {
@@ -840,7 +834,7 @@ describe("v1 health API", () => {
       },
     });
     expect(response.status).toBe(503);
-    expect(mocks.createDb).not.toHaveBeenCalled();
+
   });
 
   it("rejects non-http auth URLs before claiming Google redirect health", async () => {
@@ -857,7 +851,7 @@ describe("v1 health API", () => {
       },
     });
     expect(response.status).toBe(503);
-    expect(mocks.createDb).not.toHaveBeenCalled();
+
   });
 
   it.each([
@@ -877,7 +871,7 @@ describe("v1 health API", () => {
       },
     });
     expect(response.status).toBe(503);
-    expect(mocks.createDb).not.toHaveBeenCalled();
+
   });
 });
 
@@ -961,7 +955,7 @@ describe("account profile API", () => {
         bookingUrl: "https://schedule.pizza/alice?code=moon-tiger-seven",
       },
     });
-    expect(mocks.createHostProfileWithBookingCode).toHaveBeenCalledWith(env.DB, {
+    expect(mocks.createHostProfileWithBookingCode).toHaveBeenCalledWith(env.database, {
       authUserId: "auth_user_1",
       calendarAccountEmail: "alice@example.com",
       calendarId: "primary",
@@ -1056,7 +1050,7 @@ describe("account profile API", () => {
     }, env);
 
     expect(response.status).toBe(200);
-    expect(mocks.rotateBookingCode).toHaveBeenCalledWith(env.DB, {
+    expect(mocks.rotateBookingCode).toHaveBeenCalledWith(env.database, {
       hostId: "host_1",
       hostUsername: "alice",
       wordCount: 3,
@@ -1144,7 +1138,7 @@ describe("account profile API", () => {
         bookingUrl: "https://schedule.pizza/alice-new?code=sun-river-ten",
       },
     });
-    expect(mocks.updateHostProfile).toHaveBeenCalledWith(env.DB, {
+    expect(mocks.updateHostProfile).toHaveBeenCalledWith(env.database, {
       authUserId: "auth_user_1",
       calendarAccountEmail: "alice@example.com",
       calendarId: "primary",

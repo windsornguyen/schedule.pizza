@@ -1,14 +1,13 @@
+import type { Database } from "@/db/client.server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { serverContext } from "@/server-context";
 import { action } from "./group";
 
 type AsyncMock = (...args: unknown[]) => Promise<unknown>;
-type SyncMock = (...args: unknown[]) => unknown;
 
 const mocks = vi.hoisted(() => ({
   bookGroupSlot: vi.fn<AsyncMock>(),
-  createDb: vi.fn<SyncMock>(),
   readCloudflareClientIpHash: vi.fn<AsyncMock>(),
 }));
 
@@ -16,17 +15,13 @@ vi.mock("@/booking/book_group_slot.server", () => ({
   bookGroupSlot: mocks.bookGroupSlot,
 }));
 
-vi.mock("@/db/client.server", () => ({
-  createDb: mocks.createDb,
-}));
-
 vi.mock("@/http/client_ip.server", () => ({
   readCloudflareClientIpHash: mocks.readCloudflareClientIpHash,
 }));
 
-const db = {};
+const db = {} as Database;
 const env = {
-  DB: {} as D1Database,
+  database: db,
   GOOGLE_CLIENT_ID: "google_client_id",
   GOOGLE_CLIENT_SECRET: "google_client_secret",
 };
@@ -34,7 +29,7 @@ const env = {
 describe("group scheduling action", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.createDb.mockReturnValue(db);
+
     mocks.readCloudflareClientIpHash.mockResolvedValue({
       code: "ok",
       ipHash: "ip_hash",

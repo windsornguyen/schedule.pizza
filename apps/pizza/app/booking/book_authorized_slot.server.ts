@@ -1,5 +1,4 @@
 import { bookHostSlot, type BookSlotResult } from "@/booking/book_slot.server";
-import { createDb } from "@/db/client.server";
 import { authorizeBookingCode } from "@/db/functions/booking_code_authorizations.server";
 import { readCloudflareClientIpHash } from "@/http/client_ip.server";
 import { serializeSlot } from "@/scheduling/slots.server";
@@ -34,7 +33,7 @@ export async function bookAuthorizedSlot(input: {
     throw new Response("client ip unavailable", { status: 500 });
   }
 
-  const db = createDb(input.env.DB);
+  const db = input.env.database;
   const now = new Date();
   const authorization = await authorizeBookingCode(db, {
     bookingCode: input.bookingCode,

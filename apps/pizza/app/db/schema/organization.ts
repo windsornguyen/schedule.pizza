@@ -1,10 +1,10 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
-export const organization = sqliteTable("organization", {
+export const organization = pgTable("organization", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
   logo: text("logo"),
   metadata: text("metadata"),
-  createdAt: integer("createdAt", { mode: "timestamp" }).notNull(),
+  createdAt: timestamp("createdAt", { withTimezone: true, precision: 3 }).notNull(),
 });

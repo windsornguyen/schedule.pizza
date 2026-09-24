@@ -6,7 +6,7 @@
  * still has Google Calendar access before changing host availability state.
  */
 
-import type { createDb } from "@/db/client.server";
+import type { Database } from "@/db/client.server";
 import {
   findHostProfileByAuthUserId,
   updateHostProfile,
@@ -16,7 +16,7 @@ import { readCalendarStatus } from "./calendar_status.server";
 import { parseProfileForm } from "./profile_form";
 
 export async function updateExistingProfile(
-  db: ReturnType<typeof createDb>,
+  db: Database,
   input: {
     readonly authUserId: string;
     readonly email: unknown;
@@ -49,7 +49,7 @@ export async function updateExistingProfile(
     return { code: "calendar_authorization_required" as const };
   }
 
-  const updated = await updateHostProfile(input.env.DB, {
+  const updated = await updateHostProfile(db, {
     authUserId: input.authUserId,
     calendarAccountEmail: email,
     calendarId: existingProfile.calendarId ?? "primary",
