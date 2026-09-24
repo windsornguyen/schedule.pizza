@@ -55,3 +55,15 @@ Avoid silent fallbacks. If the primary implementation is unavailable, throw a sp
 ## Database
 
 The schema source of truth is TypeScript under `apps/pizza/app/db/schema/`. Generate migration SQL from Drizzle. Do not hand-write ordinary migration SQL.
+
+Use `pnpm db generate --name=describe_change`; the wrapper adds the generated
+watermark only after verifying Drizzle's output. Never add the watermark by hand
+or edit previously committed migration bodies, snapshots, or journal entries.
+`pnpm db check` rejects missing markers, modified SQL, schema drift, orphaned
+artifacts, and rewritten history. Pre-commit and CI run the same gate.
+
+## Generated Workflows
+
+Edit `gha/*.ts`, then run `pnpm exec hollywood generate 'gha/*.ts'`.
+Do not edit `.github/workflows/*.yml` by hand. Hollywood's generated-file check
+runs from lint, pre-commit, and CI.

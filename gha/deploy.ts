@@ -6,8 +6,8 @@ import {
 } from "./actions";
 
 const setup = [
-	{ uses: checkoutAction, with: { "persist-credentials": false } },
-	{ uses: pnpmAction, with: { version: "10" } },
+	{ uses: checkoutAction, with: { "persist-credentials": false, "fetch-depth": 0 } },
+	{ uses: pnpmAction },
 	{ uses: setupNodeAction, with: { "node-version": "22", cache: "pnpm" } },
 	{ name: "Install", run: "pnpm install --frozen-lockfile" },
 ] as const;
@@ -31,7 +31,10 @@ export const deploy = workflow({
 				{ name: "Build", run: "pnpm build" },
 				{
 					name: "Apply Postgres migrations",
-					env: { DATABASE_URL: "${{ secrets.DATABASE_URL }}" },
+					env: {
+						DATABASE_URL: "${{ secrets.DATABASE_URL }}",
+						MIGRATION_BASE_REF: "${{ github.event.before }}",
+					},
 					run: "pnpm db migrate",
 				},
 				{

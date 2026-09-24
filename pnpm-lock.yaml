@@ -93,6 +93,9 @@ importers:
       drizzle-kit:
         specifier: ^0.31.10
         version: 0.31.10
+      jiti:
+        specifier: 2.7.0
+        version: 2.7.0
       oxlint:
         specifier: ^1.0.0
         version: 1.71.0
