@@ -13,7 +13,6 @@ cp terraform.tfvars.example terraform.tfvars
 terraform init
 terraform plan
 terraform apply
-terraform output -json d1_database_ids
 terraform output -raw cloudflare_account_id \
   | gh secret set CLOUDFLARE_ACCOUNT_ID --repo windsornguyen/schedule.pizza
 terraform output -raw deploy_cloudflare_api_token \
@@ -24,8 +23,10 @@ The Worker script content is managed by `wrangler deploy` — Terraform
 creates the resource and route but ignores content changes so the two
 don't fight.
 
-Terraform creates separate D1 databases for dev and prod. Copy the
-matching UUIDs from `d1_database_ids` into `wrangler.jsonc`.
+The existing D1 databases are retained recovery copies with destruction protection.
+Do not bind them to a new Worker deployment. The active Postgres database,
+limited runtime role, migration role, and Hyperdrive configuration are managed
+in [iac/core-database](../../../iac/core-database/README.md).
 
 Import blocks adopt the existing D1 databases and Worker script when local
 state is empty.

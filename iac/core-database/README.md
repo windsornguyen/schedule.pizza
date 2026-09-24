@@ -4,8 +4,9 @@ PlanetScale Postgres is the target for schedule.pizza's relational data. Cloudfl
 Hyperdrive supplies connection pooling with query caching disabled. Sessions,
 booking-code revocation, quotas, and availability require current reads.
 
-This root provisions infrastructure only. It does not change the live Worker,
-copy production data, or delete D1. The application currently still uses D1.
+This root provisions infrastructure only. It does not deploy the Worker,
+copy production data, or delete D1. Application setup and the one-time transfer
+are documented in [the database README](../../apps/pizza/app/db/README.md).
 
 | Environment | PlanetScale database | Branch | Initial replicas |
 | --- | --- | --- | --- |
@@ -75,8 +76,10 @@ direct Postgres port, 5432, because Hyperdrive already owns connection pooling.
 Hyperdrive's `require` TLS mode validates public server certificates using
 WebPKI. Its `verify-full` mode requires an uploaded custom CA, not just a flag.
 
-The Worker roles have data read/write permissions only; migrations must use a
-separate privileged connection. Do not give runtime roles DDL or role-management
+The Worker role has data read/write permissions only. The separate
+`schedule-pizza-migrations` role inherits `postgres` for schema changes; its
+connection string belongs in the repository's `DATABASE_URL` Actions secret,
+available only to the migration step. Do not give runtime roles DDL or role-management
 permissions. `prevent_destroy` and provider deletion protection guard the
 database. Replica changes require an explicit vendor operation; the Terraform
 postcondition rejects billed replicas. The provider does not expose the storage
