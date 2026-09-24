@@ -14,4 +14,9 @@ resource "cloudflare_d1_database" "pizza" {
   read_replication = {
     mode = "disabled"
   }
+
+  # Retained recovery snapshots after the Postgres cutover; no Worker binding.
+  lifecycle {
+    prevent_destroy = true
+  }
 }

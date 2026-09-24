@@ -1,8 +1,8 @@
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { boolean, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 import { hostProfile } from "./host_profile";
 
-export const bookingCodeAttempt = sqliteTable(
+export const bookingCodeAttempt = pgTable(
   "booking_code_attempt",
   {
     id: text("id").primaryKey(),
@@ -11,9 +11,9 @@ export const bookingCodeAttempt = sqliteTable(
       onDelete: "set null",
     }),
     ipHash: text("ipHash").notNull(),
-    success: integer("success", { mode: "boolean" }).notNull(),
+    success: boolean("success").notNull(),
     failureReason: text("failureReason"),
-    createdAt: integer("createdAt", { mode: "timestamp" }).notNull(),
+    createdAt: timestamp("createdAt", { withTimezone: true, precision: 3 }).notNull(),
   },
   (table) => [
     index("booking_code_attempt_username_createdAt_idx").on(

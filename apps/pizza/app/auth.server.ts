@@ -2,13 +2,11 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin } from "better-auth/plugins/admin";
 import { organization } from "better-auth/plugins/organization";
-import { drizzle } from "drizzle-orm/d1";
 
 import {
   GOOGLE_CALENDAR_EVENTS_SCOPE,
   GOOGLE_CALENDAR_FREEBUSY_SCOPE,
 } from "@/calendar/google.server";
-import * as schema from "@/db/schema";
 import type { ServerEnv } from "@/server-context";
 
 type RequiredAuthEnvName = "BETTER_AUTH_SECRET" | "BETTER_AUTH_URL";
@@ -58,11 +56,9 @@ export function parseAdminUserIds(value: string | null): string[] {
 }
 
 export function createAuth(env: ServerEnv) {
-  const db = drizzle(env.DB, { schema });
-
   return betterAuth({
     baseURL: readRequiredAuthEnv(env.BETTER_AUTH_URL ?? null, "BETTER_AUTH_URL"),
-    database: drizzleAdapter(db, { provider: "sqlite" }),
+    database: drizzleAdapter(env.database, { provider: "pg", transaction: true }),
     plugins: [
       admin({
         adminUserIds: parseAdminUserIds(env.BETTER_AUTH_ADMIN_USER_IDS ?? null),

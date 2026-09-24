@@ -6,7 +6,7 @@ import {
   readGoogleCalendarId,
   type GoogleCalendarErrorCode,
 } from "@/calendar/google.server";
-import { createDb } from "@/db/client.server";
+import type { Database } from "@/db/client.server";
 import { authorizeBookingCode } from "@/db/functions/booking_code_authorizations.server";
 import { normalizeBookingCode } from "@/db/functions/booking_codes.server";
 import {
@@ -147,7 +147,7 @@ scheduleRoute.post("/", async (c) => {
     return c.json({ error: { code: "client_ip_unavailable", message: "Client IP header is unavailable" } }, 500);
   }
 
-  const db = createDb(c.env.DB);
+  const db = c.env.database;
   const now = new Date();
   const scheduled = await executeScheduleRequest(db, {
     body: parsedBody.body,
@@ -184,7 +184,7 @@ scheduleRoute.post("/", async (c) => {
 });
 
 export async function executeScheduleRequest(
-  db: ReturnType<typeof createDb>,
+  db: Database,
   input: {
     readonly body: ParsedScheduleBody;
     readonly env: ServerEnv;
@@ -221,7 +221,7 @@ export async function executeScheduleRequest(
   }
 
   const engine = createSchedulingEngine({
-    busyIntervalSource: createD1BusyIntervalSource(input.env, db, {
+    busyIntervalSource: createBusyIntervalSource(input.env, db, {
       now: input.now,
       participants: authorizedParticipants,
     }),
@@ -541,9 +541,9 @@ function parseRequiredTimeZone(value: unknown):
   }
 }
 
-function createD1BusyIntervalSource(
+function createBusyIntervalSource(
   env: ServerEnv,
-  db: ReturnType<typeof createDb>,
+  db: Database,
   input: {
     readonly now: Date;
     readonly participants: readonly AuthorizedParticipant[];
@@ -602,7 +602,7 @@ function createD1BusyIntervalSource(
 }
 
 async function fetchGoogleBusyIntervals(input: {
-  readonly db: ReturnType<typeof createDb>;
+  readonly db: Database;
   readonly env: ServerEnv;
   readonly now: Date;
   readonly participant: AuthorizedParticipant;

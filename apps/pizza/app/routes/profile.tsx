@@ -3,7 +3,6 @@ import { Form } from "react-router";
 import { bookAuthorizedSlot } from "@/booking/book_authorized_slot.server";
 import { parseRequiredGuestEmail } from "@/booking/guest_email";
 import { parseOptionalGuestTimezone } from "@/booking/guest_timezone";
-import { createDb } from "@/db/client.server";
 import { authorizeBookingCode } from "@/db/functions/booking_code_authorizations.server";
 import { normalizeBookingCode } from "@/db/functions/booking_codes.server";
 import { normalizeUsername } from "@/db/functions/host_profiles.server";
@@ -327,7 +326,7 @@ async function loadAuthorizedSlots(input: {
     throw new Response("client ip unavailable", { status: 500 });
   }
 
-  const db = createDb(input.env.DB);
+  const db = input.env.database;
   const now = new Date();
   const authorization = await authorizeBookingCode(db, {
     bookingCode: input.bookingCode,

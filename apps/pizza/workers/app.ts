@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { withDatabase } from "../app/db/client.server";
 import {
   RouterContextProvider,
   createRequestHandler,
@@ -31,4 +32,9 @@ app.all("*", async (c) => {
   return reactRouterHandler(c.req.raw, routerContext);
 });
 
-export default app;
+export default {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    return withDatabase(env.HYPERDRIVE.connectionString, async (database) =>
+      app.fetch(request, { ...env, database }, ctx));
+  },
+} satisfies ExportedHandler<Env>;

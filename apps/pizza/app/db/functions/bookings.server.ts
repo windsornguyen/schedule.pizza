@@ -1,7 +1,8 @@
-import { and, asc, count, eq, gt, inArray, lt } from "drizzle-orm";
+/** Reservations lock hosts in ID order; group state changes commit all or none. */
+import { and, asc, count, eq, gt, inArray, lt, or } from "drizzle-orm";
 
 import type { Database } from "@/db/client.server";
-import { booking } from "@/db/schema";
+import { booking, hostProfile } from "@/db/schema";
 
 export type BlockingBooking = typeof booking.$inferSelect;
 
@@ -25,8 +26,12 @@ export type PendingCalendarBookingInsert = {
   slotStartAt: Date;
   source: "api" | "web";
 };
-type D1ReservationDatabase = Pick<D1Database, "prepare">;
-type D1MutationDatabase = Pick<D1Database, "prepare">;
+export class BookingMutationError extends Error {
+  constructor(readonly code: "invalid_booking_batch" | "booking_host_missing") {
+    super(code);
+    this.name = "BookingMutationError";
+  }
+}
 
 export const PENDING_CALENDAR_BOOKING_TTL_MS = 15 * 60 * 1_000;
 
@@ -55,7 +60,7 @@ export async function expireStalePendingCalendarBookingsForHost(
 
 export async function findBlockingBookingsForHost(
   db: Database,
-  window: BlockingBookingWindow
+  window: BlockingBookingWindow,
 ) {
   return db
     .select()
@@ -65,148 +70,67 @@ export async function findBlockingBookingsForHost(
         eq(booking.hostId, window.hostId),
         inArray(booking.status, ["pending_calendar", "confirmed"]),
         lt(booking.slotStartAt, window.endsAt),
-        gt(booking.slotEndAt, window.startsAt)
-      )
+        gt(booking.slotEndAt, window.startsAt),
+      ),
     );
 }
 
 export async function createPendingCalendarBooking(
-  database: D1ReservationDatabase,
-  input: PendingCalendarBookingInsert
+  database: Database,
+  input: PendingCalendarBookingInsert,
 ) {
-  try {
-    const result = await preparePendingCalendarBooking(database, input).run();
-
-    return result.meta.changes === 1 ? { id: input.id } : null;
-  } catch (error: unknown) {
-    if (isBookingReservationConflict(error)) {
-      return null;
-    }
-
-    throw error;
-  }
+  const ids = await createPendingCalendarBookings(database, [input]);
+  return ids === null ? null : { id: input.id };
 }
 
 export async function createPendingCalendarBookings(
-  database: D1ReservationDatabase,
+  database: Database,
   inputs: readonly PendingCalendarBookingInsert[],
 ) {
-  try {
-    const result = await preparePendingCalendarBookings(database, inputs).run();
-
-    return result.meta.changes === inputs.length
-      ? inputs.map((input) => input.id)
-      : null;
-  } catch (error: unknown) {
-    if (isBookingReservationConflict(error)) {
-      return null;
-    }
-
-    throw error;
-  }
-}
-
-function preparePendingCalendarBookings(
-  database: D1ReservationDatabase,
-  inputs: readonly PendingCalendarBookingInsert[],
-) {
-  if (inputs.length === 0) {
-    throw new Error("cannot reserve empty booking batch");
-  }
-
-  const placeholders = inputs.map(() =>
-    "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-  ).join(", ");
-  const params = inputs.flatMap((input) => [
-    input.id,
-    input.hostId,
-    input.hostUsername,
-    input.bookingCodeId,
-    input.guestName,
-    input.guestEmail,
-    input.guestEmailNormalized,
-    input.guestTimezone,
-    toUnixSeconds(input.slotStartAt),
-    toUnixSeconds(input.slotEndAt),
-    "pending_calendar",
-    input.source,
-    toUnixSeconds(input.createdAt),
-    toUnixSeconds(input.createdAt),
-  ]);
-
-  return database
-    .prepare(
-      `with requested (
-        id, hostId, hostUsername, bookingCodeId, guestName, guestEmail,
-        guestEmailNormalized, guestTimezone, slotStartAt, slotEndAt,
-        status, source, createdAt, updatedAt
-      ) as (
-        values ${placeholders}
-      )
-      insert into booking (
-        id, hostId, hostUsername, bookingCodeId, guestName, guestEmail,
-        guestEmailNormalized, guestTimezone, slotStartAt, slotEndAt,
-        status, source, calendarProvider, calendarEventId, cancelledAt,
-        createdAt, updatedAt
-      )
-      select
-        id, hostId, hostUsername, bookingCodeId, guestName, guestEmail,
-        guestEmailNormalized, guestTimezone, slotStartAt, slotEndAt,
-        status, source, null, null, null, createdAt, updatedAt
-      from requested
-      where not exists (
-        select 1
-        from requested
-        join booking
-          on booking.hostId = requested.hostId
-          and booking.status in ('pending_calendar', 'confirmed')
-          and booking.slotStartAt < requested.slotEndAt
-          and booking.slotEndAt > requested.slotStartAt
-      )`,
-    )
-    .bind(...params);
-}
-
-function preparePendingCalendarBooking(
-  database: D1ReservationDatabase,
-  input: PendingCalendarBookingInsert,
-) {
-  return database
-    .prepare(
-      `insert into booking (
-        id, hostId, hostUsername, bookingCodeId, guestName, guestEmail,
-        guestEmailNormalized, guestTimezone, slotStartAt, slotEndAt,
-        status, source, calendarProvider, calendarEventId, cancelledAt,
-        createdAt, updatedAt
-      )
-      select ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, null, null, ?, ?
-      where not exists (
-        select 1 from booking
-        where hostId = ?
-          and status in ('pending_calendar', 'confirmed')
-          and slotStartAt < ?
-          and slotEndAt > ?
-      )`,
-    )
-    .bind(
-      input.id,
-      input.hostId,
-      input.hostUsername,
-      input.bookingCodeId,
-      input.guestName,
-      input.guestEmail,
-      input.guestEmailNormalized,
-      input.guestTimezone,
-      toUnixSeconds(input.slotStartAt),
-      toUnixSeconds(input.slotEndAt),
-      "pending_calendar",
-      input.source,
-      toUnixSeconds(input.createdAt),
-      toUnixSeconds(input.createdAt),
-      input.hostId,
-      toUnixSeconds(input.slotEndAt),
-      toUnixSeconds(input.slotStartAt),
-    );
+  const hostIds = inputs.map((input) => input.hostId);
+  validateBookingIds(hostIds);
+  validateBookingIds(inputs.map((input) => input.id));
+  return database.transaction(
+    async (tx) => {
+      const hosts = await tx
+        .select({ id: hostProfile.id })
+        .from(hostProfile)
+        .where(inArray(hostProfile.id, hostIds))
+        .orderBy(asc(hostProfile.id))
+        .for("update");
+      if (hosts.length !== hostIds.length) {
+        throw new BookingMutationError("booking_host_missing");
+      }
+      const conflicts = await tx
+        .select({ id: booking.id })
+        .from(booking)
+        .where(
+          and(
+            inArray(booking.status, ["pending_calendar", "confirmed"]),
+            or(
+              ...inputs.map((input) =>
+                and(
+                  eq(booking.hostId, input.hostId),
+                  lt(booking.slotStartAt, input.slotEndAt),
+                  gt(booking.slotEndAt, input.slotStartAt),
+                ),
+              ),
+            ),
+          ),
+        )
+        .limit(1);
+      if (conflicts.length !== 0) return null;
+      await tx.insert(booking).values(
+        inputs.map((input) => ({
+          ...input,
+          status: "pending_calendar" as const,
+          updatedAt: input.createdAt,
+        })),
+      );
+      return inputs.map((input) => input.id);
+    },
+    { isolationLevel: "read committed" },
+  );
 }
 
 export async function countRecentBookingsForCode(
@@ -315,7 +239,7 @@ export async function confirmCalendarBooking(
     calendarEventId: string;
     confirmedAt: Date;
     provider: "google";
-  }
+  },
 ) {
   const rows = await db
     .update(booking)
@@ -328,8 +252,8 @@ export async function confirmCalendarBooking(
     .where(
       and(
         eq(booking.id, input.bookingId),
-        eq(booking.status, "pending_calendar")
-      )
+        eq(booking.status, "pending_calendar"),
+      ),
     )
     .returning({ id: booking.id });
 
@@ -348,10 +272,7 @@ export async function markConfirmedBookingCancelled(
       updatedAt: input.cancelledAt,
     })
     .where(
-      and(
-        eq(booking.id, input.bookingId),
-        eq(booking.status, "confirmed"),
-      ),
+      and(eq(booking.id, input.bookingId), eq(booking.status, "confirmed")),
     )
     .returning({ id: booking.id });
 
@@ -359,7 +280,7 @@ export async function markConfirmedBookingCancelled(
 }
 
 export async function confirmCalendarBookings(
-  database: D1MutationDatabase,
+  database: Database,
   input: {
     bookingIds: readonly string[];
     calendarEventId: string;
@@ -367,44 +288,17 @@ export async function confirmCalendarBookings(
     provider: "google";
   },
 ) {
-  const placeholders = getBookingIdPlaceholders(input.bookingIds, "confirm");
-  const result = await database
-    .prepare(
-      `with requested (id) as (
-        values ${placeholders}
-      ),
-      ready (bookingCount) as (
-        select count(*)
-        from booking
-        join requested on requested.id = booking.id
-        where booking.status = ?
-      )
-      update booking
-      set calendarProvider = ?, calendarEventId = ?, status = ?, updatedAt = ?
-      where id in (select id from requested)
-        and status = ?
-        and (select bookingCount from ready) = ?`,
-    )
-    .bind(
-      ...input.bookingIds,
-      "pending_calendar",
-      input.provider,
-      input.calendarEventId,
-      "confirmed",
-      toUnixSeconds(input.confirmedAt),
-      "pending_calendar",
-      input.bookingIds.length,
-    )
-    .run();
-
-  return result.meta.changes === input.bookingIds.length
-    ? [...input.bookingIds]
-    : null;
+  return transitionPendingBookings(database, input.bookingIds, {
+    status: "confirmed",
+    calendarProvider: input.provider,
+    calendarEventId: input.calendarEventId,
+    updatedAt: input.confirmedAt,
+  });
 }
 
 export async function markCalendarBookingFailed(
   db: Database,
-  input: { bookingId: string; failedAt: Date }
+  input: { bookingId: string; failedAt: Date },
 ) {
   const rows = await db
     .update(booking)
@@ -415,8 +309,8 @@ export async function markCalendarBookingFailed(
     .where(
       and(
         eq(booking.id, input.bookingId),
-        eq(booking.status, "pending_calendar")
-      )
+        eq(booking.status, "pending_calendar"),
+      ),
     )
     .returning({ id: booking.id });
 
@@ -424,63 +318,50 @@ export async function markCalendarBookingFailed(
 }
 
 export async function markCalendarBookingsFailed(
-  database: D1MutationDatabase,
+  database: Database,
   input: { bookingIds: readonly string[]; failedAt: Date },
 ) {
-  const placeholders = getBookingIdPlaceholders(input.bookingIds, "mark failed");
-  const result = await database
-    .prepare(
-      `with requested (id) as (
-        values ${placeholders}
-      ),
-      ready (bookingCount) as (
-        select count(*)
-        from booking
-        join requested on requested.id = booking.id
-        where booking.status = ?
-      )
-      update booking
-      set status = ?, updatedAt = ?
-      where id in (select id from requested)
-        and status = ?
-        and (select bookingCount from ready) = ?`,
-    )
-    .bind(
-      ...input.bookingIds,
-      "pending_calendar",
-      "calendar_failed",
-      toUnixSeconds(input.failedAt),
-      "pending_calendar",
-      input.bookingIds.length,
-    )
-    .run();
-
-  return result.meta.changes === input.bookingIds.length
-    ? [...input.bookingIds]
-    : null;
+  return transitionPendingBookings(database, input.bookingIds, {
+    status: "calendar_failed",
+    updatedAt: input.failedAt,
+  });
 }
 
-function isBookingReservationConflict(error: unknown) {
-  return error instanceof Error &&
-    error.message.includes("UNIQUE constraint failed") &&
-    error.message.includes("booking");
-}
-
-function getBookingIdPlaceholders(
+async function transitionPendingBookings(
+  database: Database,
   bookingIds: readonly string[],
-  operation: "confirm" | "mark failed",
+  update: Pick<
+    typeof booking.$inferInsert,
+    "status" | "updatedAt" | "calendarProvider" | "calendarEventId"
+  >,
 ) {
-  if (bookingIds.length === 0) {
-    throw new Error(`cannot ${operation} empty booking batch`);
-  }
-
-  if (new Set(bookingIds).size !== bookingIds.length) {
-    throw new Error(`cannot ${operation} duplicate booking ids`);
-  }
-
-  return bookingIds.map(() => "(?)").join(", ");
+  validateBookingIds(bookingIds);
+  return database.transaction(async (tx) => {
+    const rows = await tx
+      .select({ status: booking.status })
+      .from(booking)
+      .where(inArray(booking.id, [...bookingIds]))
+      .orderBy(asc(booking.id))
+      .for("update");
+    if (
+      rows.length !== bookingIds.length ||
+      rows.some((row) => row.status !== "pending_calendar")
+    ) {
+      return null;
+    }
+    await tx
+      .update(booking)
+      .set(update)
+      .where(inArray(booking.id, [...bookingIds]));
+    return [...bookingIds];
+  });
 }
 
-function toUnixSeconds(date: Date) {
-  return Math.floor(date.getTime() / 1_000);
+function validateBookingIds(bookingIds: readonly string[]) {
+  if (
+    bookingIds.length === 0 ||
+    new Set(bookingIds).size !== bookingIds.length
+  ) {
+    throw new BookingMutationError("invalid_booking_batch");
+  }
 }

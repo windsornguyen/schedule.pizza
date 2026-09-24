@@ -1,15 +1,15 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { boolean, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
-export const user = sqliteTable("user", {
+export const user = pgTable("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
-  emailVerified: integer("emailVerified", { mode: "boolean" }).notNull(),
+  emailVerified: boolean("emailVerified").notNull(),
   image: text("image"),
   role: text("role"),
-  banned: integer("banned", { mode: "boolean" }).default(false),
+  banned: boolean("banned").default(false),
   banReason: text("banReason"),
-  banExpires: integer("banExpires", { mode: "timestamp" }),
-  createdAt: integer("createdAt", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull(),
+  banExpires: timestamp("banExpires", { withTimezone: true, precision: 3 }),
+  createdAt: timestamp("createdAt", { withTimezone: true, precision: 3 }).notNull(),
+  updatedAt: timestamp("updatedAt", { withTimezone: true, precision: 3 }).notNull(),
 });

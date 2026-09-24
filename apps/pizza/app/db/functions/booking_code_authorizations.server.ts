@@ -1,4 +1,6 @@
 import type { Database } from "@/db/client.server";
+import { eq } from "drizzle-orm";
+import { bookingCodeGate } from "@/db/schema";
 
 import {
   countRecentFailedBookingCodeAttemptsByIp,
@@ -30,10 +32,32 @@ export async function authorizeBookingCode(
     username: string;
   },
 ): Promise<BookingCodeAuthorization> {
-  const failedAttemptCount = await countRecentFailedBookingCodeAttemptsByIp(db, {
-    ipHash: input.ipHash,
-    since: getBookingCodeAttemptWindowStart(input.now),
+  return db.transaction(async (tx) => {
+    // All requests from this IP share one quota decision until its attempt is recorded.
+    await tx
+      .insert(bookingCodeGate)
+      .values({ ipHash: input.ipHash })
+      .onConflictDoNothing();
+    await tx
+      .select()
+      .from(bookingCodeGate)
+      .where(eq(bookingCodeGate.ipHash, input.ipHash))
+      .for("update");
+    return authorizeLockedBookingCode(tx, input);
   });
+}
+
+async function authorizeLockedBookingCode(
+  db: Database,
+  input: Parameters<typeof authorizeBookingCode>[1],
+): Promise<BookingCodeAuthorization> {
+  const failedAttemptCount = await countRecentFailedBookingCodeAttemptsByIp(
+    db,
+    {
+      ipHash: input.ipHash,
+      since: getBookingCodeAttemptWindowStart(input.now),
+    },
+  );
   const limit = evaluateBookingCodeAttemptLimit(failedAttemptCount);
 
   if (limit.code === "rate_limited") {

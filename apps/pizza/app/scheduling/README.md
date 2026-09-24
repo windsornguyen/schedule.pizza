@@ -12,7 +12,7 @@ booking writes. Those subsystems authorize callers, fetch provider state, or
 commit a booking after scheduling returns a candidate.
 
 The current HTTP adapter builds `BusyIntervalSource` from two hard-conflict
-sources: schedule.pizza blocking bookings in D1 and Google Calendar free/busy.
+sources: schedule.pizza blocking bookings in Postgres and Google Calendar free/busy.
 Google event ids are not exposed through scheduling responses.
 
 ## Interface Boundary

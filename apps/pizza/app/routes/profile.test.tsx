@@ -1,3 +1,4 @@
+import type { Database } from "@/db/client.server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createRoutesStub } from "react-router";
@@ -7,17 +8,11 @@ import { serverContext } from "@/server-context";
 import { loader, ProfileContent } from "./profile";
 
 type AsyncMock = (...args: unknown[]) => Promise<unknown>;
-type SyncMock = (...args: unknown[]) => unknown;
 
 const mocks = vi.hoisted(() => ({
   authorizeBookingCode: vi.fn<AsyncMock>(),
-  createDb: vi.fn<SyncMock>(),
   listHostAvailableSlots: vi.fn<AsyncMock>(),
   readCloudflareClientIpHash: vi.fn<AsyncMock>(),
-}));
-
-vi.mock("@/db/client.server", () => ({
-  createDb: mocks.createDb,
 }));
 
 vi.mock("@/db/functions/booking_code_authorizations.server", () => ({
@@ -32,9 +27,9 @@ vi.mock("@/scheduling/host_availability.server", () => ({
   listHostAvailableSlots: mocks.listHostAvailableSlots,
 }));
 
-const db = {};
+const db = {} as Database;
 const env = {
-  DB: {} as D1Database,
+  database: db,
   GOOGLE_CLIENT_ID: "google_client_id",
   GOOGLE_CLIENT_SECRET: "google_client_secret",
 } as ServerEnv;
@@ -43,7 +38,7 @@ describe("profile loader booking-code privacy", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.authorizeBookingCode.mockResolvedValue({ code: "booking_code_invalid" });
-    mocks.createDb.mockReturnValue(db);
+
     mocks.listHostAvailableSlots.mockResolvedValue({
       code: "listed",
       slots: [],

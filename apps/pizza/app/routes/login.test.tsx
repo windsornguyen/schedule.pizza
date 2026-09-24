@@ -1,3 +1,4 @@
+import type { Database } from "@/db/client.server";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -21,7 +22,7 @@ vi.mock("@/auth.server", async (importOriginal) => {
 });
 
 const env = {
-  DB: {} as D1Database,
+  database: {} as Database,
   GOOGLE_CLIENT_ID: "google_client_id",
   GOOGLE_CLIENT_SECRET: "google_client_secret",
 };

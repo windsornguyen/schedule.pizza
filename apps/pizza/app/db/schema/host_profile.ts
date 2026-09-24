@@ -1,8 +1,8 @@
-import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { integer, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 import { user } from "./user";
 
-export const hostProfile = sqliteTable(
+export const hostProfile = pgTable(
   "host_profile",
   {
     id: text("id").primaryKey(),
@@ -16,8 +16,8 @@ export const hostProfile = sqliteTable(
     calendarProvider: text("calendarProvider"),
     calendarAccountEmail: text("calendarAccountEmail"),
     calendarId: text("calendarId"),
-    createdAt: integer("createdAt", { mode: "timestamp" }).notNull(),
-    updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull(),
+    createdAt: timestamp("createdAt", { withTimezone: true, precision: 3 }).notNull(),
+    updatedAt: timestamp("updatedAt", { withTimezone: true, precision: 3 }).notNull(),
   },
   (table) => [
     uniqueIndex("host_profile_authUserId_unique").on(table.authUserId),

@@ -1,3 +1,4 @@
+import type { Database } from "@/db/client.server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as bookingFunctions from "@/db/functions/bookings.server";
@@ -60,7 +61,7 @@ describe("listHostAvailableSlots", () => {
     await expect(listHostAvailableSlots(db, {
       candidateSlots: slots,
       env: {
-        DB: {} as D1Database,
+        database: {} as Database,
         GOOGLE_CLIENT_ID: "google_client_id",
         GOOGLE_CLIENT_SECRET: "google_client_secret",
       } as Parameters<typeof listHostAvailableSlots>[1]["env"],

@@ -1,23 +1,18 @@
+import type { Database } from "@/db/client.server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { bookAuthorizedSlot } from "./book_authorized_slot.server";
 
 type AsyncMock = (...args: unknown[]) => Promise<unknown>;
-type SyncMock = (...args: unknown[]) => unknown;
 
 const mocks = vi.hoisted(() => ({
   authorizeBookingCode: vi.fn<AsyncMock>(),
   bookHostSlot: vi.fn<AsyncMock>(),
-  createDb: vi.fn<SyncMock>(),
   readCloudflareClientIpHash: vi.fn<AsyncMock>(),
 }));
 
 vi.mock("@/booking/book_slot.server", () => ({
   bookHostSlot: mocks.bookHostSlot,
-}));
-
-vi.mock("@/db/client.server", () => ({
-  createDb: mocks.createDb,
 }));
 
 vi.mock("@/db/functions/booking_code_authorizations.server", () => ({
@@ -28,15 +23,15 @@ vi.mock("@/http/client_ip.server", () => ({
   readCloudflareClientIpHash: mocks.readCloudflareClientIpHash,
 }));
 
-const db = {};
-const env = { DB: {} as D1Database } as Parameters<typeof bookAuthorizedSlot>[0]["env"];
+const db = {} as Database;
+const env = { database: db } as Parameters<typeof bookAuthorizedSlot>[0]["env"];
 const slotStartAt = new Date("2030-01-07T17:00:00.000Z");
 const slotEndAt = new Date("2030-01-07T17:30:00.000Z");
 
 describe("authorized profile booking", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.createDb.mockReturnValue(db);
+
     mocks.readCloudflareClientIpHash.mockResolvedValue({
       code: "ok",
       ipHash: "ip_hash",

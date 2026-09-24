@@ -1,9 +1,9 @@
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 import { organization } from "./organization";
 import { user } from "./user";
 
-export const member = sqliteTable(
+export const member = pgTable(
   "member",
   {
     id: text("id").primaryKey(),
@@ -14,7 +14,7 @@ export const member = sqliteTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     role: text("role").notNull(),
-    createdAt: integer("createdAt", { mode: "timestamp" }).notNull(),
+    createdAt: timestamp("createdAt", { withTimezone: true, precision: 3 }).notNull(),
   },
   (table) => [
     index("member_organizationId_idx").on(table.organizationId),

@@ -14,7 +14,7 @@ import { bookGroupSlot } from "@/booking/book_group_slot.server";
 import { bookHostSlot } from "@/booking/book_slot.server";
 import { parseRequiredGuestEmail } from "@/booking/guest_email";
 import { parseOptionalGuestTimezone } from "@/booking/guest_timezone";
-import { createDb } from "@/db/client.server";
+import type { Database } from "@/db/client.server";
 import { authorizeBookingCode } from "@/db/functions/booking_code_authorizations.server";
 import {
   findActiveBookingCodeForHost,
@@ -153,7 +153,7 @@ v1.get("/", (c) => {
       health: {
         method: "GET",
         path: "/api/v1/health",
-        checks: ["runtime secrets", "D1 binding", "D1 schema"],
+        checks: ["runtime secrets", "Hyperdrive binding", "Postgres schema"],
       },
       book: {
         method: "POST",
@@ -541,7 +541,7 @@ v1.get("/account/bookings", async (c) => {
     return apiSessionError(c, session.code);
   }
 
-  const db = createDb(c.env.DB);
+  const db = c.env.database;
   const now = new Date();
   const profile = await findHostProfileByAuthUserId(db, session.session.user.id);
 
@@ -575,7 +575,7 @@ v1.post("/account/bookings/:bookingId/cancel", async (c) => {
     return c.json({ error: { code: "invalid_field", message: "bookingId is invalid" } }, 400);
   }
 
-  const db = createDb(c.env.DB);
+  const db = c.env.database;
   const profile = await findHostProfileByAuthUserId(db, session.session.user.id);
 
   if (profile === null) {
@@ -641,7 +641,7 @@ v1.post("/me/bootstrap", async (c) => {
     return invalidParsedField(c, parsed);
   }
 
-  const db = createDb(c.env.DB);
+  const db = c.env.database;
   const existingProfile = await findHostProfileByAuthUserId(db, session.session.user.id);
 
   if (existingProfile !== null) {
@@ -661,7 +661,7 @@ v1.post("/me/bootstrap", async (c) => {
   }
 
   const now = new Date();
-  const created = await createHostProfileWithBookingCode(c.env.DB, {
+  const created = await createHostProfileWithBookingCode(c.env.database, {
     id: crypto.randomUUID(),
     authUserId: session.session.user.id,
     calendarAccountEmail: email,
@@ -709,7 +709,7 @@ v1.put("/account/profile", async (c) => {
     return invalidParsedField(c, parsed);
   }
 
-  const db = createDb(c.env.DB);
+  const db = c.env.database;
   const existingProfile = await findHostProfileByAuthUserId(db, session.session.user.id);
 
   if (existingProfile === null) {
@@ -729,7 +729,7 @@ v1.put("/account/profile", async (c) => {
   }
 
   const now = new Date();
-  const updated = await updateHostProfile(c.env.DB, {
+  const updated = await updateHostProfile(c.env.database, {
     authUserId: session.session.user.id,
     calendarAccountEmail: email,
     calendarId: parsed.body.calendarId,
@@ -774,7 +774,7 @@ v1.post("/me/booking-code", async (c) => {
     return apiSessionError(c, session.code);
   }
 
-  const db = createDb(c.env.DB);
+  const db = c.env.database;
   const profile = await findHostProfileByAuthUserId(db, session.session.user.id);
 
   if (profile === null) {
@@ -788,7 +788,7 @@ v1.post("/me/booking-code", async (c) => {
   }
 
   const now = new Date();
-  const code = await rotateBookingCode(c.env.DB, {
+  const code = await rotateBookingCode(c.env.database, {
     hostId: profile.id,
     hostUsername: profile.username,
     wordCount: 3,
@@ -825,7 +825,7 @@ v1.get("/availability", async (c) => {
     return c.json({ error: { code: "client_ip_unavailable", message: "Client IP header is unavailable" } }, 500);
   }
 
-  const db = createDb(c.env.DB);
+  const db = c.env.database;
   const now = new Date();
   const authorization = await authorizeBookingCode(db, {
     bookingCode: target.body.bookingCode,
@@ -933,7 +933,7 @@ v1.post("/book", async (c) => {
     return c.json({ error: { code: "client_ip_unavailable", message: "Client IP header is unavailable" } }, 500);
   }
 
-  const db = createDb(c.env.DB);
+  const db = c.env.database;
   const now = new Date();
   const authorization = await authorizeBookingCode(db, {
     bookingCode: parsed.body.bookingCode,
@@ -1028,7 +1028,7 @@ v1.post("/book-group", async (c) => {
     return c.json({ error: { code: "client_ip_unavailable", message: "Client IP header is unavailable" } }, 500);
   }
 
-  const booked = await bookGroupSlot(createDb(c.env.DB), {
+  const booked = await bookGroupSlot(c.env.database, {
     body: parsed.body.schedule,
     env: c.env,
     guestName: parsed.body.guestName,
@@ -1247,7 +1247,7 @@ async function handleScheduleLikeRequest(c: V1Context) {
     return c.json({ error: { code: "client_ip_unavailable", message: "Client IP header is unavailable" } }, 500);
   }
 
-  const scheduled = await executeScheduleRequest(createDb(c.env.DB), {
+  const scheduled = await executeScheduleRequest(c.env.database, {
     body: parsedBody.body,
     env: c.env,
     ipHash: clientIpHash.ipHash,
@@ -1286,7 +1286,7 @@ async function handleAccountRead(c: V1Context) {
   }
 
   return c.json(await buildAccountPayload(
-    createDb(c.env.DB),
+    c.env.database,
     c.env,
     session.session,
     { now: new Date() },
@@ -1294,7 +1294,7 @@ async function handleAccountRead(c: V1Context) {
 }
 
 async function buildHostBookingsPayload(
-  db: ReturnType<typeof createDb>,
+  db: Database,
   input: {
     readonly hostId: string;
     readonly limit: number;
@@ -1418,7 +1418,7 @@ function readTrustedAccountOrigin(env: ServerEnv) {
 }
 
 async function buildAccountPayload(
-  db: ReturnType<typeof createDb>,
+  db: Database,
   env: ServerEnv,
   session: ApiSession,
   input: { readonly bookingCode?: string; readonly now: Date },
@@ -1491,7 +1491,7 @@ function formatPublicBookingUrl(username: string, bookingCode: string) {
 }
 
 async function readConnectedCalendarStatus(
-  db: ReturnType<typeof createDb>,
+  db: Database,
   env: ServerEnv,
   authUserId: string,
 ): Promise<{ readonly code: "connected" } | { readonly code: GoogleCalendarErrorCode }> {
@@ -1570,10 +1570,10 @@ async function readDatabaseHealth(env: ServerEnv):
     | { readonly code: "database_unavailable"; readonly message: string }
   > {
   try {
-    await createDb(env.DB).select({ id: hostProfile.id }).from(hostProfile).limit(1);
+    await env.database.select({ id: hostProfile.id }).from(hostProfile).limit(1);
     return { code: "healthy" };
   } catch {
-    return { code: "database_unavailable", message: "D1 schema query failed" };
+    return { code: "database_unavailable", message: "Postgres schema query failed" };
   }
 }
 

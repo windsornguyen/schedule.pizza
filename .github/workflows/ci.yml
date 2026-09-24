@@ -17,6 +17,18 @@ jobs:
     defaults:
       run:
         working-directory: apps/pizza
+    services:
+      postgres:
+        image: postgres:18.3-bookworm@sha256:80630f83606d8db77d30b3851b16a9f78be2d0d4dda6f7b82a1fdca5ebe3acba
+        env:
+          POSTGRES_USER: pizza
+          POSTGRES_PASSWORD: pizza
+          POSTGRES_DB: pizza
+        ports:
+          - 5432:5432
+        options: --health-cmd "pg_isready -U pizza" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://pizza:pizza@127.0.0.1:5432/pizza
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:

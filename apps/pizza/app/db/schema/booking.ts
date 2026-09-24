@@ -1,12 +1,5 @@
 import { sql } from "drizzle-orm";
-import {
-  check,
-  index,
-  integer,
-  sqliteTable,
-  text,
-  uniqueIndex,
-} from "drizzle-orm/sqlite-core";
+import { check, index, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 import { bookingCode } from "./booking_code";
 import { hostProfile } from "./host_profile";
@@ -19,7 +12,7 @@ export const bookingStatuses = [
 ] as const;
 export const bookingSources = ["web", "api"] as const;
 
-export const booking = sqliteTable(
+export const booking = pgTable(
   "booking",
   {
     id: text("id").primaryKey(),
@@ -34,15 +27,15 @@ export const booking = sqliteTable(
     guestEmail: text("guestEmail"),
     guestEmailNormalized: text("guestEmailNormalized"),
     guestTimezone: text("guestTimezone"),
-    slotStartAt: integer("slotStartAt", { mode: "timestamp" }).notNull(),
-    slotEndAt: integer("slotEndAt", { mode: "timestamp" }).notNull(),
+    slotStartAt: timestamp("slotStartAt", { withTimezone: true, precision: 3 }).notNull(),
+    slotEndAt: timestamp("slotEndAt", { withTimezone: true, precision: 3 }).notNull(),
     status: text("status", { enum: bookingStatuses }).notNull(),
     source: text("source", { enum: bookingSources }).notNull(),
     calendarProvider: text("calendarProvider"),
     calendarEventId: text("calendarEventId"),
-    cancelledAt: integer("cancelledAt", { mode: "timestamp" }),
-    createdAt: integer("createdAt", { mode: "timestamp" }).notNull(),
-    updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull(),
+    cancelledAt: timestamp("cancelledAt", { withTimezone: true, precision: 3 }),
+    createdAt: timestamp("createdAt", { withTimezone: true, precision: 3 }).notNull(),
+    updatedAt: timestamp("updatedAt", { withTimezone: true, precision: 3 }).notNull(),
   },
   (table) => [
     check(

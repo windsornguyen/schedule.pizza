@@ -111,7 +111,7 @@ export async function bookHostSlot(
     return { code: "booking_rate_limited" };
   }
 
-  const pending = await createPendingCalendarBooking(input.env.DB, {
+  const pending = await createPendingCalendarBooking(db, {
     id: crypto.randomUUID(),
     hostId: input.host.id,
     hostUsername: input.host.username,

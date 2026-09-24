@@ -2,6 +2,7 @@ export * from "./account";
 export * from "./booking";
 export * from "./booking_code";
 export * from "./booking_code_attempt";
+export * from "./booking_code_gate";
 export * from "./host_profile";
 export * from "./invitation";
 export * from "./member";
