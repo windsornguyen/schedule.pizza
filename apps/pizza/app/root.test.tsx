@@ -7,7 +7,7 @@ import logoMarkSvg from "../public/logo-mark.svg?raw";
 import ogSvg from "../public/og.svg?raw";
 import siteManifest from "../public/site.webmanifest?raw";
 import { LOGO_MARK_PATH } from "./components/logo_mark";
-import { AccountHeader, DocumentSecurityMeta, links } from "./root";
+import { AccountHeader, DocumentSecurityMeta, SiteFooter, links } from "./root";
 
 describe("root account header", () => {
   it("carries the launch-video logo mark on every page", () => {
@@ -37,6 +37,16 @@ describe("root account header", () => {
 });
 
 describe("root browser chrome", () => {
+  it("keeps secondary links in a semantic footer without account actions", () => {
+    const html = renderToStaticMarkup(<SiteFooter />);
+    expect(html).toContain("<footer");
+    expect(html).toContain('aria-label="site links"');
+    for (const href of ["/api/v1", "/docs", "/group", "/privacy", "https://github.com/windsornguyen/schedule.pizza"]) {
+      expect(html).toContain(`href="${href}"`);
+    }
+    expect(html).not.toContain('href="/dashboard"');
+    expect(html).not.toContain('href="/login"');
+  });
   it("publishes the launch-video mark to install and favicon surfaces", () => {
     expect(links()).toEqual(expect.arrayContaining([
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },

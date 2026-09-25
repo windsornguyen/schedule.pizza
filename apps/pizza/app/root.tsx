@@ -89,13 +89,41 @@ export function DocumentSecurityMeta() {
 
 export default function App({ loaderData }: Route.ComponentProps) {
   return (
-    <>
+    <div className="flex min-h-dvh flex-col">
       <AccountHeader
         currentPath={loaderData.currentPath}
         loggedIn={loaderData.loggedIn}
       />
       <Outlet />
-    </>
+      <SiteFooter />
+    </div>
+  );
+}
+
+export function SiteFooter() {
+  return (
+    <footer className="mx-auto mt-auto w-full max-w-[550px] px-4 pb-8 pt-6">
+      <nav
+        aria-label="site links"
+        className="flex flex-wrap gap-x-3 gap-y-2 text-sm text-muted-foreground"
+      >
+        {[
+          ["api", "/api/v1"],
+          ["docs", "/docs"],
+          ["group", "/group"],
+          ["privacy", "/privacy"],
+          ["source", "https://github.com/windsornguyen/schedule.pizza"],
+        ].map(([label, href]) => (
+          <a
+            key={label}
+            href={href}
+            className="underline decoration-border underline-offset-4 transition-colors hover:text-foreground"
+          >
+            {label}
+          </a>
+        ))}
+      </nav>
+    </footer>
   );
 }
 
