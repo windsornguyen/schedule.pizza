@@ -1,7 +1,8 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { HomeSearchForm, readHostCta } from "./_index";
+import { createElement } from "react";
+import Home, { HomeSearchForm } from "./_index";
 
 describe("home host call to action", () => {
   it("makes username lookup discoverable without keyboard knowledge", () => {
@@ -12,17 +13,9 @@ describe("home host call to action", () => {
     expect(html).toContain(">go</button>");
   });
 
-  it("lets new hosts start from the public homepage", () => {
-    expect(readHostCta(false)).toEqual({
-      href: "/login",
-      text: "sign in with google",
-    });
-  });
-
-  it("sends signed-in hosts to the dashboard", () => {
-    expect(readHostCta(true)).toEqual({
-      href: "/dashboard",
-      text: "dashboard",
-    });
+  it("leaves account navigation to the header", () => {
+    const html = renderToStaticMarkup(createElement(Home));
+    expect(html).not.toContain('href="/dashboard"');
+    expect(html).not.toContain("create your username and booking code");
   });
 });
